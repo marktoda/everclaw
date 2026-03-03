@@ -44,13 +44,13 @@ export const stateTools: ToolHandler[] = [
     async execute(_input, deps) {
       const uptime = Math.floor((Date.now() - deps.startedAt.getTime()) / 1000);
       const skills = await listSkills(deps.skillsDir);
-      const tools = await listScripts(deps.toolsDir);
+      const scripts = await listScripts(deps.toolsDir);
       const schedules = await deps.absurd.listSchedules();
       return [
         `Uptime: ${uptime}s`,
         `Notes: ${(await fs.readdir(deps.notesDir).catch(() => [])).length} files`,
         `Skills: ${skills.length}`,
-        `Tools: ${tools.length}`,
+        `Scripts: ${scripts.length}`,
         `Schedules: ${schedules.length}`,
       ].join("\n");
     },

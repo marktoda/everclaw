@@ -514,7 +514,7 @@ describe("registry", () => {
       expect(result).toContain("Uptime: 300s");
       expect(result).toContain("Notes: 3 files");
       expect(result).toContain("Skills: 2");
-      expect(result).toContain("Tools: 1");
+      expect(result).toContain("Scripts: 1");
       expect(result).toContain("Schedules: 1");
     });
 
