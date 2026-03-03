@@ -9,9 +9,10 @@ export const searchTools: ToolHandler[] = [
     }, ["query"]),
     async execute(input, deps) {
       if (!deps.searchApiKey) return "Error: web search not configured (BRAVE_SEARCH_API_KEY not set)";
-      const q = (input.query as string).trim();
+      const { query, count: rawCount } = input as { query: string; count?: number };
+      const q = query.trim();
       if (!q) return "Error: query is required";
-      const count = Math.min(input.count ?? 5, 20);
+      const count = Math.min(rawCount ?? 5, 20);
       const url = `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(q)}&count=${count}`;
       const resp = await fetch(url, {
         headers: {
@@ -21,10 +22,10 @@ export const searchTools: ToolHandler[] = [
         signal: AbortSignal.timeout(15000),
       });
       if (!resp.ok) return `Error: search API returned ${resp.status}`;
-      const data = await resp.json() as any;
+      const data = await resp.json() as { web?: { results?: Array<{ title: string; url: string; description?: string }> } };
       const results = data.web?.results ?? [];
       if (results.length === 0) return "No results found.";
-      return results.map((r: any) =>
+      return results.map(r =>
         `**${r.title}**\n${r.url}\n${r.description ?? ""}`
       ).join("\n\n");
     },

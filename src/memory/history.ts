@@ -14,7 +14,7 @@ export interface UserMessage extends BaseMessage {
 
 export interface AssistantMessage extends BaseMessage {
   role: "assistant";
-  toolUse?: Array<{ id: string; name: string; input: Record<string, any> }>;
+  toolUse?: Array<{ id: string; name: string; input: Record<string, unknown> }>;
 }
 
 export interface ToolResultMessage extends BaseMessage {

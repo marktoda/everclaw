@@ -12,7 +12,8 @@ export const stateTools: ToolHandler[] = [
       key: { type: "string", description: "Key" },
     }, ["namespace", "key"]),
     async execute(input, deps) {
-      const val = await getState(deps.pool, input.namespace, input.key);
+      const { namespace, key } = input as { namespace: string; key: string };
+      const val = await getState(deps.pool, namespace, key);
       return val === null ? "(not set)" : JSON.stringify(val);
     },
   },
@@ -23,7 +24,8 @@ export const stateTools: ToolHandler[] = [
       value: { description: "JSON value to store" },
     }, ["namespace", "key", "value"]),
     async execute(input, deps) {
-      await setState(deps.pool, input.namespace, input.key, input.value);
+      const { namespace, key, value } = input as { namespace: string; key: string; value: unknown };
+      await setState(deps.pool, namespace, key, value);
       return "State saved.";
     },
   },

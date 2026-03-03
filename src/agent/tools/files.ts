@@ -34,12 +34,13 @@ export const fileTools: ToolHandler[] = [
       path: { type: "string", description: "Relative path within a writable directory (e.g. 'data/notes/profile.md', 'skills/morning-check.md')" },
     }, ["path"]),
     async execute(input, deps) {
-      const resolved = resolvePath(input.path, deps);
+      const { path: filePath } = input as { path: string };
+      const resolved = resolvePath(filePath, deps);
       if (!resolved) return `Error: path must start with data/notes/, skills/, or tools/`;
       try {
         return await fs.readFile(resolved.abs, "utf-8");
-      } catch (err: any) {
-        if (err.code === "ENOENT") return "(file not found)";
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === "ENOENT") return "(file not found)";
         throw err;
       }
     },
@@ -50,10 +51,11 @@ export const fileTools: ToolHandler[] = [
       content: { type: "string", description: "Full file content" },
     }, ["path", "content"]),
     async execute(input, deps) {
-      const resolved = resolvePath(input.path, deps);
+      const { path: filePath, content } = input as { path: string; content: string };
+      const resolved = resolvePath(filePath, deps);
       if (!resolved) return `Error: path must start with data/notes/, skills/, or tools/`;
       await fs.mkdir(path.dirname(resolved.abs), { recursive: true });
-      await fs.writeFile(resolved.abs, input.content, "utf-8");
+      await fs.writeFile(resolved.abs, content, "utf-8");
       if (resolved.dir === "tools") {
         await fs.chmod(resolved.abs, 0o755);
       }
@@ -68,7 +70,8 @@ export const fileTools: ToolHandler[] = [
       directory: { type: "string", description: "Directory to list: 'data/notes', 'skills', or 'tools'" },
     }, ["directory"]),
     async execute(input, deps) {
-      const dir = (input.directory as string).replace(/^\.?\//, "");
+      const { directory } = input as { directory: string };
+      const dir = directory.replace(/^\.?\//, "");
       let absDir: string;
       if (dir === "data/notes" || dir === "data/notes/") absDir = deps.notesDir;
       else if (dir === "skills" || dir === "skills/") absDir = deps.skillsDir;
@@ -88,18 +91,19 @@ export const fileTools: ToolHandler[] = [
       path: { type: "string", description: "Relative path within a writable directory" },
     }, ["path"]),
     async execute(input, deps) {
-      const resolved = resolvePath(input.path, deps);
+      const { path: filePath } = input as { path: string };
+      const resolved = resolvePath(filePath, deps);
       if (!resolved) return `Error: path must start with data/notes/, skills/, or tools/`;
       try {
         await fs.unlink(resolved.abs);
-      } catch (err: any) {
-        if (err.code === "ENOENT") return "(file not found)";
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === "ENOENT") return "(file not found)";
         throw err;
       }
       if (resolved.dir === "skills") {
         await syncSchedules(deps.absurd, deps.skillsDir, deps.chatId);
       }
-      return `File deleted: ${input.path}`;
+      return `File deleted: ${filePath}`;
     },
   },
 ];

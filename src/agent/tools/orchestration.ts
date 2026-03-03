@@ -1,4 +1,5 @@
 import { TimeoutError } from "absurd-sdk";
+import type { JsonValue } from "absurd-sdk";
 import { defineTool } from "./types.ts";
 import type { ToolHandler } from "./types.ts";
 
@@ -10,8 +11,9 @@ export const orchestrationTools: ToolHandler[] = [
     }, ["step_name", "seconds"]),
     suspends: true,
     async execute(input, deps) {
-      await deps.ctx.sleepFor(input.step_name, input.seconds);
-      return `Resumed after sleeping ${input.seconds}s.`;
+      const { step_name, seconds } = input as { step_name: string; seconds: number };
+      await deps.ctx.sleepFor(step_name, seconds);
+      return `Resumed after sleeping ${seconds}s.`;
     },
   },
   {
@@ -21,8 +23,9 @@ export const orchestrationTools: ToolHandler[] = [
     }, ["step_name", "wake_at"]),
     suspends: true,
     async execute(input, deps) {
-      const wakeAt = new Date(input.wake_at);
-      await deps.ctx.sleepUntil(input.step_name, wakeAt);
+      const { step_name, wake_at } = input as { step_name: string; wake_at: string };
+      const wakeAt = new Date(wake_at);
+      await deps.ctx.sleepUntil(step_name, wakeAt);
       return `Resumed. It is now ${new Date().toISOString()}.`;
     },
   },
@@ -32,12 +35,13 @@ export const orchestrationTools: ToolHandler[] = [
       params: { type: "object", description: "Task parameters (for 'workflow': {instructions}, for 'send-message': {text}, for 'execute-skill': {skillName}). chatId is auto-injected." },
     }, ["task_name", "params"]),
     async execute(input, deps) {
-      const params = { ...input.params };
+      const { task_name, params: rawParams } = input as { task_name: string; params: Record<string, unknown> };
+      const params = { ...rawParams };
       if (params.chatId === "current" || params.chatId == null) {
         params.chatId = deps.chatId;
       }
-      const result = await deps.absurd.spawn(input.task_name, params);
-      return `Task spawned: ${input.task_name} (ID: ${result.taskID})`;
+      const result = await deps.absurd.spawn(task_name, params);
+      return `Task spawned: ${task_name} (ID: ${result.taskID})`;
     },
   },
   {
@@ -45,12 +49,13 @@ export const orchestrationTools: ToolHandler[] = [
       task_id: { type: "string", description: "Task ID to cancel (from list_tasks or spawn_task result)" },
     }, ["task_id"]),
     async execute(input, deps) {
+      const { task_id } = input as { task_id: string };
       try {
-        await deps.absurd.cancelTask(input.task_id);
-        return `Task ${input.task_id} cancelled.`;
-      } catch (err: any) {
-        if (err.message?.includes("not found")) {
-          return `Task ${input.task_id} not found (may have already completed or been cancelled).`;
+        await deps.absurd.cancelTask(task_id);
+        return `Task ${task_id} cancelled.`;
+      } catch (err) {
+        if (err instanceof Error && err.message.includes("not found")) {
+          return `Task ${task_id} not found (may have already completed or been cancelled).`;
         }
         throw err;
       }
@@ -68,7 +73,8 @@ export const orchestrationTools: ToolHandler[] = [
          ORDER BY t.enqueue_at DESC LIMIT 20`
       );
       if (result.rows.length === 0) return "No active tasks.";
-      return result.rows.map((r: any) => {
+      interface TaskRow { task_id: string; task_name: string; params?: Record<string, string>; run_state: string; available_at?: string }
+      return (result.rows as TaskRow[]).map(r => {
         const params = r.params ?? {};
         const summary = params.text
           ? ` "${params.text.slice(0, 80)}${params.text.length > 80 ? "..." : ""}"`
@@ -89,9 +95,10 @@ export const orchestrationTools: ToolHandler[] = [
     }, ["event_name"]),
     suspends: true,
     async execute(input, deps) {
+      const { event_name, timeout_seconds } = input as { event_name: string; timeout_seconds?: number };
       try {
-        const payload = await deps.ctx.awaitEvent(input.event_name, {
-          timeout: input.timeout_seconds,
+        const payload = await deps.ctx.awaitEvent(event_name, {
+          timeout: timeout_seconds,
         });
         return JSON.stringify({ received: true, payload });
       } catch (err) {
@@ -108,8 +115,9 @@ export const orchestrationTools: ToolHandler[] = [
       payload: { description: "Optional JSON payload delivered to waiters" },
     }, ["event_name"]),
     async execute(input, deps) {
-      await deps.ctx.emitEvent(input.event_name, input.payload ?? null);
-      return `Event "${input.event_name}" emitted.`;
+      const { event_name, payload } = input as { event_name: string; payload?: unknown };
+      await deps.ctx.emitEvent(event_name, (payload ?? null) as JsonValue);
+      return `Event "${event_name}" emitted.`;
     },
   },
 ];
