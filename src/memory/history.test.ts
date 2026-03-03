@@ -27,7 +27,7 @@ describe("appendMessage", () => {
 
   it("serialises toolUse as JSON when present", async () => {
     const pool = createMockPool();
-    const toolUse = { name: "search", input: { q: "test" } };
+    const toolUse = [{ id: "tu-1", name: "search", input: { q: "test" } }];
 
     await appendMessage(pool, {
       chatId: 1,
@@ -45,9 +45,8 @@ describe("appendMessage", () => {
 
     await appendMessage(pool, {
       chatId: 1,
-      role: "tool",
+      role: "assistant",
       content: "result",
-      toolUse: undefined,
     });
 
     const [, params] = pool.query.mock.calls[0];
@@ -120,7 +119,6 @@ describe("getRecentMessages", () => {
         chatId: 5,
         role: "user",
         content: "hello",
-        toolUse: null,
         createdAt: earlier,
       },
       {
@@ -128,7 +126,7 @@ describe("getRecentMessages", () => {
         chatId: 5,
         role: "assistant",
         content: "reply",
-        toolUse: null,
+        toolUse: undefined,
         createdAt: now,
       },
     ]);
@@ -157,6 +155,6 @@ describe("getRecentMessages", () => {
 
     const [msg] = await getRecentMessages(pool, 3);
 
-    expect(msg.toolUse).toEqual(toolData);
+    expect((msg as import("./history.ts").AssistantMessage).toolUse).toEqual(toolData);
   });
 });

@@ -188,9 +188,10 @@ describe("loop integration tests", () => {
     expect(messages[0].role).toBe("user");
     expect(messages[0].content).toBe("Read the test file");
     expect(messages[1].role).toBe("assistant");
-    expect(messages[1].toolUse).toBeDefined();
-    expect(messages[1].toolUse.length).toBe(1);
-    expect(messages[1].toolUse[0].name).toBe("read_file");
+    const assistantMsg = messages[1] as import("../memory/history.ts").AssistantMessage;
+    expect(assistantMsg.toolUse).toBeDefined();
+    expect(assistantMsg.toolUse!.length).toBe(1);
+    expect(assistantMsg.toolUse![0].name).toBe("read_file");
     expect(messages[2].role).toBe("tool");
     expect(messages[3].role).toBe("assistant");
     expect(messages[3].content).toBe("I read the file.");
