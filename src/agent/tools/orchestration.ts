@@ -32,13 +32,13 @@ export const orchestrationTools: ToolHandler[] = [
   {
     def: defineTool("spawn_task", "Spawn an independent sub-task that runs in the background. The spawned task has NO access to your current conversation — only the instructions you provide.", {
       task_name: { type: "string", description: "Task type: 'execute-skill', 'send-message', or 'workflow'" },
-      params: { type: "object", description: "Task parameters (for 'workflow': {instructions}, for 'send-message': {text}, for 'execute-skill': {skillName}). chatId is auto-injected." },
+      params: { type: "object", description: "Task parameters (for 'workflow': {instructions}, for 'send-message': {text}, for 'execute-skill': {skillName}). recipientId is auto-injected." },
     }, ["task_name", "params"]),
     async execute(input, deps) {
       const { task_name, params: rawParams } = input as { task_name: string; params: Record<string, unknown> };
       const params = { ...rawParams };
-      if (params.chatId === "current" || params.chatId == null) {
-        params.chatId = deps.chatId;
+      if (params.recipientId === "current" || params.recipientId == null) {
+        params.recipientId = deps.recipientId;
       }
       const result = await deps.absurd.spawn(task_name, params);
       return `Task spawned: ${task_name} (ID: ${result.taskID})`;

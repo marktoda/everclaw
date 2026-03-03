@@ -135,7 +135,7 @@ describe("runAgentLoop", () => {
       const deps = baseDeps({ anthropic });
       const ctx = createMockCtx();
 
-      const result = await runAgentLoop(ctx, 1, "hi", deps);
+      const result = await runAgentLoop(ctx, "telegram:1", "hi", deps);
 
       expect(result).toBe("Hello there!");
     });
@@ -148,7 +148,7 @@ describe("runAgentLoop", () => {
       const deps = baseDeps({ anthropic, onText });
       const ctx = createMockCtx();
 
-      await runAgentLoop(ctx, 1, "hi", deps);
+      await runAgentLoop(ctx, "telegram:1", "hi", deps);
 
       expect(onText).toHaveBeenCalledOnce();
       expect(onText).toHaveBeenCalledWith("Hello!");
@@ -161,19 +161,19 @@ describe("runAgentLoop", () => {
       const deps = baseDeps({ anthropic });
       const ctx = createMockCtx();
 
-      await runAgentLoop(ctx, 42, "user-msg", deps);
+      await runAgentLoop(ctx, "telegram:42", "user-msg", deps);
 
       // The first appendMessage call should be the user message
       const calls = vi.mocked(appendMessage).mock.calls;
       expect(calls.length).toBeGreaterThanOrEqual(2);
       expect(calls[0][1]).toMatchObject({
-        chatId: 42,
+        recipientId: "telegram:42",
         role: "user",
         content: "user-msg",
       });
       // The second should be the assistant reply
       expect(calls[1][1]).toMatchObject({
-        chatId: 42,
+        recipientId: "telegram:42",
         role: "assistant",
         content: "Reply",
       });
@@ -190,7 +190,7 @@ describe("runAgentLoop", () => {
       const deps = baseDeps({ anthropic });
       const ctx = createMockCtx();
 
-      const result = await runAgentLoop(ctx, 1, "hi", deps);
+      const result = await runAgentLoop(ctx, "telegram:1", "hi", deps);
 
       expect(result).toBe("Visible text");
       expect(result).not.toContain("<internal>");
@@ -204,7 +204,7 @@ describe("runAgentLoop", () => {
       const deps = baseDeps({ anthropic, onText });
       const ctx = createMockCtx();
 
-      await runAgentLoop(ctx, 1, "hi", deps);
+      await runAgentLoop(ctx, "telegram:1", "hi", deps);
 
       expect(onText).toHaveBeenCalledWith("Public");
     });
@@ -217,7 +217,7 @@ describe("runAgentLoop", () => {
       const deps = baseDeps({ anthropic, onText });
       const ctx = createMockCtx();
 
-      await runAgentLoop(ctx, 1, "hi", deps);
+      await runAgentLoop(ctx, "telegram:1", "hi", deps);
 
       // stripInternalTags returns "" which is falsy, so onText should not be called
       expect(onText).not.toHaveBeenCalled();
@@ -237,7 +237,7 @@ describe("runAgentLoop", () => {
       const deps = baseDeps({ anthropic, executeTool });
       const ctx = createMockCtx();
 
-      const result = await runAgentLoop(ctx, 1, "read notes", deps);
+      const result = await runAgentLoop(ctx, "telegram:1", "read notes", deps);
 
       expect(result).toBe("Done reading");
       expect(executeTool).toHaveBeenCalledWith("read_file", { path: "data/notes/a.md" });
@@ -253,7 +253,7 @@ describe("runAgentLoop", () => {
       const deps = baseDeps({ anthropic, executeTool });
       const ctx = createMockCtx();
 
-      await runAgentLoop(ctx, 1, "get state", deps);
+      await runAgentLoop(ctx, "telegram:1", "get state", deps);
 
       // Use the snapshot captured at call-time (avoids mutation issues)
       const snapshot = anthropic.snapshots[1];
@@ -283,7 +283,7 @@ describe("runAgentLoop", () => {
       const deps = baseDeps({ anthropic, executeTool });
       const ctx = createMockCtx();
 
-      const result = await runAgentLoop(ctx, 1, "do both", deps);
+      const result = await runAgentLoop(ctx, "telegram:1", "do both", deps);
 
       expect(result).toBe("Both done");
       expect(executeTool).toHaveBeenCalledTimes(2);
@@ -304,7 +304,7 @@ describe("runAgentLoop", () => {
       const deps = baseDeps({ anthropic, executeTool });
       const ctx = createMockCtx();
 
-      await runAgentLoop(ctx, 1, "msg", deps);
+      await runAgentLoop(ctx, "telegram:1", "msg", deps);
 
       // Use snapshot captured at call-time
       const snapshot = anthropic.snapshots[1];
@@ -342,7 +342,7 @@ describe("runAgentLoop", () => {
         const deps = baseDeps({ anthropic, executeTool, isSuspending });
         const ctx = createMockCtx();
 
-        await runAgentLoop(ctx, 1, "suspend", deps);
+        await runAgentLoop(ctx, "telegram:1", "suspend", deps);
 
         // ctx.step should have been called for load-context, agent-turn-*,
         // send-text-*, and persist. But NOT for a tool-* step for suspending tools.
@@ -371,7 +371,7 @@ describe("runAgentLoop", () => {
         const deps = baseDeps({ anthropic, executeTool });
         const ctx = createMockCtx();
 
-        await runAgentLoop(ctx, 1, "run", deps);
+        await runAgentLoop(ctx, "telegram:1", "run", deps);
 
         const stepNames = ctx.step.mock.calls.map((c: any[]) => c[0] as string);
         expect(stepNames).toContain(`tool-0-${toolName}`);
@@ -395,7 +395,7 @@ describe("runAgentLoop", () => {
       const deps = baseDeps({ anthropic, executeTool, isSuspending });
       const ctx = createMockCtx();
 
-      await runAgentLoop(ctx, 1, "mixed", deps);
+      await runAgentLoop(ctx, "telegram:1", "mixed", deps);
 
       const stepNames = ctx.step.mock.calls.map((c: any[]) => c[0] as string);
       // read_file should be wrapped
@@ -423,7 +423,7 @@ describe("runAgentLoop", () => {
       const deps = baseDeps({ anthropic, executeTool });
       const ctx = createMockCtx();
 
-      const result = await runAgentLoop(ctx, 1, "multi-turn", deps);
+      const result = await runAgentLoop(ctx, "telegram:1", "multi-turn", deps);
 
       expect(result).toBe("all done");
       expect(anthropic.messages.create).toHaveBeenCalledTimes(3);
@@ -445,7 +445,7 @@ describe("runAgentLoop", () => {
       const deps = baseDeps({ anthropic, executeTool });
       const ctx = createMockCtx();
 
-      const result = await runAgentLoop(ctx, 1, "infinite", deps);
+      const result = await runAgentLoop(ctx, "telegram:1", "infinite", deps);
 
       // messages.create is called once per turn => exactly 20 calls
       expect(create).toHaveBeenCalledTimes(20);
@@ -468,7 +468,7 @@ describe("runAgentLoop", () => {
       const deps = baseDeps({ anthropic, executeTool });
       const ctx = createMockCtx();
 
-      const result = await runAgentLoop(ctx, 1, "loops", deps);
+      const result = await runAgentLoop(ctx, "telegram:1", "loops", deps);
 
       expect(result).toBe("finally");
       expect(create).toHaveBeenCalledTimes(20);
@@ -490,7 +490,7 @@ describe("runAgentLoop", () => {
       const deps = baseDeps({ anthropic, onText, executeTool: vi.fn().mockResolvedValue("ok") });
       const ctx = createMockCtx();
 
-      await runAgentLoop(ctx, 1, "hi", deps);
+      await runAgentLoop(ctx, "telegram:1", "hi", deps);
 
       expect(onText).toHaveBeenCalledTimes(2);
       expect(onText).toHaveBeenNthCalledWith(1, "thinking...");
@@ -505,7 +505,7 @@ describe("runAgentLoop", () => {
       const deps = baseDeps({ anthropic, onText });
       const ctx = createMockCtx();
 
-      await runAgentLoop(ctx, 1, "hi", deps);
+      await runAgentLoop(ctx, "telegram:1", "hi", deps);
 
       expect(onText).toHaveBeenCalledTimes(2);
       expect(onText).toHaveBeenNthCalledWith(1, "first");
@@ -523,7 +523,7 @@ describe("runAgentLoop", () => {
       const deps = baseDeps({ anthropic, onText, executeTool });
       const ctx = createMockCtx();
 
-      await runAgentLoop(ctx, 1, "count", deps);
+      await runAgentLoop(ctx, "telegram:1", "count", deps);
 
       // onText should be wrapped in send-text-* steps
       const stepNames = ctx.step.mock.calls.map((c: any[]) => c[0] as string);
@@ -544,7 +544,7 @@ describe("runAgentLoop", () => {
       const ctx = createMockCtx();
 
       // Should not throw
-      const result = await runAgentLoop(ctx, 1, "hi", deps);
+      const result = await runAgentLoop(ctx, "telegram:1", "hi", deps);
       expect(result).toBe("hello");
     });
   });
@@ -559,22 +559,22 @@ describe("runAgentLoop", () => {
       const deps = baseDeps({ anthropic });
       const ctx = createMockCtx();
 
-      await runAgentLoop(ctx, 1, "hi", deps);
+      await runAgentLoop(ctx, "telegram:1", "hi", deps);
 
       const stepNames = ctx.step.mock.calls.map((c: any[]) => c[0] as string);
       expect(stepNames[0]).toBe("load-context");
     });
 
-    it("passes chatId and maxHistory to getRecentMessages", async () => {
+    it("passes recipientId and maxHistory to getRecentMessages", async () => {
       const anthropic = createMockAnthropic([
         apiResponse([textBlock("ok")]),
       ]);
       const deps = baseDeps({ anthropic, maxHistory: 25 });
       const ctx = createMockCtx();
 
-      await runAgentLoop(ctx, 99, "hi", deps);
+      await runAgentLoop(ctx, "telegram:99", "hi", deps);
 
-      expect(getRecentMessages).toHaveBeenCalledWith(deps.pool, 99, 25);
+      expect(getRecentMessages).toHaveBeenCalledWith(deps.pool, "telegram:99", 25);
     });
 
     it("calls buildSystemPrompt with loaded context", async () => {
@@ -584,7 +584,7 @@ describe("runAgentLoop", () => {
       const deps = baseDeps({ anthropic });
       const ctx = createMockCtx();
 
-      await runAgentLoop(ctx, 1, "hi", deps);
+      await runAgentLoop(ctx, "telegram:1", "hi", deps);
 
       expect(buildSystemPrompt).toHaveBeenCalledOnce();
     });
@@ -595,8 +595,8 @@ describe("runAgentLoop", () => {
   describe("conversation history", () => {
     it("includes previous messages from history in the API call", async () => {
       vi.mocked(getRecentMessages).mockResolvedValueOnce([
-        { chatId: 1, role: "user", content: "previous question" },
-        { chatId: 1, role: "assistant", content: "previous answer" },
+        { recipientId: "telegram:1", role: "user", content: "previous question" },
+        { recipientId: "telegram:1", role: "assistant", content: "previous answer" },
       ] as any);
 
       const anthropic = createMockAnthropic([
@@ -605,7 +605,7 @@ describe("runAgentLoop", () => {
       const deps = baseDeps({ anthropic });
       const ctx = createMockCtx();
 
-      await runAgentLoop(ctx, 1, "follow-up", deps);
+      await runAgentLoop(ctx, "telegram:1", "follow-up", deps);
 
       // Use snapshot captured at call-time (before the array was mutated)
       const snapshot = anthropic.snapshots[0];
@@ -620,9 +620,9 @@ describe("runAgentLoop", () => {
 
     it("skips tool messages without toolUse (old format, backwards compat)", async () => {
       vi.mocked(getRecentMessages).mockResolvedValueOnce([
-        { chatId: 1, role: "user", content: "q1" },
-        { chatId: 1, role: "tool", content: "tool output" },
-        { chatId: 1, role: "assistant", content: "a1" },
+        { recipientId: "telegram:1", role: "user", content: "q1" },
+        { recipientId: "telegram:1", role: "tool", content: "tool output" },
+        { recipientId: "telegram:1", role: "assistant", content: "a1" },
       ] as any);
 
       const anthropic = createMockAnthropic([
@@ -631,7 +631,7 @@ describe("runAgentLoop", () => {
       const deps = baseDeps({ anthropic });
       const ctx = createMockCtx();
 
-      await runAgentLoop(ctx, 1, "q2", deps);
+      await runAgentLoop(ctx, "telegram:1", "q2", deps);
 
       // Use snapshot captured at call-time
       const messages = anthropic.snapshots[0].messages;
@@ -644,20 +644,20 @@ describe("runAgentLoop", () => {
 
     it("reconstructs tool_use and tool_result from history with toolUse metadata", async () => {
       vi.mocked(getRecentMessages).mockResolvedValueOnce([
-        { chatId: 1, role: "user", content: "remind me" },
+        { recipientId: "telegram:1", role: "user", content: "remind me" },
         {
-          chatId: 1,
+          recipientId: "telegram:1",
           role: "assistant",
           content: "(tool use only)",
           toolUse: [{ id: "tu-1", name: "spawn_task", input: { task_name: "workflow" } }],
         },
         {
-          chatId: 1,
+          recipientId: "telegram:1",
           role: "tool",
           content: "[tu-1]: Task spawned",
           toolUse: [{ tool_use_id: "tu-1", content: "Task spawned" }],
         },
-        { chatId: 1, role: "assistant", content: "Done!" },
+        { recipientId: "telegram:1", role: "assistant", content: "Done!" },
       ] as any);
 
       const anthropic = createMockAnthropic([
@@ -666,7 +666,7 @@ describe("runAgentLoop", () => {
       const deps = baseDeps({ anthropic });
       const ctx = createMockCtx();
 
-      await runAgentLoop(ctx, 1, "Hi", deps);
+      await runAgentLoop(ctx, "telegram:1", "Hi", deps);
 
       const messages = anthropic.snapshots[0].messages;
       expect(messages).toHaveLength(5);
@@ -697,14 +697,14 @@ describe("runAgentLoop", () => {
       // Simulates a LIMIT-clipped history that starts with a tool_result
       vi.mocked(getRecentMessages).mockResolvedValueOnce([
         {
-          chatId: 1,
+          recipientId: "telegram:1",
           role: "tool",
           content: "[tu-1]: result",
           toolUse: [{ tool_use_id: "tu-1", content: "result" }],
         },
-        { chatId: 1, role: "assistant", content: "Got it" },
-        { chatId: 1, role: "user", content: "thanks" },
-        { chatId: 1, role: "assistant", content: "Welcome!" },
+        { recipientId: "telegram:1", role: "assistant", content: "Got it" },
+        { recipientId: "telegram:1", role: "user", content: "thanks" },
+        { recipientId: "telegram:1", role: "assistant", content: "Welcome!" },
       ] as any);
 
       const anthropic = createMockAnthropic([
@@ -713,7 +713,7 @@ describe("runAgentLoop", () => {
       const deps = baseDeps({ anthropic });
       const ctx = createMockCtx();
 
-      await runAgentLoop(ctx, 1, "hello", deps);
+      await runAgentLoop(ctx, "telegram:1", "hello", deps);
 
       const messages = anthropic.snapshots[0].messages;
       // Orphaned tool_result should be dropped; starts with "Got it"
@@ -728,13 +728,13 @@ describe("runAgentLoop", () => {
       // History starts with an assistant tool_use but no following tool_result
       vi.mocked(getRecentMessages).mockResolvedValueOnce([
         {
-          chatId: 1,
+          recipientId: "telegram:1",
           role: "assistant",
           content: "(tool use only)",
           toolUse: [{ id: "tu-1", name: "read_file", input: { path: "x" } }],
         },
-        { chatId: 1, role: "user", content: "hi" },
-        { chatId: 1, role: "assistant", content: "hello" },
+        { recipientId: "telegram:1", role: "user", content: "hi" },
+        { recipientId: "telegram:1", role: "assistant", content: "hello" },
       ] as any);
 
       const anthropic = createMockAnthropic([
@@ -743,7 +743,7 @@ describe("runAgentLoop", () => {
       const deps = baseDeps({ anthropic });
       const ctx = createMockCtx();
 
-      await runAgentLoop(ctx, 1, "yo", deps);
+      await runAgentLoop(ctx, "telegram:1", "yo", deps);
 
       const messages = anthropic.snapshots[0].messages;
       // Orphaned tool_use should be dropped
@@ -756,18 +756,18 @@ describe("runAgentLoop", () => {
     it("keeps valid tool_use + tool_result pair at start of history", async () => {
       vi.mocked(getRecentMessages).mockResolvedValueOnce([
         {
-          chatId: 1,
+          recipientId: "telegram:1",
           role: "assistant",
           content: "(tool use only)",
           toolUse: [{ id: "tu-1", name: "get_state", input: { namespace: "n", key: "k" } }],
         },
         {
-          chatId: 1,
+          recipientId: "telegram:1",
           role: "tool",
           content: "[tu-1]: value",
           toolUse: [{ tool_use_id: "tu-1", content: "value" }],
         },
-        { chatId: 1, role: "assistant", content: "done" },
+        { recipientId: "telegram:1", role: "assistant", content: "done" },
       ] as any);
 
       const anthropic = createMockAnthropic([
@@ -776,7 +776,7 @@ describe("runAgentLoop", () => {
       const deps = baseDeps({ anthropic });
       const ctx = createMockCtx();
 
-      await runAgentLoop(ctx, 1, "q", deps);
+      await runAgentLoop(ctx, "telegram:1", "q", deps);
 
       const messages = anthropic.snapshots[0].messages;
       // Pair is valid — both should be kept
@@ -799,7 +799,7 @@ describe("runAgentLoop", () => {
       const deps = baseDeps({ anthropic });
       const ctx = createMockCtx();
 
-      await runAgentLoop(ctx, 1, "msg", deps);
+      await runAgentLoop(ctx, "telegram:1", "msg", deps);
 
       const stepNames = ctx.step.mock.calls.map((c: any[]) => c[0] as string);
       expect(stepNames).toContain("persist");
@@ -815,7 +815,7 @@ describe("runAgentLoop", () => {
       const deps = baseDeps({ anthropic, executeTool });
       const ctx = createMockCtx();
 
-      await runAgentLoop(ctx, 42, "q", deps);
+      await runAgentLoop(ctx, "telegram:42", "q", deps);
 
       const calls = vi.mocked(appendMessage).mock.calls;
 
@@ -823,24 +823,24 @@ describe("runAgentLoop", () => {
       expect(calls.length).toBe(4);
 
       // 1. User message
-      expect(calls[0][1]).toMatchObject({ chatId: 42, role: "user", content: "q" });
+      expect(calls[0][1]).toMatchObject({ recipientId: "telegram:42", role: "user", content: "q" });
 
       // 2. Assistant with tool_use (includes id for history reconstruction)
       const assistantMsg = calls[1][1] as import("../memory/history.ts").AssistantMessage;
-      expect(assistantMsg).toMatchObject({ chatId: 42, role: "assistant" });
+      expect(assistantMsg).toMatchObject({ recipientId: "telegram:42", role: "assistant" });
       expect(assistantMsg.toolUse).toBeDefined();
       expect(assistantMsg.toolUse).toEqual([{ id: "tool-p", name: "get_state", input: { namespace: "n", key: "k" } }]);
 
       // 3. Tool results (structured toolUse for history reconstruction)
       const toolMsg = calls[2][1] as import("../memory/history.ts").ToolResultMessage;
-      expect(toolMsg).toMatchObject({ chatId: 42, role: "tool" });
+      expect(toolMsg).toMatchObject({ recipientId: "telegram:42", role: "tool" });
       expect(toolMsg.content).toContain("tool-p");
       expect(toolMsg.content).toContain("tool-result");
       expect(toolMsg.toolUse).toEqual([{ tool_use_id: "tool-p", content: "tool-result" }]);
 
       // 4. Final assistant text
       expect(calls[3][1]).toMatchObject({
-        chatId: 42,
+        recipientId: "telegram:42",
         role: "assistant",
         content: "final answer",
       });
@@ -856,7 +856,7 @@ describe("runAgentLoop", () => {
       const deps = baseDeps({ anthropic, executeTool });
       const ctx = createMockCtx();
 
-      await runAgentLoop(ctx, 1, "run", deps);
+      await runAgentLoop(ctx, "telegram:1", "run", deps);
 
       const calls = vi.mocked(appendMessage).mock.calls;
       // The first assistant message (tool_use only, no text) should have "(tool use only)"
@@ -880,7 +880,7 @@ describe("runAgentLoop", () => {
       const deps = baseDeps({ anthropic, model: "claude-sonnet-4-20250514", registry: { definitions, execute: vi.fn(), isSuspending: () => false } });
       const ctx = createMockCtx();
 
-      await runAgentLoop(ctx, 1, "hello", deps);
+      await runAgentLoop(ctx, "telegram:1", "hello", deps);
 
       // The create mock is still called with all args; we can read non-message args from calls
       const callArgs = anthropic.messages.create.mock.calls[0][0];
@@ -905,7 +905,7 @@ describe("runAgentLoop", () => {
       const deps = baseDeps({ anthropic, executeTool });
       const ctx = createMockCtx();
 
-      await runAgentLoop(ctx, 1, "multi", deps);
+      await runAgentLoop(ctx, "telegram:1", "multi", deps);
 
       const stepNames = ctx.step.mock.calls.map((c: any[]) => c[0] as string);
       expect(stepNames).toContain("agent-turn-0");
@@ -924,7 +924,7 @@ describe("runAgentLoop", () => {
       const deps = baseDeps({ anthropic });
       const ctx = createMockCtx();
 
-      const result = await runAgentLoop(ctx, 1, "hi", deps);
+      const result = await runAgentLoop(ctx, "telegram:1", "hi", deps);
 
       // The raw reply joins with \n, then stripInternalTags trims
       expect(result).toBe("Line 1\nLine 2");
@@ -945,7 +945,7 @@ describe("runAgentLoop", () => {
       const deps = baseDeps({ anthropic, executeTool, onText });
       const ctx = createMockCtx();
 
-      const result = await runAgentLoop(ctx, 1, "read it", deps);
+      const result = await runAgentLoop(ctx, "telegram:1", "read it", deps);
 
       expect(result).toBe("Here is the content");
       // onText called for both turns
@@ -965,7 +965,7 @@ describe("runAgentLoop", () => {
       const deps = baseDeps({ anthropic });
       const ctx = createMockCtx();
 
-      const result = await runAgentLoop(ctx, 1, "hello", deps);
+      const result = await runAgentLoop(ctx, "telegram:1", "hello", deps);
 
       expect(result).toBe("first message");
 
@@ -983,23 +983,23 @@ describe("runAgentLoop", () => {
       // Simulates concurrent persists that interleave messages from two agent loops:
       // assistant tool_use [A] is followed by tool_result [B] — IDs don't match.
       vi.mocked(getRecentMessages).mockResolvedValueOnce([
-        { chatId: 1, role: "user", content: "msg1" },
-        { chatId: 1, role: "assistant", content: "ok" },
-        { chatId: 1, role: "user", content: "msg2" },
+        { recipientId: "telegram:1", role: "user", content: "msg1" },
+        { recipientId: "telegram:1", role: "assistant", content: "ok" },
+        { recipientId: "telegram:1", role: "user", content: "msg2" },
         {
-          chatId: 1,
+          recipientId: "telegram:1",
           role: "assistant",
           content: "(tool use only)",
           toolUse: [{ id: "tu-A", name: "read_file", input: { path: "a" } }],
         },
         {
-          chatId: 1,
+          recipientId: "telegram:1",
           role: "tool",
           content: "[tu-B]: result",
           toolUse: [{ tool_use_id: "tu-B", content: "result" }],
         },
-        { chatId: 1, role: "user", content: "msg3" },
-        { chatId: 1, role: "assistant", content: "reply3" },
+        { recipientId: "telegram:1", role: "user", content: "msg3" },
+        { recipientId: "telegram:1", role: "assistant", content: "reply3" },
       ] as any);
 
       const anthropic = createMockAnthropic([
@@ -1008,7 +1008,7 @@ describe("runAgentLoop", () => {
       const deps = baseDeps({ anthropic });
       const ctx = createMockCtx();
 
-      await runAgentLoop(ctx, 1, "hello", deps);
+      await runAgentLoop(ctx, "telegram:1", "hello", deps);
 
       // The mismatched pair should be dropped; the API call should succeed.
       const messages = anthropic.snapshots[0].messages;

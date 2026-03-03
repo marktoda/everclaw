@@ -9,7 +9,7 @@ export interface ExecutorDeps {
   pool: Pool;
   ctx: TaskContext;
   queueName: string;
-  chatId: number;
+  recipientId: string;
   notesDir: string;
   skillsDir: string;
   toolsDir: string;
