@@ -7,14 +7,14 @@ export type { TaskDeps } from "./shared.ts";
 export function registerHandleMessage(absurd: Absurd, deps: TaskDeps): void {
   absurd.registerTask(
     { name: "handle-message" },
-    async (params: { chatId: number; text: string }, ctx: TaskContext) => {
-      const agentDeps = buildAgentDeps(deps, absurd, ctx, params.chatId, {
+    async (params: { recipientId: string; text: string }, ctx: TaskContext) => {
+      const agentDeps = buildAgentDeps(deps, absurd, ctx, params.recipientId, {
         taskName: "handle-message",
       });
 
       agentDeps.log?.info({ textLength: params.text.length }, "message received");
 
-      const reply = await runAgentLoop(ctx, params.chatId, params.text, agentDeps);
+      const reply = await runAgentLoop(ctx, params.recipientId, params.text, agentDeps);
 
       agentDeps.log?.info({ replyLength: reply.length }, "message complete");
       return { reply };

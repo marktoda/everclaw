@@ -6,12 +6,12 @@ import type { TaskDeps } from "./shared.ts";
 export function registerWorkflow(absurd: Absurd, deps: TaskDeps): void {
   absurd.registerTask(
     { name: "workflow" },
-    async (params: { chatId: number; instructions: string; context?: any }, ctx: TaskContext) => {
+    async (params: { recipientId: string; instructions: string; context?: unknown }, ctx: TaskContext) => {
       const contextPrefix = params.context
         ? `Context: ${JSON.stringify(params.context)}\n\n`
         : "";
 
-      const agentDeps = buildAgentDeps(deps, absurd, ctx, params.chatId, {
+      const agentDeps = buildAgentDeps(deps, absurd, ctx, params.recipientId, {
         maxHistory: 10,
         taskName: "workflow",
       });
@@ -19,7 +19,7 @@ export function registerWorkflow(absurd: Absurd, deps: TaskDeps): void {
       agentDeps.log?.info("workflow started");
 
       const reply = await runAgentLoop(
-        ctx, params.chatId,
+        ctx, params.recipientId,
         `${contextPrefix}${params.instructions}`,
         agentDeps,
       );
