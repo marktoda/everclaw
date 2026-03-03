@@ -83,9 +83,7 @@ function buildDeps(fake: FakeAnthropic, chatId: number): AgentDeps {
     anthropic: fake as any,
     pool: db.pool,
     model: "fake-model",
-    notesDir,
-    skillsDir,
-    toolsDir,
+    dirs: { notes: notesDir, skills: skillsDir, tools: toolsDir },
     maxHistory: 50,
     registry,
   };

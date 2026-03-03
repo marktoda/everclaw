@@ -61,9 +61,7 @@ function baseDeps(fake: FakeAnthropic, overrides: Partial<AgentDeps> = {}): Agen
     anthropic: fake as any,
     pool: createMockPool(),
     model: "claude-sonnet-4-20250514",
-    notesDir: "/tmp/notes",
-    skillsDir: "/tmp/skills",
-    toolsDir: "/tmp/tools",
+    dirs: { notes: "/tmp/notes", skills: "/tmp/skills", tools: "/tmp/tools" },
     maxHistory: 50,
     registry: {
       definitions: [],
