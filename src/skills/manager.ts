@@ -1,6 +1,7 @@
-import * as fs from "fs/promises";
-import * as path from "path";
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
 import type { Absurd } from "absurd-sdk";
+import { stripQuotes } from "../config.ts";
 
 export interface SkillMeta {
   name?: string;
@@ -25,11 +26,7 @@ export function parseSkillFrontmatter(content: string): SkillMeta {
     if (colon === -1) continue;
     const key = line.substring(0, colon).trim();
     let val = line.substring(colon + 1).trim();
-    // Strip surrounding quotes
-    if ((val.startsWith('"') && val.endsWith('"')) ||
-        (val.startsWith("'") && val.endsWith("'"))) {
-      val = val.slice(1, -1);
-    }
+    val = stripQuotes(val);
     meta[key] = val;
   }
   return meta;
@@ -43,18 +40,19 @@ export async function listSkills(skillsDir: string): Promise<SkillSummary[]> {
     return [];
   }
 
-  const skills: SkillSummary[] = [];
-  for (const entry of entries) {
-    if (!entry.endsWith(".md")) continue;
-    const content = await fs.readFile(path.join(skillsDir, entry), "utf-8");
-    const meta = parseSkillFrontmatter(content);
-    skills.push({
-      name: meta.name ?? entry.replace(/\.md$/, ""),
-      description: meta.description ?? "",
-      schedule: meta.schedule,
-      filename: entry,
-    });
-  }
+  const mdEntries = entries.filter((e) => e.endsWith(".md"));
+  const skills = await Promise.all(
+    mdEntries.map(async (entry) => {
+      const content = await fs.readFile(path.join(skillsDir, entry), "utf-8");
+      const meta = parseSkillFrontmatter(content);
+      return {
+        name: meta.name ?? entry.replace(/\.md$/, ""),
+        description: meta.description ?? "",
+        schedule: meta.schedule,
+        filename: entry,
+      };
+    }),
+  );
   return skills;
 }
 

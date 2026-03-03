@@ -1,6 +1,17 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 
+/** Strip matching surrounding quotes (single or double) from a string. */
+export function stripQuotes(val: string): string {
+  if (
+    (val.startsWith('"') && val.endsWith('"')) ||
+    (val.startsWith("'") && val.endsWith("'"))
+  ) {
+    return val.slice(1, -1);
+  }
+  return val;
+}
+
 export interface ChannelConfig {
   type: string;
   token: string;
@@ -39,9 +50,7 @@ function readEnvFile(envPath: string): Record<string, string> {
     if (eq === -1) continue;
     const key = trimmed.substring(0, eq).trim();
     let val = trimmed.substring(eq + 1).trim();
-    if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
-      val = val.slice(1, -1);
-    }
+    val = stripQuotes(val);
     result[key] = val;
   }
   return result;

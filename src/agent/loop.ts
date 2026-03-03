@@ -5,12 +5,13 @@ import * as path from "node:path";
 import type Anthropic from "@anthropic-ai/sdk";
 import type { TaskContext } from "absurd-sdk";
 import type { Pool } from "pg";
-import pino from "pino";
 import type { Logger } from "../logger.ts";
 import type { Message } from "../memory/history.ts";
 import { appendMessage, getRecentMessages } from "../memory/history.ts";
 import { deconstructMessages, reconstructMessages } from "../memory/messages.ts";
+import type { ScriptEntry } from "../scripts/runner.ts";
 import { listScripts } from "../scripts/runner.ts";
+import type { SkillSummary } from "../skills/manager.ts";
 import { listSkills } from "../skills/manager.ts";
 import { stripInternalTags } from "./output.ts";
 import { buildSystemPrompt } from "./prompt.ts";
@@ -21,7 +22,7 @@ const MAX_TURNS = 20;
 export interface Dirs {
   notes: string;
   skills: string;
-  tools: string;
+  scripts: string;
 }
 
 export interface AgentDeps {
@@ -36,7 +37,7 @@ export interface AgentDeps {
   onText?: (text: string) => void;
 }
 
-/** Read all files in a directory and concatenate their contents. */
+/** Read all .md files in a directory and concatenate their contents. */
 async function readAllNotes(notesDir: string): Promise<string> {
   let entries: string[];
   try {
@@ -44,13 +45,14 @@ async function readAllNotes(notesDir: string): Promise<string> {
   } catch {
     return "";
   }
-  const parts: string[] = [];
-  for (const entry of entries.sort()) {
-    if (!entry.endsWith(".md")) continue;
-    const content = await fs.readFile(path.join(notesDir, entry), "utf-8");
-    if (content.trim()) parts.push(`### ${entry}\n\n${content}`);
-  }
-  return parts.join("\n\n");
+  const mdEntries = entries.filter((e) => e.endsWith(".md")).sort();
+  const contents = await Promise.all(
+    mdEntries.map((entry) => fs.readFile(path.join(notesDir, entry), "utf-8")),
+  );
+  return contents
+    .map((content, i) => (content.trim() ? `### ${mdEntries[i]}\n\n${content}` : ""))
+    .filter(Boolean)
+    .join("\n\n");
 }
 
 export async function runAgentLoop(
@@ -59,7 +61,7 @@ export async function runAgentLoop(
   userMessage: string,
   deps: AgentDeps,
 ): Promise<string> {
-  const log = deps.log ?? pino({ level: "silent" });
+  const log = deps.log;
 
   // Load context (checkpointed)
   const context = await ctx.step("load-context", async () => {
@@ -67,21 +69,21 @@ export async function runAgentLoop(
       readAllNotes(deps.dirs.notes),
       getRecentMessages(deps.pool, recipientId, deps.maxHistory),
       listSkills(deps.dirs.skills),
-      listScripts(deps.dirs.tools),
+      listScripts(deps.dirs.scripts),
     ]);
     return { notes, history, skills, tools };
   });
 
-  log.debug("context loaded");
+  log?.debug("context loaded");
 
   const systemPrompt = buildSystemPrompt({
     notes: context.notes as string,
-    skills: (context.skills as any[]).map((s) => ({
+    skills: (context.skills as SkillSummary[]).map((s) => ({
       name: s.name,
       description: s.description,
       schedule: s.schedule,
     })),
-    tools: (context.tools as any[]).map((t) => ({ name: t.name })),
+    tools: (context.tools as ScriptEntry[]).map((t) => ({ name: t.name })),
   });
 
   const messages = reconstructMessages(context.history as Message[]);
@@ -123,7 +125,7 @@ export async function runAgentLoop(
 
     if ((resp.stopReason as string) !== "tool_use") {
       reply = textBlocks.map((b) => b.text).join("\n");
-      log.info({ turns: turn + 1 }, "agent loop complete");
+      log?.info({ turns: turn + 1 }, "agent loop complete");
       break;
     }
 
@@ -133,7 +135,7 @@ export async function runAgentLoop(
     // step would interfere with the SDK's internal checkpoint management.
     // Non-suspending tools are wrapped in ctx.step() for checkpointing.
     const toolBlocks = content.filter((b): b is Anthropic.ToolUseBlock => b.type === "tool_use");
-    log.info({ turn: turn + 1, tools: toolBlocks.map((b) => b.name) }, "executing tools");
+    log?.info({ turn: turn + 1, tools: toolBlocks.map((b) => b.name) }, "executing tools");
     const results: Anthropic.ToolResultBlockParam[] = [];
     for (const tb of toolBlocks) {
       let result: string;
@@ -150,7 +152,7 @@ export async function runAgentLoop(
     messages.push({ role: "user", content: results });
 
     if (turn === MAX_TURNS - 1) {
-      log.warn({ maxTurns: MAX_TURNS }, "max turns exhausted");
+      log?.warn({ maxTurns: MAX_TURNS }, "max turns exhausted");
     }
   }
 

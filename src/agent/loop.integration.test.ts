@@ -84,7 +84,7 @@ function buildDeps(fake: FakeAnthropic, recipientId: string): AgentDeps {
     anthropic: fake as any,
     pool: db.pool,
     model: "fake-model",
-    dirs: { notes: notesDir, skills: skillsDir, tools: toolsDir },
+    dirs: { notes: notesDir, skills: skillsDir, scripts: toolsDir },
     maxHistory: 50,
     registry,
   };

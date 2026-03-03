@@ -131,8 +131,8 @@ export function sanitizeMessages(messages: Anthropic.MessageParam[]): Anthropic.
         // Valid pair: every use has a result and vice versa
         if (
           useIds.size > 0 &&
-          [...resultIds].every((id) => useIds.has(id)) &&
-          [...useIds].every((id) => resultIds.has(id))
+          useIds.size === resultIds.size &&
+          [...resultIds].every((id) => useIds.has(id))
         ) {
           cleaned.push(msg, next);
           i += 2;

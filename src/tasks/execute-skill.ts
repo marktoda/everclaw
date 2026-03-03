@@ -2,6 +2,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type { Absurd, TaskContext } from "absurd-sdk";
 import { runAgentLoop } from "../agent/loop.ts";
+import { BACKGROUND_MAX_HISTORY } from "./shared.ts";
 import type { TaskDeps } from "./shared.ts";
 import { buildAgentDeps } from "./shared.ts";
 
@@ -10,7 +11,7 @@ export function registerExecuteSkill(absurd: Absurd, deps: TaskDeps): void {
     { name: "execute-skill" },
     async (params: { skillName: string; recipientId: string }, ctx: TaskContext) => {
       const agentDeps = buildAgentDeps(deps, absurd, ctx, params.recipientId, {
-        maxHistory: 10,
+        maxHistory: BACKGROUND_MAX_HISTORY,
         taskName: "execute-skill",
       });
 
