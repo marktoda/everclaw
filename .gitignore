@@ -3,3 +3,10 @@ dist/
 .env
 .worktrees/
 !.claude/skills/
+
+# Runtime-writable directories (personal/instance-specific)
+# The agent creates and manages these — see examples/ for patterns.
+data/
+skills/
+tools/
+docs/plans/
