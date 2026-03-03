@@ -7,4 +7,4 @@ RUN corepack enable && pnpm install --frozen-lockfile
 COPY --chown=assistant . .
 USER assistant
 VOLUME ["/app/data", "/app/skills", "/app/tools"]
-CMD ["node", "--experimental-strip-types", "src/index.ts"]
+CMD ["node", "src/index.ts"]

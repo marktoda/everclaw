@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getTools } from "./tools.js";
+import { getTools } from "./tools.ts";
 
 describe("getTools", () => {
   it("returns all 15 tools", () => {

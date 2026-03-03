@@ -8,11 +8,11 @@ AI personal assistant built on the Absurd durable task queue. Communicates via T
 pnpm install                              # install dependencies
 pnpm test                                 # run tests (vitest --run)
 npx tsc --noEmit                          # type-check (no build step)
-node --experimental-strip-types src/index.ts  # run the app
+node src/index.ts                             # run the app
 docker compose up --build                 # run with Postgres via Docker
 ```
 
-There is no build step. TypeScript runs directly via `node --experimental-strip-types`. The `pnpm build` script (`tsc`) exists but is only used for type-checking CI; the app never uses `dist/`.
+There is no build step. TypeScript runs directly via `node` (Node 22.18+ strips types natively). The `pnpm build` script (`tsc --noEmit`) exists but is only used for type-checking CI; the app never uses `dist/`.
 
 ## Architecture
 
@@ -80,7 +80,7 @@ Tests use vitest. 6 test files co-located with source files (`*.test.ts`). Tests
 ## Gotchas
 
 - **No build step**: Do not look for or try to create a `dist/` directory. The app runs TypeScript directly.
-- **`.js` imports in TypeScript**: All import paths use `.js` extensions (e.g., `import { loadConfig } from "./config.js"`). This is required by Node's ESM + strip-types.
+- **`.ts` imports in TypeScript**: All import paths use `.ts` extensions (e.g., `import { loadConfig } from "./config.ts"`). This works natively with Node 22.18+ type stripping — no `--experimental-strip-types` flag needed.
 - **Suspending tools vs `ctx.step()`**: `sleep_for`, `sleep_until`, and `wait_for_event` throw `SuspendTask` and must NOT be wrapped in `ctx.step()`. Other tool calls should be wrapped in `ctx.step()` for checkpointing.
 - **SQL injection surface**: `list_tasks` in `executor.ts` interpolates `queueName` directly into SQL. This is safe because `loadConfig` validates it as `/^[a-z_][a-z0-9_]*$/i` — do not bypass this validation.
 - **Secret isolation**: Secrets are read from `.env` file, not `process.env`. Do not use `dotenv` or similar libraries that set `process.env`.

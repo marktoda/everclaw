@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { ExecutorDeps } from "./executor.js";
+import type { ExecutorDeps } from "./executor.ts";
 import * as path from "path";
 
 // ---------------------------------------------------------------------------
@@ -15,29 +15,29 @@ vi.mock("fs/promises", () => ({
   chmod: vi.fn(),
 }));
 
-vi.mock("../memory/state.js", () => ({
+vi.mock("../memory/state.ts", () => ({
   getState: vi.fn(),
   setState: vi.fn(),
 }));
 
-vi.mock("../skills/manager.js", () => ({
+vi.mock("../skills/manager.ts", () => ({
   listSkills: vi.fn(),
   syncSchedules: vi.fn(),
 }));
 
-vi.mock("../scripts/runner.js", () => ({
+vi.mock("../scripts/runner.ts", () => ({
   runScript: vi.fn(),
   listTools: vi.fn(),
 }));
 
 // Import mocked modules so we can configure per-test return values.
 import * as fs from "fs/promises";
-import { getState, setState } from "../memory/state.js";
-import { listSkills, syncSchedules } from "../skills/manager.js";
-import { runScript, listTools } from "../scripts/runner.js";
+import { getState, setState } from "../memory/state.ts";
+import { listSkills, syncSchedules } from "../skills/manager.ts";
+import { runScript, listTools } from "../scripts/runner.ts";
 import { TimeoutError } from "absurd-sdk";
 
-import { createExecutor } from "./executor.js";
+import { createExecutor } from "./executor.ts";
 
 // ---------------------------------------------------------------------------
 // Helpers to build the deps / mock objects

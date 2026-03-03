@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
-import { listSkills, parseSkillFrontmatter } from "./manager.js";
+import { listSkills, parseSkillFrontmatter } from "./manager.ts";
 
 describe("skill manager", () => {
   let tmpDir: string;

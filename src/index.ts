@@ -1,14 +1,14 @@
 import * as pg from "pg";
 import Anthropic from "@anthropic-ai/sdk";
 import { Absurd } from "absurd-sdk";
-import { loadConfig } from "./config.js";
-import { createBot } from "./bot.js";
-import { registerHandleMessage } from "./tasks/handle-message.js";
-import { registerExecuteSkill } from "./tasks/execute-skill.js";
-import { registerSendMessage } from "./tasks/send-message.js";
-import { registerWorkflow } from "./tasks/workflow.js";
-import { syncSchedules } from "./skills/manager.js";
-import { getState, setState } from "./memory/state.js";
+import { loadConfig } from "./config.ts";
+import { createBot } from "./bot.ts";
+import { registerHandleMessage } from "./tasks/handle-message.ts";
+import { registerExecuteSkill } from "./tasks/execute-skill.ts";
+import { registerSendMessage } from "./tasks/send-message.ts";
+import { registerWorkflow } from "./tasks/workflow.ts";
+import { syncSchedules } from "./skills/manager.ts";
+import { getState, setState } from "./memory/state.ts";
 
 async function main() {
   const config = loadConfig();
