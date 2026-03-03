@@ -38,6 +38,83 @@ export function runScript(
 export interface ScriptEntry {
   name: string;
   path: string;
+  description?: string;
+}
+
+const HASH_COMMENT_EXTS = new Set([".sh", ".bash", ".py"]);
+const SLASH_COMMENT_EXTS = new Set([".js", ".ts"]);
+const MAX_HEAD_LINES = 20;
+
+export async function getScriptDescription(filePath: string): Promise<string> {
+  let content: string;
+  try {
+    content = await fs.readFile(filePath, "utf-8");
+  } catch {
+    return "";
+  }
+
+  const lines = content.split("\n").slice(0, MAX_HEAD_LINES);
+  const ext = path.extname(filePath);
+  const commentLines: string[] = [];
+
+  let i = 0;
+
+  // Skip shebang
+  if (lines[0]?.startsWith("#!")) i = 1;
+
+  if (HASH_COMMENT_EXTS.has(ext)) {
+    // Check for Python docstring first
+    if (ext === ".py") {
+      // Skip blank lines after shebang before docstring
+      while (i < lines.length && lines[i].trim() === "") i++;
+      if (i < lines.length && lines[i].trim().startsWith('"""')) {
+        const opening = lines[i].trim();
+        if (opening.endsWith('"""') && opening.length > 6) {
+          // Single-line docstring: """description"""
+          return opening.slice(3, -3).trim();
+        }
+        // Multi-line docstring
+        const content = opening.slice(3).trim();
+        if (content) commentLines.push(content);
+        i++;
+        while (i < lines.length) {
+          const line = lines[i];
+          if (line.trim().endsWith('"""')) {
+            const last = line.trim().slice(0, -3).trim();
+            if (last) commentLines.push(last);
+            break;
+          }
+          commentLines.push(line.trim());
+          i++;
+        }
+        return commentLines.join("\n").trim();
+      }
+    }
+    // Hash comments
+    for (; i < lines.length; i++) {
+      const line = lines[i];
+      if (line.startsWith("#")) {
+        commentLines.push(line.replace(/^#\s?/, ""));
+      } else if (line.trim() === "" && commentLines.length === 0) {
+        continue; // skip blank lines before first comment
+      } else {
+        break;
+      }
+    }
+  } else if (SLASH_COMMENT_EXTS.has(ext)) {
+    for (; i < lines.length; i++) {
+      const line = lines[i];
+      if (line.startsWith("//")) {
+        commentLines.push(line.replace(/^\/\/\s?/, ""));
+      } else if (line.trim() === "" && commentLines.length === 0) {
+        continue;
+      } else {
+        break;
+      }
+    }
+  }
+
+  return commentLines.join("\n").trim();
 }
 
 export async function listScripts(scriptsDir: string): Promise<ScriptEntry[]> {
@@ -52,9 +129,12 @@ export async function listScripts(scriptsDir: string): Promise<ScriptEntry[]> {
   for (const entry of entries) {
     const ext = path.extname(entry);
     if (!SCRIPT_EXTENSIONS.has(ext)) continue;
+    const filePath = path.join(scriptsDir, entry);
+    const description = await getScriptDescription(filePath);
     scripts.push({
       name: entry.replace(/\.[^.]+$/, ""),
-      path: path.join(scriptsDir, entry),
+      path: filePath,
+      ...(description && { description }),
     });
   }
   return scripts;
