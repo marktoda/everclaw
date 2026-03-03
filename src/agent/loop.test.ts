@@ -103,7 +103,7 @@ function baseDeps(
     anthropic: createMockAnthropic([]),
     pool: createMockPool(),
     model: "claude-sonnet-4-20250514",
-    dirs: { notes: "/tmp/notes", skills: "/tmp/skills", tools: "/tmp/tools" },
+    dirs: { notes: "/tmp/notes", skills: "/tmp/skills", tools: "/tmp/scripts" },
     maxHistory: 50,
     registry: {
       definitions: [],

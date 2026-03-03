@@ -18,7 +18,7 @@ Telegram message
 The agent can extend itself by writing files:
 
 - **`skills/*.md`** — Workflow templates with optional cron schedules. Writing a skill file with a `schedule` frontmatter field automatically registers it with Absurd.
-- **`tools/*.sh|.py|.js|.ts`** — Executable scripts, auto-`chmod +x`. The agent calls them via `run_script` with JSON on stdin.
+- **`scripts/*.sh|.py|.js|.ts`** — Executable scripts, auto-`chmod +x`. The agent calls them via `run_script` with JSON on stdin.
 - **`data/notes/*.md`** — Persistent notes injected into the system prompt on every turn.
 
 ### Durable workflows
@@ -67,7 +67,7 @@ sql/
   001-absurd.sql        Absurd task queue schema
   002-assistant.sql     App schema: messages + state tables
 skills/                 Agent-writable skill files
-tools/                  Agent-writable scripts
+scripts/                Agent-writable scripts
 data/notes/             Agent-writable persistent notes
 ```
 
@@ -117,7 +117,7 @@ Non-secret config uses environment variables with defaults:
 | `SCRIPT_TIMEOUT` | `30` | Tool script execution timeout in seconds |
 | `NOTES_DIR` | `./data/notes` | Persistent notes directory |
 | `SKILLS_DIR` | `./skills` | Skill files directory |
-| `TOOLS_DIR` | `./tools` | Tool scripts directory |
+| `TOOLS_DIR` | `./scripts` | Tool scripts directory |
 
 ### Run
 
@@ -142,7 +142,7 @@ The agent has 15 tools across 4 categories:
 | **Scripts** | `run_script` |
 | **Orchestration** | `sleep_for`, `sleep_until`, `spawn_task`, `cancel_task`, `list_tasks`, `wait_for_event`, `emit_event` |
 
-All file operations are sandboxed to `data/notes/`, `skills/`, and `tools/` via path resolution and containment checks.
+All file operations are sandboxed to `data/notes/`, `skills/`, and `scripts/` via path resolution and containment checks.
 
 ## Skills
 
