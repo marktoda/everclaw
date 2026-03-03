@@ -1,3 +1,3 @@
-export { createToolRegistry } from "./registry.ts";
 export type { ToolRegistry } from "./registry.ts";
-export type { ToolHandler, ExecutorDeps, ToolDef } from "./types.ts";
+export { createToolRegistry } from "./registry.ts";
+export type { ExecutorDeps, ToolDef, ToolHandler } from "./types.ts";

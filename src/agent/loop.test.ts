@@ -1,8 +1,9 @@
 // src/agent/loop.test.ts
-import { describe, it, expect, vi, beforeEach } from "vitest";
+
+import type Anthropic from "@anthropic-ai/sdk";
 import type { TaskContext } from "absurd-sdk";
 import type { Pool } from "pg";
-import type Anthropic from "@anthropic-ai/sdk";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentDeps } from "./loop.ts";
 
 // ── Mocks ──────────────────────────────────────────────────────────────
@@ -31,8 +32,8 @@ vi.mock("fs/promises", () => ({
 
 // ── Imports (after mocks are declared) ─────────────────────────────────
 
+import { appendMessage, getRecentMessages } from "../memory/history.ts";
 import { runAgentLoop } from "./loop.ts";
-import { getRecentMessages, appendMessage } from "../memory/history.ts";
 import { buildSystemPrompt } from "./prompt.ts";
 
 // ── Helpers ────────────────────────────────────────────────────────────
@@ -52,10 +53,7 @@ function toolUseBlock(
 }
 
 /** Build a mock messages.create response. */
-function apiResponse(
-  content: Anthropic.ContentBlock[],
-  stop_reason: string = "end_turn",
-) {
+function apiResponse(content: Anthropic.ContentBlock[], stop_reason: string = "end_turn") {
   return { content, stop_reason };
 }
 
@@ -73,11 +71,9 @@ function createMockCtx(): TaskContext & { step: ReturnType<typeof vi.fn> } {
  * Also captures a deep-copy snapshot of the `messages` arg at each call,
  * since the loop mutates the array after each API call.
  */
-function createMockAnthropic(
-  responses: ReturnType<typeof apiResponse>[],
-) {
+function createMockAnthropic(responses: ReturnType<typeof apiResponse>[]) {
   const snapshots: Array<{ messages: Anthropic.MessageParam[] }> = [];
-  const create = vi.fn(({ messages, ...rest }: any) => {
+  const create = vi.fn(({ messages }: any) => {
     // Snapshot the messages array at call time (shallow copy of elements)
     snapshots.push({ messages: [...messages] });
     return Promise.resolve(responses[create.mock.calls.length - 1]);
@@ -129,9 +125,7 @@ describe("runAgentLoop", () => {
 
   describe("simple text response", () => {
     it("returns the text when Claude responds with a text block", async () => {
-      const anthropic = createMockAnthropic([
-        apiResponse([textBlock("Hello there!")]),
-      ]);
+      const anthropic = createMockAnthropic([apiResponse([textBlock("Hello there!")])]);
       const deps = baseDeps({ anthropic });
       const ctx = createMockCtx();
 
@@ -142,9 +136,7 @@ describe("runAgentLoop", () => {
 
     it("calls onText callback with filtered text", async () => {
       const onText = vi.fn();
-      const anthropic = createMockAnthropic([
-        apiResponse([textBlock("Hello!")]),
-      ]);
+      const anthropic = createMockAnthropic([apiResponse([textBlock("Hello!")])]);
       const deps = baseDeps({ anthropic, onText });
       const ctx = createMockCtx();
 
@@ -155,9 +147,7 @@ describe("runAgentLoop", () => {
     });
 
     it("persists user message and assistant reply to history", async () => {
-      const anthropic = createMockAnthropic([
-        apiResponse([textBlock("Reply")]),
-      ]);
+      const anthropic = createMockAnthropic([apiResponse([textBlock("Reply")])]);
       const deps = baseDeps({ anthropic });
       const ctx = createMockCtx();
 
@@ -270,7 +260,8 @@ describe("runAgentLoop", () => {
 
   describe("multiple tool calls", () => {
     it("handles multiple tool_use blocks in a single response", async () => {
-      const executeTool = vi.fn()
+      const executeTool = vi
+        .fn()
         .mockResolvedValueOnce("result-a")
         .mockResolvedValueOnce("result-b");
 
@@ -292,9 +283,7 @@ describe("runAgentLoop", () => {
     });
 
     it("sends all tool results back in a single user message", async () => {
-      const executeTool = vi.fn()
-        .mockResolvedValueOnce("r1")
-        .mockResolvedValueOnce("r2");
+      const executeTool = vi.fn().mockResolvedValueOnce("r1").mockResolvedValueOnce("r2");
       const tb1 = toolUseBlock("get_state", {}, "id-1");
       const tb2 = toolUseBlock("set_state", {}, "id-2");
       const anthropic = createMockAnthropic([
@@ -330,53 +319,58 @@ describe("runAgentLoop", () => {
     const isSuspending = (name: string) =>
       ["sleep_for", "sleep_until", "wait_for_event"].includes(name);
 
-    it.each(["sleep_for", "sleep_until", "wait_for_event"])(
-      "does NOT wrap %s in ctx.step()",
-      async (toolName) => {
-        const executeTool = vi.fn().mockResolvedValue("resumed");
-        const tb = toolUseBlock(toolName, { step_name: "s1" }, "sus-1");
-        const anthropic = createMockAnthropic([
-          apiResponse([tb], "tool_use"),
-          apiResponse([textBlock("after suspend")]),
-        ]);
-        const deps = baseDeps({ anthropic, executeTool, isSuspending });
-        const ctx = createMockCtx();
+    it.each([
+      "sleep_for",
+      "sleep_until",
+      "wait_for_event",
+    ])("does NOT wrap %s in ctx.step()", async (toolName) => {
+      const executeTool = vi.fn().mockResolvedValue("resumed");
+      const tb = toolUseBlock(toolName, { step_name: "s1" }, "sus-1");
+      const anthropic = createMockAnthropic([
+        apiResponse([tb], "tool_use"),
+        apiResponse([textBlock("after suspend")]),
+      ]);
+      const deps = baseDeps({ anthropic, executeTool, isSuspending });
+      const ctx = createMockCtx();
 
-        await runAgentLoop(ctx, "telegram:1", "suspend", deps);
+      await runAgentLoop(ctx, "telegram:1", "suspend", deps);
 
-        // ctx.step should have been called for load-context, agent-turn-*,
-        // send-text-*, and persist. But NOT for a tool-* step for suspending tools.
-        const stepNames = ctx.step.mock.calls.map((c: any[]) => c[0] as string);
-        const toolSteps = stepNames.filter((n: string) => n.startsWith("tool-"));
-        expect(toolSteps).toHaveLength(0);
+      // ctx.step should have been called for load-context, agent-turn-*,
+      // send-text-*, and persist. But NOT for a tool-* step for suspending tools.
+      const stepNames = ctx.step.mock.calls.map((c: any[]) => c[0] as string);
+      const toolSteps = stepNames.filter((n: string) => n.startsWith("tool-"));
+      expect(toolSteps).toHaveLength(0);
 
-        // But the executeTool should still have been called directly
-        expect(executeTool).toHaveBeenCalledWith(toolName, { step_name: "s1" });
-      },
-    );
+      // But the executeTool should still have been called directly
+      expect(executeTool).toHaveBeenCalledWith(toolName, { step_name: "s1" });
+    });
   });
 
   // ── 6. Non-suspending tools: wrapped in ctx.step() ─────────────────
 
   describe("non-suspending tools", () => {
-    it.each(["read_file", "write_file", "get_state", "set_state", "run_script", "spawn_task"])(
-      "wraps %s in ctx.step()",
-      async (toolName) => {
-        const executeTool = vi.fn().mockResolvedValue("ok");
-        const tb = toolUseBlock(toolName, {}, "ns-1");
-        const anthropic = createMockAnthropic([
-          apiResponse([tb], "tool_use"),
-          apiResponse([textBlock("done")]),
-        ]);
-        const deps = baseDeps({ anthropic, executeTool });
-        const ctx = createMockCtx();
+    it.each([
+      "read_file",
+      "write_file",
+      "get_state",
+      "set_state",
+      "run_script",
+      "spawn_task",
+    ])("wraps %s in ctx.step()", async (toolName) => {
+      const executeTool = vi.fn().mockResolvedValue("ok");
+      const tb = toolUseBlock(toolName, {}, "ns-1");
+      const anthropic = createMockAnthropic([
+        apiResponse([tb], "tool_use"),
+        apiResponse([textBlock("done")]),
+      ]);
+      const deps = baseDeps({ anthropic, executeTool });
+      const ctx = createMockCtx();
 
-        await runAgentLoop(ctx, "telegram:1", "run", deps);
+      await runAgentLoop(ctx, "telegram:1", "run", deps);
 
-        const stepNames = ctx.step.mock.calls.map((c: any[]) => c[0] as string);
-        expect(stepNames).toContain(`tool-0-${toolName}`);
-      },
-    );
+      const stepNames = ctx.step.mock.calls.map((c: any[]) => c[0] as string);
+      expect(stepNames).toContain(`tool-0-${toolName}`);
+    });
   });
 
   // ── 7. Mixed suspending and non-suspending in one response ─────────
@@ -410,9 +404,7 @@ describe("runAgentLoop", () => {
 
   describe("multi-turn tool use", () => {
     it("supports multiple tool turns before a final text response", async () => {
-      const executeTool = vi.fn()
-        .mockResolvedValueOnce("r1")
-        .mockResolvedValueOnce("r2");
+      const executeTool = vi.fn().mockResolvedValueOnce("r1").mockResolvedValueOnce("r2");
       const tb1 = toolUseBlock("read_file", {}, "mt-1");
       const tb2 = toolUseBlock("write_file", {}, "mt-2");
       const anthropic = createMockAnthropic([
@@ -437,9 +429,7 @@ describe("runAgentLoop", () => {
     it("stops after 20 turns and returns empty string if only tool_use", async () => {
       // Create an anthropic mock that always returns tool_use
       const tb = toolUseBlock("read_file", {}, "loop-1");
-      const create = vi.fn().mockResolvedValue(
-        apiResponse([tb], "tool_use"),
-      );
+      const create = vi.fn().mockResolvedValue(apiResponse([tb], "tool_use"));
       const anthropic = { messages: { create } } as any;
       const executeTool = vi.fn().mockResolvedValue("ok");
       const deps = baseDeps({ anthropic, executeTool });
@@ -537,9 +527,7 @@ describe("runAgentLoop", () => {
     });
 
     it("does not error if onText is not provided", async () => {
-      const anthropic = createMockAnthropic([
-        apiResponse([textBlock("hello")]),
-      ]);
+      const anthropic = createMockAnthropic([apiResponse([textBlock("hello")])]);
       const deps = baseDeps({ anthropic, onText: undefined });
       const ctx = createMockCtx();
 
@@ -553,9 +541,7 @@ describe("runAgentLoop", () => {
 
   describe("context loading", () => {
     it("wraps context loading in ctx.step('load-context')", async () => {
-      const anthropic = createMockAnthropic([
-        apiResponse([textBlock("ok")]),
-      ]);
+      const anthropic = createMockAnthropic([apiResponse([textBlock("ok")])]);
       const deps = baseDeps({ anthropic });
       const ctx = createMockCtx();
 
@@ -566,9 +552,7 @@ describe("runAgentLoop", () => {
     });
 
     it("passes recipientId and maxHistory to getRecentMessages", async () => {
-      const anthropic = createMockAnthropic([
-        apiResponse([textBlock("ok")]),
-      ]);
+      const anthropic = createMockAnthropic([apiResponse([textBlock("ok")])]);
       const deps = baseDeps({ anthropic, maxHistory: 25 });
       const ctx = createMockCtx();
 
@@ -578,9 +562,7 @@ describe("runAgentLoop", () => {
     });
 
     it("calls buildSystemPrompt with loaded context", async () => {
-      const anthropic = createMockAnthropic([
-        apiResponse([textBlock("ok")]),
-      ]);
+      const anthropic = createMockAnthropic([apiResponse([textBlock("ok")])]);
       const deps = baseDeps({ anthropic });
       const ctx = createMockCtx();
 
@@ -599,9 +581,7 @@ describe("runAgentLoop", () => {
         { recipientId: "telegram:1", role: "assistant", content: "previous answer" },
       ] as any);
 
-      const anthropic = createMockAnthropic([
-        apiResponse([textBlock("new answer")]),
-      ]);
+      const anthropic = createMockAnthropic([apiResponse([textBlock("new answer")])]);
       const deps = baseDeps({ anthropic });
       const ctx = createMockCtx();
 
@@ -625,9 +605,7 @@ describe("runAgentLoop", () => {
         { recipientId: "telegram:1", role: "assistant", content: "a1" },
       ] as any);
 
-      const anthropic = createMockAnthropic([
-        apiResponse([textBlock("answer")]),
-      ]);
+      const anthropic = createMockAnthropic([apiResponse([textBlock("answer")])]);
       const deps = baseDeps({ anthropic });
       const ctx = createMockCtx();
 
@@ -660,9 +638,7 @@ describe("runAgentLoop", () => {
         { recipientId: "telegram:1", role: "assistant", content: "Done!" },
       ] as any);
 
-      const anthropic = createMockAnthropic([
-        apiResponse([textBlock("hello")]),
-      ]);
+      const anthropic = createMockAnthropic([apiResponse([textBlock("hello")])]);
       const deps = baseDeps({ anthropic });
       const ctx = createMockCtx();
 
@@ -707,9 +683,7 @@ describe("runAgentLoop", () => {
         { recipientId: "telegram:1", role: "assistant", content: "Welcome!" },
       ] as any);
 
-      const anthropic = createMockAnthropic([
-        apiResponse([textBlock("hi")]),
-      ]);
+      const anthropic = createMockAnthropic([apiResponse([textBlock("hi")])]);
       const deps = baseDeps({ anthropic });
       const ctx = createMockCtx();
 
@@ -737,9 +711,7 @@ describe("runAgentLoop", () => {
         { recipientId: "telegram:1", role: "assistant", content: "hello" },
       ] as any);
 
-      const anthropic = createMockAnthropic([
-        apiResponse([textBlock("hey")]),
-      ]);
+      const anthropic = createMockAnthropic([apiResponse([textBlock("hey")])]);
       const deps = baseDeps({ anthropic });
       const ctx = createMockCtx();
 
@@ -770,9 +742,7 @@ describe("runAgentLoop", () => {
         { recipientId: "telegram:1", role: "assistant", content: "done" },
       ] as any);
 
-      const anthropic = createMockAnthropic([
-        apiResponse([textBlock("ok")]),
-      ]);
+      const anthropic = createMockAnthropic([apiResponse([textBlock("ok")])]);
       const deps = baseDeps({ anthropic });
       const ctx = createMockCtx();
 
@@ -793,9 +763,7 @@ describe("runAgentLoop", () => {
 
   describe("persistence", () => {
     it("wraps persistence in ctx.step('persist')", async () => {
-      const anthropic = createMockAnthropic([
-        apiResponse([textBlock("hi")]),
-      ]);
+      const anthropic = createMockAnthropic([apiResponse([textBlock("hi")])]);
       const deps = baseDeps({ anthropic });
       const ctx = createMockCtx();
 
@@ -829,7 +797,9 @@ describe("runAgentLoop", () => {
       const assistantMsg = calls[1][1] as import("../memory/history.ts").AssistantMessage;
       expect(assistantMsg).toMatchObject({ recipientId: "telegram:42", role: "assistant" });
       expect(assistantMsg.toolUse).toBeDefined();
-      expect(assistantMsg.toolUse).toEqual([{ id: "tool-p", name: "get_state", input: { namespace: "n", key: "k" } }]);
+      expect(assistantMsg.toolUse).toEqual([
+        { id: "tool-p", name: "get_state", input: { namespace: "n", key: "k" } },
+      ]);
 
       // 3. Tool results (structured toolUse for history reconstruction)
       const toolMsg = calls[2][1] as import("../memory/history.ts").ToolResultMessage;
@@ -864,7 +834,7 @@ describe("runAgentLoop", () => {
         (c) => c[1].role === "assistant" && c[1].toolUse !== undefined,
       );
       expect(assistantToolCall).toBeDefined();
-      expect(assistantToolCall![1].content).toBe("(tool use only)");
+      expect(assistantToolCall?.[1].content).toBe("(tool use only)");
     });
   });
 
@@ -873,11 +843,19 @@ describe("runAgentLoop", () => {
   describe("API call parameters", () => {
     it("passes model, system prompt, tools, and messages to Claude", async () => {
       vi.mocked(buildSystemPrompt).mockReturnValueOnce("custom-system-prompt");
-      const anthropic = createMockAnthropic([
-        apiResponse([textBlock("hi")]),
-      ]);
-      const definitions = [{ name: "my_tool", description: "desc", input_schema: { type: "object" as const, properties: {} } }];
-      const deps = baseDeps({ anthropic, model: "claude-sonnet-4-20250514", registry: { definitions, execute: vi.fn(), isSuspending: () => false } });
+      const anthropic = createMockAnthropic([apiResponse([textBlock("hi")])]);
+      const definitions = [
+        {
+          name: "my_tool",
+          description: "desc",
+          input_schema: { type: "object" as const, properties: {} },
+        },
+      ];
+      const deps = baseDeps({
+        anthropic,
+        model: "claude-sonnet-4-20250514",
+        registry: { definitions, execute: vi.fn(), isSuspending: () => false },
+      });
       const ctx = createMockCtx();
 
       await runAgentLoop(ctx, "telegram:1", "hello", deps);
@@ -959,9 +937,7 @@ describe("runAgentLoop", () => {
   describe("empty history", () => {
     it("works correctly with no prior conversation history", async () => {
       vi.mocked(getRecentMessages).mockResolvedValueOnce([]);
-      const anthropic = createMockAnthropic([
-        apiResponse([textBlock("first message")]),
-      ]);
+      const anthropic = createMockAnthropic([apiResponse([textBlock("first message")])]);
       const deps = baseDeps({ anthropic });
       const ctx = createMockCtx();
 
@@ -1002,9 +978,7 @@ describe("runAgentLoop", () => {
         { recipientId: "telegram:1", role: "assistant", content: "reply3" },
       ] as any);
 
-      const anthropic = createMockAnthropic([
-        apiResponse([textBlock("answer")]),
-      ]);
+      const anthropic = createMockAnthropic([apiResponse([textBlock("answer")])]);
       const deps = baseDeps({ anthropic });
       const ctx = createMockCtx();
 
@@ -1022,4 +996,3 @@ describe("runAgentLoop", () => {
     });
   });
 });
-

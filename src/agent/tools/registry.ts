@@ -1,9 +1,9 @@
-import type { ToolHandler, ExecutorDeps, ToolDef } from "./types.ts";
 import { fileTools } from "./files.ts";
-import { stateTools } from "./state.ts";
-import { scriptTools } from "./scripts.ts";
 import { orchestrationTools } from "./orchestration.ts";
+import { scriptTools } from "./scripts.ts";
 import { searchTools } from "./search.ts";
+import { stateTools } from "./state.ts";
+import type { ExecutorDeps, ToolDef, ToolHandler } from "./types.ts";
 
 export interface ToolRegistry {
   definitions: ToolDef[];
@@ -26,7 +26,7 @@ export function createToolRegistry(deps: ExecutorDeps): ToolRegistry {
   }
 
   return {
-    definitions: allHandlers.map(h => h.def),
+    definitions: allHandlers.map((h) => h.def),
     async execute(name: string, input: Record<string, any>): Promise<string> {
       const handler = map.get(name);
       if (!handler) return `Unknown tool: ${name}`;

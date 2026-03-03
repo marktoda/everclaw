@@ -1,12 +1,13 @@
 // src/tasks/shared.ts
-import type { Absurd, TaskContext } from "absurd-sdk";
+
 import type Anthropic from "@anthropic-ai/sdk";
+import type { Absurd, TaskContext } from "absurd-sdk";
 import type { Pool } from "pg";
+import type { AgentDeps } from "../agent/loop.ts";
+import { createToolRegistry } from "../agent/tools/index.ts";
 import type { ChannelRegistry } from "../channels/index.ts";
 import type { Config } from "../config.ts";
 import type { Logger } from "../logger.ts";
-import type { AgentDeps } from "../agent/loop.ts";
-import { createToolRegistry } from "../agent/tools/index.ts";
 
 export interface TaskDeps {
   anthropic: Anthropic;
@@ -54,8 +55,10 @@ export function buildAgentDeps(
     maxHistory: opts?.maxHistory ?? deps.config.maxHistoryMessages,
     registry,
     log,
-    onText: opts?.silent ? undefined : (text) => {
-      deps.channels.sendMessage(recipientId, text).catch(() => {});
-    },
+    onText: opts?.silent
+      ? undefined
+      : (text) => {
+          deps.channels.sendMessage(recipientId, text).catch(() => {});
+        },
   };
 }

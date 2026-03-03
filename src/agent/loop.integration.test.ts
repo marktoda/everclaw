@@ -2,24 +2,24 @@
 // Real Postgres (testcontainers) + real executor + real file I/O + FakeAnthropic.
 // NO vi.mock() — everything is real except Claude.
 
-import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from "vitest";
-import * as fs from "fs";
-import * as path from "path";
-import * as os from "os";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { getRecentMessages } from "../memory/history.ts";
+import type { Scenario } from "../test/fake-anthropic.ts";
+import { FakeAnthropic } from "../test/fake-anthropic.ts";
 import type { TestDb } from "../test/harness.ts";
 import { setupTestDb } from "../test/harness.ts";
-import { FakeAnthropic } from "../test/fake-anthropic.ts";
 import {
   SIMPLE_TEXT_REPLY,
   SINGLE_TOOL_USE,
-  WRITE_AND_READ,
   STATE_ROUNDTRIP,
+  WRITE_AND_READ,
 } from "../test/scenarios.ts";
-import type { Scenario } from "../test/fake-anthropic.ts";
-import { runAgentLoop } from "./loop.ts";
 import type { AgentDeps } from "./loop.ts";
+import { runAgentLoop } from "./loop.ts";
 import { createToolRegistry } from "./tools/index.ts";
-import { getRecentMessages } from "../memory/history.ts";
 
 let db: TestDb;
 
@@ -189,8 +189,8 @@ describe("loop integration tests", () => {
     expect(messages[1].role).toBe("assistant");
     const assistantMsg = messages[1] as import("../memory/history.ts").AssistantMessage;
     expect(assistantMsg.toolUse).toBeDefined();
-    expect(assistantMsg.toolUse!.length).toBe(1);
-    expect(assistantMsg.toolUse![0].name).toBe("read_file");
+    expect(assistantMsg.toolUse?.length).toBe(1);
+    expect(assistantMsg.toolUse?.[0].name).toBe("read_file");
     expect(messages[2].role).toBe("tool");
     expect(messages[3].role).toBe("assistant");
     expect(messages[3].content).toBe("I read the file.");
@@ -223,9 +223,7 @@ describe("loop integration tests", () => {
           stop_reason: "tool_use",
         },
         {
-          content: [
-            { type: "text", text: "Script output received.", citations: null },
-          ],
+          content: [{ type: "text", text: "Script output received.", citations: null }],
           stop_reason: "end_turn",
         },
       ],
@@ -243,10 +241,12 @@ describe("loop integration tests", () => {
     // Verify the script was actually executed by checking the tool result
     // was passed back to the second API call
     const secondRequest = fake.allRequests[1];
-    const lastUserMsg = secondRequest.messages[secondRequest.messages.length - 2];
+    const _lastUserMsg = secondRequest.messages[secondRequest.messages.length - 2];
     // The user message before the last should contain the tool_result
     const toolResultMsg = secondRequest.messages.find(
-      (m: any) => m.role === "user" && Array.isArray(m.content) &&
+      (m: any) =>
+        m.role === "user" &&
+        Array.isArray(m.content) &&
         m.content.some((b: any) => b.type === "tool_result"),
     );
     expect(toolResultMsg).toBeDefined();

@@ -1,11 +1,10 @@
 // src/agent/output.test.ts
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { stripInternalTags } from "./output.ts";
 
 describe("stripInternalTags", () => {
   it("removes internal tags", () => {
-    expect(stripInternalTags("Hello <internal>thinking...</internal> world"))
-      .toBe("Hello  world");
+    expect(stripInternalTags("Hello <internal>thinking...</internal> world")).toBe("Hello  world");
   });
 
   it("removes multiline internal blocks", () => {
@@ -14,8 +13,7 @@ describe("stripInternalTags", () => {
   });
 
   it("handles multiple internal blocks", () => {
-    expect(stripInternalTags("<internal>a</internal>Hi<internal>b</internal>"))
-      .toBe("Hi");
+    expect(stripInternalTags("<internal>a</internal>Hi<internal>b</internal>")).toBe("Hi");
   });
 
   it("passes through text without internal tags", () => {

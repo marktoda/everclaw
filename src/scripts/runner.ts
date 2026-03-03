@@ -1,6 +1,6 @@
-import { execFile } from "child_process";
-import * as fs from "fs/promises";
-import * as path from "path";
+import { execFile } from "node:child_process";
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
 
 const SCRIPT_EXTENSIONS = new Set([".sh", ".bash", ".py", ".js", ".ts"]);
 

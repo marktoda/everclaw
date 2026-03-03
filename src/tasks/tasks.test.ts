@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // ---- Mocks ----
 
@@ -23,12 +23,12 @@ vi.mock("fs/promises", () => ({
   readFile: vi.fn().mockResolvedValue("skill file content"),
 }));
 
+import { readFile } from "node:fs/promises";
 import { runAgentLoop } from "../agent/loop.ts";
 import { createToolRegistry } from "../agent/tools/index.ts";
-import { readFile } from "fs/promises";
-import { registerSendMessage } from "./send-message.ts";
-import { registerHandleMessage } from "./handle-message.ts";
 import { registerExecuteSkill } from "./execute-skill.ts";
+import { registerHandleMessage } from "./handle-message.ts";
+import { registerSendMessage } from "./send-message.ts";
 import { registerWorkflow } from "./workflow.ts";
 
 // ---- Helpers ----
@@ -132,7 +132,9 @@ describe("send-message", () => {
 describe("handle-message", () => {
   beforeEach(() => {
     vi.mocked(runAgentLoop).mockReset().mockResolvedValue("agent-reply");
-    vi.mocked(createToolRegistry).mockReset().mockReturnValue(mockRegistry as any);
+    vi.mocked(createToolRegistry)
+      .mockReset()
+      .mockReturnValue(mockRegistry as any);
   });
 
   it("registers a task named 'handle-message'", () => {
@@ -214,7 +216,7 @@ describe("handle-message", () => {
     // Extract the onText callback that was passed to runAgentLoop
     const opts = vi.mocked(runAgentLoop).mock.calls[0][3];
     // Invoke onText
-    opts.onText!("reply text");
+    opts.onText?.("reply text");
     expect(deps.channels.sendMessage).toHaveBeenCalledWith("telegram:77", "reply text");
   });
 
@@ -229,15 +231,19 @@ describe("handle-message", () => {
 
     const opts = vi.mocked(runAgentLoop).mock.calls[0][3];
     // Should not throw
-    expect(() => opts.onText!("y")).not.toThrow();
+    expect(() => opts.onText?.("y")).not.toThrow();
   });
 });
 
 describe("execute-skill", () => {
   beforeEach(() => {
     vi.mocked(runAgentLoop).mockReset().mockResolvedValue("skill-reply");
-    vi.mocked(createToolRegistry).mockReset().mockReturnValue(mockRegistry as any);
-    vi.mocked(readFile).mockReset().mockResolvedValue("skill file content" as any);
+    vi.mocked(createToolRegistry)
+      .mockReset()
+      .mockReturnValue(mockRegistry as any);
+    vi.mocked(readFile)
+      .mockReset()
+      .mockResolvedValue("skill file content" as any);
   });
 
   it("registers a task named 'execute-skill'", () => {
@@ -259,10 +265,7 @@ describe("execute-skill", () => {
     expect(ctx.step).toHaveBeenCalledWith("read-skill", expect.any(Function));
 
     // readFile should be called with the resolved skill path
-    expect(readFile).toHaveBeenCalledWith(
-      expect.stringContaining("morning-check.md"),
-      "utf-8",
-    );
+    expect(readFile).toHaveBeenCalledWith(expect.stringContaining("morning-check.md"), "utf-8");
   });
 
   it("calls runAgentLoop with skill content as message", async () => {
@@ -306,10 +309,7 @@ describe("execute-skill", () => {
     registerExecuteSkill(absurd as any, makeDeps());
 
     const handler = absurd.handlers.get("execute-skill")!;
-    const result = await handler(
-      { skillName: "daily", recipientId: "telegram:1" },
-      makeCtx(),
-    );
+    const result = await handler({ skillName: "daily", recipientId: "telegram:1" }, makeCtx());
 
     expect(result).toEqual({ skillName: "daily", reply: "skill-reply" });
   });
@@ -336,7 +336,7 @@ describe("execute-skill", () => {
     await handler({ skillName: "test", recipientId: "telegram:88" }, makeCtx());
 
     const opts = vi.mocked(runAgentLoop).mock.calls[0][3];
-    opts.onText!("some text");
+    opts.onText?.("some text");
     expect(deps.channels.sendMessage).toHaveBeenCalledWith("telegram:88", "some text");
   });
 });
@@ -344,7 +344,9 @@ describe("execute-skill", () => {
 describe("workflow", () => {
   beforeEach(() => {
     vi.mocked(runAgentLoop).mockReset().mockResolvedValue("workflow-reply");
-    vi.mocked(createToolRegistry).mockReset().mockReturnValue(mockRegistry as any);
+    vi.mocked(createToolRegistry)
+      .mockReset()
+      .mockReturnValue(mockRegistry as any);
   });
 
   it("registers a task named 'workflow'", () => {
@@ -358,10 +360,7 @@ describe("workflow", () => {
     registerWorkflow(absurd as any, makeDeps());
 
     const handler = absurd.handlers.get("workflow")!;
-    await handler(
-      { recipientId: "telegram:1", instructions: "do the thing" },
-      makeCtx(),
-    );
+    await handler({ recipientId: "telegram:1", instructions: "do the thing" }, makeCtx());
 
     expect(runAgentLoop).toHaveBeenCalledOnce();
     expect(runAgentLoop).toHaveBeenCalledWith(
@@ -409,10 +408,7 @@ describe("workflow", () => {
     registerWorkflow(absurd as any, makeDeps());
 
     const handler = absurd.handlers.get("workflow")!;
-    await handler(
-      { recipientId: "telegram:1", instructions: "go", context: null },
-      makeCtx(),
-    );
+    await handler({ recipientId: "telegram:1", instructions: "go", context: null }, makeCtx());
 
     const message = vi.mocked(runAgentLoop).mock.calls[0][2];
     expect(message).toBe("go");
@@ -449,10 +445,7 @@ describe("workflow", () => {
     registerWorkflow(absurd as any, makeDeps());
 
     const handler = absurd.handlers.get("workflow")!;
-    const result = await handler(
-      { recipientId: "telegram:1", instructions: "test" },
-      makeCtx(),
-    );
+    const result = await handler({ recipientId: "telegram:1", instructions: "test" }, makeCtx());
 
     expect(result).toEqual({ reply: "workflow-reply" });
   });
@@ -466,7 +459,7 @@ describe("workflow", () => {
     await handler({ recipientId: "telegram:44", instructions: "do" }, makeCtx());
 
     const opts = vi.mocked(runAgentLoop).mock.calls[0][3];
-    opts.onText!("workflow text");
+    opts.onText?.("workflow text");
     expect(deps.channels.sendMessage).toHaveBeenCalledWith("telegram:44", "workflow text");
   });
 });

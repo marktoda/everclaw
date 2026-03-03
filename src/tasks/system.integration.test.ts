@@ -3,21 +3,21 @@
 // starts a real worker, spawns tasks, and verifies they complete.
 // Only mocks: Claude API (FakeAnthropic) and Telegram bot (bot.api.sendMessage).
 
-import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
-import * as fs from "fs/promises";
-import * as path from "path";
-import * as os from "os";
+import * as fs from "node:fs/promises";
+import * as os from "node:os";
+import * as path from "node:path";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import type { ChannelRegistry } from "../channels/index.ts";
+import type { Config } from "../config.ts";
+import { FakeAnthropic } from "../test/fake-anthropic.ts";
 import type { TestDb } from "../test/harness.ts";
 import { setupTestDb } from "../test/harness.ts";
-import { FakeAnthropic } from "../test/fake-anthropic.ts";
 import { SIMPLE_TEXT_REPLY } from "../test/scenarios.ts";
-import { registerHandleMessage } from "./handle-message.ts";
+import { registerExecuteSkill } from "./execute-skill.ts";
 import type { TaskDeps } from "./handle-message.ts";
+import { registerHandleMessage } from "./handle-message.ts";
 import { registerSendMessage } from "./send-message.ts";
 import { registerWorkflow } from "./workflow.ts";
-import { registerExecuteSkill } from "./execute-skill.ts";
-import type { Config } from "../config.ts";
-import { ChannelRegistry } from "../channels/index.ts";
 
 let db: TestDb;
 let tmpDir: string;
@@ -213,9 +213,7 @@ Tell the user good morning.
       expect(fake.callCount).toBeGreaterThanOrEqual(1);
       const firstRequest = fake.allRequests[0];
       // The user message should contain the skill content
-      const userMessages = firstRequest.messages.filter(
-        (m: any) => m.role === "user",
-      );
+      const userMessages = firstRequest.messages.filter((m: any) => m.role === "user");
       const lastUserMsg = userMessages[userMessages.length - 1];
       expect(lastUserMsg.content).toContain("Tell the user good morning.");
     } finally {

@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import * as path from "node:path";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ExecutorDeps } from "./index.ts";
-import * as path from "path";
 
 // ---------------------------------------------------------------------------
 // Mocks — all external I/O is stubbed so tests are fast and deterministic.
@@ -31,11 +31,11 @@ vi.mock("../../scripts/runner.ts", () => ({
 }));
 
 // Import mocked modules so we can configure per-test return values.
-import * as fs from "fs/promises";
-import { getState, setState } from "../../memory/state.ts";
-import { listSkills, syncSchedules } from "../../skills/manager.ts";
-import { runScript, listScripts } from "../../scripts/runner.ts";
+import * as fs from "node:fs/promises";
 import { TimeoutError } from "absurd-sdk";
+import { getState, setState } from "../../memory/state.ts";
+import { listScripts, runScript } from "../../scripts/runner.ts";
+import { listSkills, syncSchedules } from "../../skills/manager.ts";
 
 import { createToolRegistry } from "./index.ts";
 
@@ -93,10 +93,7 @@ describe("registry", () => {
     it("accepts a file directly inside the notes directory", async () => {
       vi.mocked(fs.readFile).mockResolvedValue("hello");
       const result = await exec("read_file", { path: "data/notes/foo.txt" });
-      expect(fs.readFile).toHaveBeenCalledWith(
-        path.resolve("/data/notes", "foo.txt"),
-        "utf-8",
-      );
+      expect(fs.readFile).toHaveBeenCalledWith(path.resolve("/data/notes", "foo.txt"), "utf-8");
       expect(result).toBe("hello");
     });
 
@@ -155,19 +152,13 @@ describe("registry", () => {
     it("handles leading ./ prefix by stripping it", async () => {
       vi.mocked(fs.readFile).mockResolvedValue("ok");
       await exec("read_file", { path: "./data/notes/readme.md" });
-      expect(fs.readFile).toHaveBeenCalledWith(
-        path.resolve("/data/notes", "readme.md"),
-        "utf-8",
-      );
+      expect(fs.readFile).toHaveBeenCalledWith(path.resolve("/data/notes", "readme.md"), "utf-8");
     });
 
     it("handles leading / prefix by stripping it", async () => {
       vi.mocked(fs.readFile).mockResolvedValue("ok");
       await exec("read_file", { path: "/data/notes/readme.md" });
-      expect(fs.readFile).toHaveBeenCalledWith(
-        path.resolve("/data/notes", "readme.md"),
-        "utf-8",
-      );
+      expect(fs.readFile).toHaveBeenCalledWith(path.resolve("/data/notes", "readme.md"), "utf-8");
     });
   });
 
@@ -178,10 +169,7 @@ describe("registry", () => {
     it("maps data/notes/ to notesDir", async () => {
       vi.mocked(fs.readFile).mockResolvedValue("content");
       await exec("read_file", { path: "data/notes/test.txt" });
-      expect(fs.readFile).toHaveBeenCalledWith(
-        path.resolve("/data/notes", "test.txt"),
-        "utf-8",
-      );
+      expect(fs.readFile).toHaveBeenCalledWith(path.resolve("/data/notes", "test.txt"), "utf-8");
     });
 
     it("maps skills/ to skillsDir", async () => {
@@ -223,9 +211,7 @@ describe("registry", () => {
     it("propagates non-ENOENT errors", async () => {
       const err = Object.assign(new Error("EACCES"), { code: "EACCES" });
       vi.mocked(fs.readFile).mockRejectedValue(err);
-      await expect(
-        exec("read_file", { path: "data/notes/noperm.txt" }),
-      ).rejects.toThrow("EACCES");
+      await expect(exec("read_file", { path: "data/notes/noperm.txt" })).rejects.toThrow("EACCES");
     });
 
     it("returns error for invalid path", async () => {
@@ -285,10 +271,7 @@ describe("registry", () => {
         content: "#!/bin/bash\necho hi",
       });
 
-      expect(fs.chmod).toHaveBeenCalledWith(
-        path.resolve("/data/scripts", "my-tool.sh"),
-        0o755,
-      );
+      expect(fs.chmod).toHaveBeenCalledWith(path.resolve("/data/scripts", "my-tool.sh"), 0o755);
     });
 
     it("does NOT chmod when writing to notes/", async () => {
@@ -313,11 +296,7 @@ describe("registry", () => {
         content: "---\nschedule: 0 9 * * *\n---\nDo the report.",
       });
 
-      expect(syncSchedules).toHaveBeenCalledWith(
-        deps.absurd,
-        "/data/skills",
-        "telegram:42",
-      );
+      expect(syncSchedules).toHaveBeenCalledWith(deps.absurd, "/data/skills", "telegram:42");
     });
 
     it("does NOT call syncSchedules when writing to scripts/", async () => {
@@ -404,9 +383,7 @@ describe("registry", () => {
       const result = await exec("delete_file", {
         path: "data/notes/old.txt",
       });
-      expect(fs.unlink).toHaveBeenCalledWith(
-        path.resolve("/data/notes", "old.txt"),
-      );
+      expect(fs.unlink).toHaveBeenCalledWith(path.resolve("/data/notes", "old.txt"));
       expect(result).toBe("File deleted: data/notes/old.txt");
     });
 
@@ -422,9 +399,7 @@ describe("registry", () => {
     it("propagates non-ENOENT errors", async () => {
       const err = Object.assign(new Error("EPERM"), { code: "EPERM" });
       vi.mocked(fs.unlink).mockRejectedValue(err);
-      await expect(
-        exec("delete_file", { path: "data/notes/locked.txt" }),
-      ).rejects.toThrow("EPERM");
+      await expect(exec("delete_file", { path: "data/notes/locked.txt" })).rejects.toThrow("EPERM");
     });
 
     it("returns error for invalid path", async () => {
@@ -447,11 +422,7 @@ describe("registry", () => {
 
       await exec("delete_file", { path: "skills/old-skill.md" });
 
-      expect(syncSchedules).toHaveBeenCalledWith(
-        deps.absurd,
-        "/data/skills",
-        "telegram:42",
-      );
+      expect(syncSchedules).toHaveBeenCalledWith(deps.absurd, "/data/skills", "telegram:42");
     });
 
     it("does NOT call syncSchedules when deleting from notes/", async () => {
@@ -534,12 +505,8 @@ describe("registry", () => {
         { name: "s1", description: "", filename: "s1.md" },
         { name: "s2", description: "", schedule: "* * * * *", filename: "s2.md" },
       ]);
-      vi.mocked(listScripts).mockResolvedValue([
-        { name: "t1", path: "/data/scripts/t1.sh" },
-      ]);
-      vi.mocked(deps.absurd.listSchedules).mockResolvedValue([
-        { scheduleName: "sched1" } as any,
-      ]);
+      vi.mocked(listScripts).mockResolvedValue([{ name: "t1", path: "/data/scripts/t1.sh" }]);
+      vi.mocked(deps.absurd.listSchedules).mockResolvedValue([{ scheduleName: "sched1" } as any]);
       vi.mocked(fs.readdir).mockResolvedValue(["n1.md", "n2.md", "n3.md"] as any);
 
       const result = await exec("get_status", {});
@@ -593,9 +560,7 @@ describe("registry", () => {
     });
 
     it("returns error when tool is not found", async () => {
-      vi.mocked(listScripts).mockResolvedValue([
-        { name: "calc", path: "/data/scripts/calc.py" },
-      ]);
+      vi.mocked(listScripts).mockResolvedValue([{ name: "calc", path: "/data/scripts/calc.py" }]);
 
       const result = await exec("run_script", { name: "missing" });
 
@@ -605,19 +570,12 @@ describe("registry", () => {
     });
 
     it("passes empty object when input is undefined", async () => {
-      vi.mocked(listScripts).mockResolvedValue([
-        { name: "hello", path: "/data/scripts/hello.sh" },
-      ]);
+      vi.mocked(listScripts).mockResolvedValue([{ name: "hello", path: "/data/scripts/hello.sh" }]);
       vi.mocked(runScript).mockResolvedValue("hi");
 
       await exec("run_script", { name: "hello" });
 
-      expect(runScript).toHaveBeenCalledWith(
-        "/data/scripts/hello.sh",
-        "{}",
-        30,
-        {},
-      );
+      expect(runScript).toHaveBeenCalledWith("/data/scripts/hello.sh", "{}", 30, {});
     });
 
     it("returns error when no tools exist", async () => {
@@ -702,9 +660,7 @@ describe("registry", () => {
     });
 
     it("returns timed_out on TimeoutError", async () => {
-      vi.mocked(deps.ctx.awaitEvent).mockRejectedValue(
-        new TimeoutError("timed out"),
-      );
+      vi.mocked(deps.ctx.awaitEvent).mockRejectedValue(new TimeoutError("timed out"));
 
       const result = await exec("wait_for_event", {
         event_name: "user_reply",
@@ -717,9 +673,7 @@ describe("registry", () => {
     });
 
     it("propagates non-TimeoutError errors", async () => {
-      vi.mocked(deps.ctx.awaitEvent).mockRejectedValue(
-        new Error("SuspendTask"),
-      );
+      vi.mocked(deps.ctx.awaitEvent).mockRejectedValue(new Error("SuspendTask"));
 
       await expect(
         exec("wait_for_event", {
@@ -840,13 +794,17 @@ describe("registry", () => {
 
       const result = await exec("cancel_task", { task_id: "task-gone" });
 
-      expect(result).toBe("Task task-gone not found (may have already completed or been cancelled).");
+      expect(result).toBe(
+        "Task task-gone not found (may have already completed or been cancelled).",
+      );
     });
 
     it("rethrows unexpected errors", async () => {
       vi.mocked(deps.absurd.cancelTask).mockRejectedValue(new Error("db connection failed"));
 
-      await expect(exec("cancel_task", { task_id: "task-x" })).rejects.toThrow("db connection failed");
+      await expect(exec("cancel_task", { task_id: "task-x" })).rejects.toThrow(
+        "db connection failed",
+      );
     });
   });
 
@@ -891,9 +849,7 @@ describe("registry", () => {
 
       const result = await exec("list_tasks", {});
 
-      expect(deps.pool.query).toHaveBeenCalledWith(
-        expect.stringContaining("absurd.t_test_queue"),
-      );
+      expect(deps.pool.query).toHaveBeenCalledWith(expect.stringContaining("absurd.t_test_queue"));
       // Full task IDs shown
       expect(result).toContain("abcdefgh-1234-5678");
       expect(result).toContain("12345678-abcd-efgh");
@@ -982,7 +938,7 @@ describe("registry", () => {
 
     it("includes expected tool names", () => {
       const registry = createToolRegistry(deps);
-      const names = registry.definitions.map(d => d.name);
+      const names = registry.definitions.map((d) => d.name);
       expect(names).toContain("read_file");
       expect(names).toContain("write_file");
       expect(names).toContain("list_files");

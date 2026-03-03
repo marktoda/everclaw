@@ -1,6 +1,6 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import type { ChannelAdapter } from "./adapter.ts";
 import { ChannelRegistry } from "./registry.ts";
-import type { ChannelAdapter, InboundMessage } from "./adapter.ts";
 
 function fakeAdapter(name: string): ChannelAdapter {
   return {
@@ -22,7 +22,9 @@ describe("ChannelRegistry", () => {
 
   it("throws for unknown prefix", () => {
     const registry = new ChannelRegistry();
-    expect(() => registry.resolve("whatsapp:123")).toThrow('No channel adapter for prefix "whatsapp"');
+    expect(() => registry.resolve("whatsapp:123")).toThrow(
+      'No channel adapter for prefix "whatsapp"',
+    );
   });
 
   it("routes sendMessage to the correct adapter", async () => {

@@ -3,9 +3,9 @@
 // FakeAnthropic validates every messages.create call against the Anthropic API
 // contract and throws on any violation, so the tests pass if no exception is thrown.
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { TaskContext } from "absurd-sdk";
 import type { Pool } from "pg";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentDeps } from "./loop.ts";
 
 // ── Mocks ──────────────────────────────────────────────────────────────
@@ -34,17 +34,17 @@ vi.mock("fs/promises", () => ({
 
 // ── Imports (after mocks are declared) ─────────────────────────────────
 
-import { runAgentLoop } from "./loop.ts";
 import { getRecentMessages } from "../memory/history.ts";
 import { FakeAnthropic } from "../test/fake-anthropic.ts";
 import {
-  SIMPLE_TEXT_REPLY,
-  SINGLE_TOOL_USE,
   MULTI_TOOL_PARALLEL,
   MULTI_TURN_TOOLS,
-  TEXT_PLUS_TOOL,
   makeMaxTurnsScenario,
+  SIMPLE_TEXT_REPLY,
+  SINGLE_TOOL_USE,
+  TEXT_PLUS_TOOL,
 } from "../test/scenarios.ts";
+import { runAgentLoop } from "./loop.ts";
 
 // ── Helpers ────────────────────────────────────────────────────────────
 
@@ -155,7 +155,9 @@ describe("contract tests — API-valid message arrays", () => {
         recipientId: "telegram:1",
         role: "assistant",
         content: "(tool use only)",
-        toolUse: [{ id: "tu-hist-1", name: "set_state", input: { namespace: "n", key: "k", value: "v" } }],
+        toolUse: [
+          { id: "tu-hist-1", name: "set_state", input: { namespace: "n", key: "k", value: "v" } },
+        ],
       },
       {
         recipientId: "telegram:1",

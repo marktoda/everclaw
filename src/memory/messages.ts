@@ -1,6 +1,6 @@
 // src/memory/messages.ts
 import type Anthropic from "@anthropic-ai/sdk";
-import type { Message, AssistantMessage, ToolResultMessage } from "./history.ts";
+import type { AssistantMessage, Message, ToolResultMessage } from "./history.ts";
 
 type ContentBlock = Anthropic.ContentBlockParam;
 
@@ -39,7 +39,7 @@ export function reconstructMessages(history: Message[]): Anthropic.MessageParam[
     } else if (msg.role === "tool" && msg.toolUse?.length > 0) {
       messages.push({
         role: "user",
-        content: msg.toolUse.map(r => ({
+        content: msg.toolUse.map((r) => ({
           type: "tool_result" as const,
           tool_use_id: r.tool_use_id,
           content: r.content,
@@ -69,11 +69,11 @@ export function deconstructMessages(
       const blocks = contentBlocks(msg) ?? [];
       const text = blocks
         .filter((b): b is Anthropic.TextBlockParam => b.type === "text")
-        .map(b => b.text)
+        .map((b) => b.text)
         .join("\n");
       const toolUse = blocks
         .filter(isToolUse)
-        .map(b => ({ id: b.id, name: b.name, input: b.input as Record<string, unknown> }));
+        .map((b) => ({ id: b.id, name: b.name, input: b.input as Record<string, unknown> }));
       result.push({
         recipientId,
         role: "assistant",
@@ -86,8 +86,11 @@ export function deconstructMessages(
         result.push({
           recipientId,
           role: "tool",
-          content: blocks.map(r => `[${r.tool_use_id}]: ${r.content}`).join("\n"),
-          toolUse: blocks.map(r => ({ tool_use_id: r.tool_use_id, content: r.content as string })),
+          content: blocks.map((r) => `[${r.tool_use_id}]: ${r.content}`).join("\n"),
+          toolUse: blocks.map((r) => ({
+            tool_use_id: r.tool_use_id,
+            content: r.content as string,
+          })),
         } satisfies ToolResultMessage);
       }
     }
@@ -123,16 +126,14 @@ export function sanitizeMessages(messages: Anthropic.MessageParam[]): Anthropic.
       const next = messages[i + 1];
       const nextBlocks = next ? contentBlocks(next) : null;
       if (next?.role === "user" && nextBlocks && isToolResult(nextBlocks[0])) {
-        const useIds = new Set(
-          blocks.filter(isToolUse).map(b => b.id),
-        );
-        const resultIds = new Set(
-          nextBlocks.filter(isToolResult).map(b => b.tool_use_id),
-        );
+        const useIds = new Set(blocks.filter(isToolUse).map((b) => b.id));
+        const resultIds = new Set(nextBlocks.filter(isToolResult).map((b) => b.tool_use_id));
         // Valid pair: every use has a result and vice versa
-        if (useIds.size > 0 &&
-            [...resultIds].every(id => useIds.has(id)) &&
-            [...useIds].every(id => resultIds.has(id))) {
+        if (
+          useIds.size > 0 &&
+          [...resultIds].every((id) => useIds.has(id)) &&
+          [...useIds].every((id) => resultIds.has(id))
+        ) {
           cleaned.push(msg, next);
           i += 2;
           continue;
