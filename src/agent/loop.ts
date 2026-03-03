@@ -5,7 +5,7 @@ import type { Pool } from "pg";
 import pino from "pino";
 import type { ToolRegistry } from "./tools/index.ts";
 import type { Logger } from "../logger.ts";
-import { getRecentMessages, appendMessage } from "../memory/history.ts";
+import { getRecentMessages, appendMessage, type Message, type AssistantMessage, type ToolResultMessage } from "../memory/history.ts";
 import { listSkills } from "../skills/manager.ts";
 import { listTools } from "../scripts/runner.ts";
 import { buildSystemPrompt } from "./prompt.ts";
@@ -150,9 +150,8 @@ export async function runAgentLoop(
   // Build messages array — reconstruct full Anthropic content blocks from
   // stored history so Claude sees tool_use / tool_result context.
   const messages: Anthropic.MessageParam[] = [];
-  for (const msg of context.history as any[]) {
-    if (msg.role === "assistant" && msg.toolUse?.length > 0 && msg.toolUse[0].id) {
-      // Reconstruct assistant message with tool_use content blocks
+  for (const msg of context.history as Message[]) {
+    if (msg.role === "assistant" && msg.toolUse && msg.toolUse.length > 0) {
       const content: (Anthropic.TextBlock | Anthropic.ToolUseBlock)[] = [];
       if (msg.content && msg.content !== "(tool use only)") {
         content.push({ type: "text", text: msg.content, citations: null } as Anthropic.TextBlock);
@@ -162,10 +161,9 @@ export async function runAgentLoop(
       }
       messages.push({ role: "assistant", content });
     } else if (msg.role === "tool" && msg.toolUse?.length > 0) {
-      // Reconstruct tool results as user message with tool_result blocks
       messages.push({
         role: "user",
-        content: msg.toolUse.map((r: any) => ({
+        content: msg.toolUse.map(r => ({
           type: "tool_result" as const,
           tool_use_id: r.tool_use_id,
           content: r.content,
@@ -263,7 +261,7 @@ export async function runAgentLoop(
   // the final assistant reply. This ensures the next turn's conversation
   // history includes what tools were used and their results.
   await ctx.step("persist", async () => {
-    await appendMessage(deps.pool, { chatId, role: "user", content: userMessage });
+    await appendMessage(deps.pool, { chatId, role: "user", content: userMessage } as Message);
     // Walk the messages array to find assistant + tool_result pairs we added
     // during the loop (skip the sanitized history and the user message).
     const loopMessages = messages.slice(preLoopLength);
@@ -277,13 +275,13 @@ export async function runAgentLoop(
           .join("\n");
         const toolUse = blocks
           .filter((b): b is Anthropic.ToolUseBlock => b.type === "tool_use")
-          .map(b => ({ id: b.id, name: b.name, input: b.input }));
+          .map(b => ({ id: b.id, name: b.name, input: b.input as Record<string, any> }));
         await appendMessage(deps.pool, {
           chatId,
           role: "assistant",
           content: text || "(tool use only)",
           toolUse: toolUse.length > 0 ? toolUse : undefined,
-        });
+        } satisfies AssistantMessage);
       } else if (msg.role === "user" && Array.isArray(msg.content)) {
         // Tool results — store structured data for history reconstruction
         const results = msg.content as Anthropic.ToolResultBlockParam[];
@@ -294,8 +292,8 @@ export async function runAgentLoop(
           chatId,
           role: "tool",
           content: toolResults,
-          toolUse: results.map(r => ({ tool_use_id: r.tool_use_id, content: r.content })),
-        });
+          toolUse: results.map(r => ({ tool_use_id: r.tool_use_id, content: r.content as string })),
+        } satisfies ToolResultMessage);
       }
     }
     return true;

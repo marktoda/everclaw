@@ -828,15 +828,17 @@ describe("runAgentLoop", () => {
       expect(calls[0][1]).toMatchObject({ chatId: 42, role: "user", content: "q" });
 
       // 2. Assistant with tool_use (includes id for history reconstruction)
-      expect(calls[1][1]).toMatchObject({ chatId: 42, role: "assistant" });
-      expect(calls[1][1].toolUse).toBeDefined();
-      expect(calls[1][1].toolUse).toEqual([{ id: "tool-p", name: "get_state", input: { namespace: "n", key: "k" } }]);
+      const assistantMsg = calls[1][1] as import("../memory/history.ts").AssistantMessage;
+      expect(assistantMsg).toMatchObject({ chatId: 42, role: "assistant" });
+      expect(assistantMsg.toolUse).toBeDefined();
+      expect(assistantMsg.toolUse).toEqual([{ id: "tool-p", name: "get_state", input: { namespace: "n", key: "k" } }]);
 
       // 3. Tool results (structured toolUse for history reconstruction)
-      expect(calls[2][1]).toMatchObject({ chatId: 42, role: "tool" });
-      expect(calls[2][1].content).toContain("tool-p");
-      expect(calls[2][1].content).toContain("tool-result");
-      expect(calls[2][1].toolUse).toEqual([{ tool_use_id: "tool-p", content: "tool-result" }]);
+      const toolMsg = calls[2][1] as import("../memory/history.ts").ToolResultMessage;
+      expect(toolMsg).toMatchObject({ chatId: 42, role: "tool" });
+      expect(toolMsg.content).toContain("tool-p");
+      expect(toolMsg.content).toContain("tool-result");
+      expect(toolMsg.toolUse).toEqual([{ tool_use_id: "tool-p", content: "tool-result" }]);
 
       // 4. Final assistant text
       expect(calls[3][1]).toMatchObject({
