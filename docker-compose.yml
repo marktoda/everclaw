@@ -5,7 +5,7 @@ services:
     volumes:
       - ./data:/app/data
       - ./skills:/app/skills
-      - ./tools:/app/tools
+      - ./scripts:/app/scripts
       - ./.env:/app/.env:ro
     environment:
       # Only non-secret config
