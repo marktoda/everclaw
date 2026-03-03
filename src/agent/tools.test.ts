@@ -2,9 +2,9 @@ import { describe, it, expect } from "vitest";
 import { getTools } from "./tools.ts";
 
 describe("getTools", () => {
-  it("returns all 15 tools", () => {
+  it("returns all 16 tools", () => {
     const tools = getTools();
-    expect(tools).toHaveLength(15);
+    expect(tools).toHaveLength(16);
   });
 
   it("returns file tools", () => {
@@ -25,6 +25,11 @@ describe("getTools", () => {
   it("returns script tools", () => {
     const names = getTools().map(t => t.name);
     expect(names).toContain("run_script");
+  });
+
+  it("returns web tools", () => {
+    const names = getTools().map(t => t.name);
+    expect(names).toContain("web_search");
   });
 
   it("returns orchestration tools", () => {

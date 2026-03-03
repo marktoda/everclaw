@@ -42,6 +42,12 @@ export function getTools(): ToolDef[] {
       input: { type: "object", description: "JSON input to pass to the script" },
     }, ["name"]),
 
+    // --- Web Tools ---
+    tool("web_search", "Search the web using Brave Search. Returns titles, URLs, and descriptions.", {
+      query: { type: "string", description: "Search query" },
+      count: { type: "number", description: "Number of results (default 5, max 20)" },
+    }, ["query"]),
+
     // --- Orchestration Tools ---
     tool("sleep_for", "Suspend this task for a duration. Your worker slot is released; you resume exactly where you left off. Use for polling loops or delayed follow-ups.", {
       step_name: { type: "string", description: "Unique name for this sleep point (e.g. 'check-3'). Must be unique across the task." },

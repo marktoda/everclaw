@@ -4,6 +4,7 @@ import * as path from "path";
 export interface Config {
   telegramToken: string;
   anthropicApiKey: string;
+  braveSearchApiKey?: string;
   databaseUrl: string;
   queueName: string;
   notesDir: string;
@@ -58,6 +59,7 @@ export function loadConfig(envPath: string = ".env"): Config {
   return {
     telegramToken: requireSecret("TELEGRAM_BOT_TOKEN"),
     anthropicApiKey: requireSecret("ANTHROPIC_API_KEY"),
+    braveSearchApiKey: secrets["BRAVE_SEARCH_API_KEY"] || undefined,
     databaseUrl: process.env.DATABASE_URL ?? "postgresql://localhost/absurd",
     queueName,
     notesDir: path.resolve(process.env.NOTES_DIR ?? "data/notes"),
