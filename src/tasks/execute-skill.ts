@@ -9,8 +9,12 @@ export function registerExecuteSkill(absurd: Absurd, deps: TaskDeps): void {
   absurd.registerTask(
     { name: "execute-skill" },
     async (params: { skillName: string; chatId: number }, ctx: TaskContext) => {
-      const log = deps.log?.child({ task: "execute-skill", chatId: params.chatId, skill: params.skillName });
-      log?.info("skill execution started");
+      const agentDeps = buildAgentDeps(deps, absurd, ctx, params.chatId, {
+        maxHistory: 10,
+        taskName: "execute-skill",
+      });
+
+      agentDeps.log?.info({ skill: params.skillName }, "skill execution started");
 
       const skillContent = await ctx.step("read-skill", async () => {
         const abs = path.resolve(deps.config.skillsDir, `${params.skillName}.md`);
@@ -20,16 +24,13 @@ export function registerExecuteSkill(absurd: Absurd, deps: TaskDeps): void {
         return await fs.readFile(abs, "utf-8");
       });
 
-      const agentDeps = buildAgentDeps(deps, absurd, ctx, params.chatId, { maxHistory: 10 });
-      agentDeps.log = log;
-
       const reply = await runAgentLoop(
         ctx, params.chatId,
         `Execute the following skill instructions:\n\n${skillContent}`,
         agentDeps,
       );
 
-      log?.info("skill execution complete");
+      agentDeps.log?.info({ skill: params.skillName }, "skill execution complete");
       return { skillName: params.skillName, reply };
     },
   );

@@ -23,8 +23,10 @@ export function buildAgentDeps(
   absurd: Absurd,
   ctx: TaskContext,
   chatId: number,
-  opts?: { maxHistory?: number; silent?: boolean },
+  opts?: { maxHistory?: number; silent?: boolean; taskName?: string },
 ): AgentDeps {
+  const log = deps.log?.child({ task: opts?.taskName, chatId });
+
   const registry = createToolRegistry({
     absurd,
     pool: deps.pool,
@@ -48,7 +50,7 @@ export function buildAgentDeps(
     toolsDir: deps.config.toolsDir,
     maxHistory: opts?.maxHistory ?? deps.config.maxHistoryMessages,
     registry,
-    log: deps.log,
+    log,
     onText: opts?.silent ? undefined : (text) => {
       deps.bot.api.sendMessage(chatId, text).catch(() => {});
     },

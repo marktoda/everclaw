@@ -7,15 +7,16 @@ export function registerWorkflow(absurd: Absurd, deps: TaskDeps): void {
   absurd.registerTask(
     { name: "workflow" },
     async (params: { chatId: number; instructions: string; context?: any }, ctx: TaskContext) => {
-      const log = deps.log?.child({ task: "workflow", chatId: params.chatId });
-      log?.info("workflow started");
-
       const contextPrefix = params.context
         ? `Context: ${JSON.stringify(params.context)}\n\n`
         : "";
 
-      const agentDeps = buildAgentDeps(deps, absurd, ctx, params.chatId, { maxHistory: 10 });
-      agentDeps.log = log;
+      const agentDeps = buildAgentDeps(deps, absurd, ctx, params.chatId, {
+        maxHistory: 10,
+        taskName: "workflow",
+      });
+
+      agentDeps.log?.info("workflow started");
 
       const reply = await runAgentLoop(
         ctx, params.chatId,
@@ -23,7 +24,7 @@ export function registerWorkflow(absurd: Absurd, deps: TaskDeps): void {
         agentDeps,
       );
 
-      log?.info("workflow complete");
+      agentDeps.log?.info("workflow complete");
       return { reply };
     },
   );
