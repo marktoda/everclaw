@@ -39,7 +39,7 @@ export function buildAgentDeps(
     recipientId,
     notesDir: deps.config.notesDir,
     skillsDir: deps.config.skillsDir,
-    toolsDir: deps.config.toolsDir,
+    scriptsDir: deps.config.scriptsDir,
     scriptTimeout: deps.config.scriptTimeout,
     scriptEnv: deps.config.scriptEnv,
     startedAt: deps.startedAt,
@@ -53,7 +53,7 @@ export function buildAgentDeps(
     dirs: {
       notes: deps.config.notesDir,
       skills: deps.config.skillsDir,
-      scripts: deps.config.toolsDir,
+      scripts: deps.config.scriptsDir,
     },
     maxHistory: opts?.maxHistory ?? deps.config.maxHistoryMessages,
     registry,

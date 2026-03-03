@@ -37,19 +37,19 @@ let recipientIdCounter = 1000;
 // Temp dirs for notes/skills/tools
 let notesDir: string;
 let skillsDir: string;
-let toolsDir: string;
+let scriptsDir: string;
 
 beforeEach(() => {
   recipientIdCounter += 1;
   notesDir = fs.mkdtempSync(path.join(os.tmpdir(), "everclaw-notes-"));
   skillsDir = fs.mkdtempSync(path.join(os.tmpdir(), "everclaw-skills-"));
-  toolsDir = fs.mkdtempSync(path.join(os.tmpdir(), "everclaw-scripts-"));
+  scriptsDir = fs.mkdtempSync(path.join(os.tmpdir(), "everclaw-scripts-"));
 });
 
 afterEach(() => {
   fs.rmSync(notesDir, { recursive: true, force: true });
   fs.rmSync(skillsDir, { recursive: true, force: true });
-  fs.rmSync(toolsDir, { recursive: true, force: true });
+  fs.rmSync(scriptsDir, { recursive: true, force: true });
 });
 
 /** Thin fake TaskContext — no real durable execution needed. */
@@ -74,7 +74,7 @@ function buildDeps(fake: FakeAnthropic, recipientId: string): AgentDeps {
     recipientId,
     notesDir,
     skillsDir,
-    toolsDir,
+    scriptsDir,
     scriptTimeout: 10,
     scriptEnv: {},
     startedAt: new Date(),
@@ -84,7 +84,7 @@ function buildDeps(fake: FakeAnthropic, recipientId: string): AgentDeps {
     anthropic: fake as any,
     pool: db.pool,
     model: "fake-model",
-    dirs: { notes: notesDir, skills: skillsDir, scripts: toolsDir },
+    dirs: { notes: notesDir, skills: skillsDir, scripts: scriptsDir },
     maxHistory: 50,
     registry,
   };
@@ -203,8 +203,8 @@ describe("loop integration tests", () => {
   it("real script execution via temp dir", async () => {
     const recipientId = `telegram:${recipientIdCounter}`;
 
-    // Write a bash script to toolsDir
-    const scriptPath = path.join(toolsDir, "greet.sh");
+    // Write a bash script to scriptsDir
+    const scriptPath = path.join(scriptsDir, "greet.sh");
     fs.writeFileSync(scriptPath, '#!/bin/bash\necho "hello from script"', { mode: 0o755 });
 
     // Custom scenario: call run_script -> text reply
@@ -241,7 +241,6 @@ describe("loop integration tests", () => {
     // Verify the script was actually executed by checking the tool result
     // was passed back to the second API call
     const secondRequest = fake.allRequests[1];
-    const _lastUserMsg = secondRequest.messages[secondRequest.messages.length - 2];
     // The user message before the last should contain the tool_result
     const toolResultMsg = secondRequest.messages.find(
       (m: any) =>
@@ -250,7 +249,8 @@ describe("loop integration tests", () => {
         m.content.some((b: any) => b.type === "tool_result"),
     );
     expect(toolResultMsg).toBeDefined();
-    const toolResult = toolResultMsg.content.find((b: any) => b.type === "tool_result");
-    expect(toolResult.content).toContain("hello from script");
+    const blocks = toolResultMsg!.content as Array<{ type: string; content?: string }>;
+    const toolResult = blocks.find((b) => b.type === "tool_result");
+    expect(toolResult!.content).toContain("hello from script");
   });
 });

@@ -23,7 +23,7 @@ let db: TestDb;
 let tmpDir: string;
 let notesDir: string;
 let skillsDir: string;
-let toolsDir: string;
+let scriptsDir: string;
 
 // Mutable deps object — task handlers capture by reference, so we can swap
 // taskDeps.anthropic before each test.
@@ -46,10 +46,10 @@ beforeAll(async () => {
   tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "everclaw-system-test-"));
   notesDir = path.join(tmpDir, "notes");
   skillsDir = path.join(tmpDir, "skills");
-  toolsDir = path.join(tmpDir, "scripts");
+  scriptsDir = path.join(tmpDir, "scripts");
   await fs.mkdir(notesDir, { recursive: true });
   await fs.mkdir(skillsDir, { recursive: true });
-  await fs.mkdir(toolsDir, { recursive: true });
+  await fs.mkdir(scriptsDir, { recursive: true });
 
   const config: Config = {
     channels: [{ type: "telegram", token: "fake-token" }],
@@ -58,7 +58,7 @@ beforeAll(async () => {
     queueName: "test",
     notesDir,
     skillsDir,
-    toolsDir,
+    scriptsDir,
     model: "fake-model",
     maxHistoryMessages: 50,
     workerConcurrency: 1,

@@ -15,12 +15,7 @@ export interface Scenario {
  * Validate the messages.create request against the Anthropic API contract.
  * Throws a descriptive error on any violation.
  */
-function validateRequest(params: {
-  model: string;
-  max_tokens: number;
-  messages: Anthropic.MessageParam[];
-  [key: string]: unknown;
-}): void {
+function validateRequest(params: Anthropic.MessageCreateParamsNonStreaming): void {
   // 1. Required fields
   if (!params.model) {
     throw new Error("Contract violation: model must be a non-empty string");
@@ -149,13 +144,15 @@ function validateRequest(params: {
  * Scenario-driven fake Anthropic client. Validates every messages.create call
  * against the API contract before returning scripted responses.
  */
+type CreateParams = Anthropic.MessageCreateParamsNonStreaming;
+
 export class FakeAnthropic {
   private readonly scenario: Scenario;
   private turnIndex = 0;
-  private readonly _requests: any[] = [];
+  private readonly _requests: CreateParams[] = [];
 
   readonly messages: {
-    create: (params: any) => Promise<Anthropic.Message>;
+    create: (params: CreateParams) => Promise<Anthropic.Message>;
   };
 
   constructor(scenario: Scenario) {
@@ -163,7 +160,7 @@ export class FakeAnthropic {
 
     // Bind create so it can be destructured
     this.messages = {
-      create: async (params: any): Promise<Anthropic.Message> => {
+      create: async (params: CreateParams): Promise<Anthropic.Message> => {
         // Validate the request against the API contract
         validateRequest(params);
 
@@ -203,7 +200,7 @@ export class FakeAnthropic {
     return this._requests.length;
   }
 
-  get allRequests(): any[] {
+  get allRequests(): CreateParams[] {
     return this._requests;
   }
 

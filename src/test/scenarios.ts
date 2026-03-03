@@ -105,21 +105,6 @@ export function makeMaxTurnsScenario(): Scenario {
   return { name: "max-turns", turns };
 }
 
-/** Two turns: tool_use(sleep_for) -> text reply. Tests suspending tool handling. */
-export const SUSPENDING_TOOL: Scenario = {
-  name: "suspending-tool",
-  turns: [
-    {
-      content: [toolUse("sleep_for", { step_name: "wait-1", seconds: 0 }, "tu-1")],
-      stop_reason: "tool_use",
-    },
-    {
-      content: [text("Woke up!")],
-      stop_reason: "end_turn",
-    },
-  ],
-};
-
 /** Three turns: write_file -> read_file -> text reply. Tests file round-trip. */
 export const WRITE_AND_READ: Scenario = {
   name: "write-and-read",

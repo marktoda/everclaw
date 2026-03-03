@@ -11,25 +11,49 @@ function isContainedIn(child: string, parent: string): boolean {
 
 const DIR_MAPPINGS: Array<{
   prefix: string;
-  dirKey: keyof Pick<ExecutorDeps, "notesDir" | "skillsDir" | "toolsDir">;
+  dirKey: keyof Pick<ExecutorDeps, "notesDir" | "skillsDir" | "scriptsDir">;
   dir: "notes" | "skills" | "scripts";
 }> = [
   { prefix: "data/notes/", dirKey: "notesDir", dir: "notes" },
   { prefix: "skills/", dirKey: "skillsDir", dir: "skills" },
-  { prefix: "scripts/", dirKey: "toolsDir", dir: "scripts" },
+  { prefix: "scripts/", dirKey: "scriptsDir", dir: "scripts" },
 ];
 
 /** Writable base directories the agent is allowed to access. */
 function resolvePath(
   input: string,
   deps: ExecutorDeps,
-): { abs: string; dir: "notes" | "skills" | "scripts" } | null {
+): { abs: string; dir: "notes" | "skills" | "scripts"; baseDir: string } | null {
   const clean = input.replace(/^\.?\//, "");
   for (const { prefix, dirKey, dir } of DIR_MAPPINGS) {
     if (clean.startsWith(prefix)) {
-      const abs = path.resolve(deps[dirKey], clean.slice(prefix.length));
-      if (!isContainedIn(abs, deps[dirKey])) return null;
-      return { abs, dir };
+      const baseDir = deps[dirKey];
+      const abs = path.resolve(baseDir, clean.slice(prefix.length));
+      if (!isContainedIn(abs, baseDir)) return null;
+      return { abs, dir, baseDir };
+    }
+  }
+  return null;
+}
+
+/** Verify that the real (symlink-resolved) path stays within the base directory. */
+async function validateRealPath(abs: string, baseDir: string): Promise<string | null> {
+  try {
+    const real = await fs.realpath(abs);
+    if (!isContainedIn(real, baseDir))
+      return "Error: path escapes allowed directory via symlink";
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") {
+      // File doesn't exist — check nearest existing ancestor
+      try {
+        const realParent = await fs.realpath(path.dirname(abs));
+        if (!isContainedIn(realParent, baseDir))
+          return "Error: path escapes allowed directory via symlink";
+      } catch {
+        // Parent doesn't exist either — will be created, safe
+      }
+    } else {
+      throw err;
     }
   }
   return null;
@@ -53,6 +77,8 @@ export const fileTools: ToolHandler[] = [
       const { path: filePath } = input as { path: string };
       const resolved = resolvePath(filePath, deps);
       if (!resolved) return `Error: path must start with data/notes/, skills/, or scripts/`;
+      const escape = await validateRealPath(resolved.abs, resolved.baseDir);
+      if (escape) return escape;
       try {
         return await fs.readFile(resolved.abs, "utf-8");
       } catch (err) {
@@ -76,6 +102,8 @@ export const fileTools: ToolHandler[] = [
       const resolved = resolvePath(filePath, deps);
       if (!resolved) return `Error: path must start with data/notes/, skills/, or scripts/`;
       await fs.mkdir(path.dirname(resolved.abs), { recursive: true });
+      const escape = await validateRealPath(resolved.abs, resolved.baseDir);
+      if (escape) return escape;
       await fs.writeFile(resolved.abs, content, "utf-8");
       if (resolved.dir === "scripts") {
         await fs.chmod(resolved.abs, 0o755);
@@ -126,6 +154,8 @@ export const fileTools: ToolHandler[] = [
       const { path: filePath } = input as { path: string };
       const resolved = resolvePath(filePath, deps);
       if (!resolved) return `Error: path must start with data/notes/, skills/, or scripts/`;
+      const escape = await validateRealPath(resolved.abs, resolved.baseDir);
+      if (escape) return escape;
       try {
         await fs.unlink(resolved.abs);
       } catch (err) {
