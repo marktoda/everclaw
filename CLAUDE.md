@@ -1,6 +1,6 @@
 # CLAUDE.md - everclaw
 
-AI personal assistant built on the Absurd durable task queue. Communicates via Telegram, reasons with Claude (Anthropic), and extends itself through markdown skill files and tool scripts.
+AI personal assistant built on the Absurd durable task queue. Communicates via pluggable messaging channels (Telegram by default), reasons with Claude (Anthropic), and extends itself through markdown skill files and tool scripts.
 
 ## Commands
 
@@ -18,9 +18,14 @@ There is no build step. TypeScript runs directly via `node` (Node 22.18+ strips 
 
 ```
 src/
-  index.ts              Entry point: creates Pool, Anthropic, Absurd, Bot; registers tasks; starts worker
+  index.ts              Entry point: creates Pool, Anthropic, Absurd, ChannelRegistry; registers tasks; starts worker
   config.ts             Config: secrets from .env file, non-secrets from process.env
-  bot.ts                Telegram bot (grammY) — spawns handle-message task per incoming message
+  channels/
+    adapter.ts          ChannelAdapter interface & InboundMessage type
+    registry.ts         ChannelRegistry: routes messages by recipientId prefix
+    telegram.ts         TelegramAdapter: grammY-based Telegram implementation
+    split.ts            Generic message splitting utility (paragraph → line → hard split)
+    index.ts            Barrel export
   agent/
     loop.ts             Agent loop: loads context, calls Claude in a tool-use loop (max 20 turns)
     tools/              Tool definitions co-located with handlers in domain modules
@@ -45,11 +50,12 @@ src/
     shared.ts           TaskDeps interface + buildAgentDeps helper (shared by all agent tasks)
     handle-message.ts   Task: wires agent loop for a user message
     execute-skill.ts    Task: reads a skill .md file and runs it through the agent loop
-    send-message.ts     Task: sends a Telegram message (used by spawn_task)
+    send-message.ts     Task: sends a message via ChannelRegistry (used by spawn_task)
     workflow.ts         Task: runs agent loop with arbitrary instructions (background work)
 sql/
   001-absurd.sql        Absurd task queue schema (absurd schema)
   002-assistant.sql     App schema: assistant.messages + assistant.state tables
+  003-channel-abstraction.sql  Migration: chat_id integer→text with 'telegram:' prefix
 skills/                 Agent-writable skill .md files (YAML frontmatter with optional schedule)
 tools/                  Agent-writable executable scripts (.sh, .py, .js, .ts)
 data/notes/             Agent-writable persistent notes
@@ -58,13 +64,15 @@ docs/plans/             Design and implementation documents
 
 ## Key Patterns
 
-**Stateless message handling.** Every Telegram message spawns a fresh `handle-message` task. There is no "wait for reply" — the agent saves state via `set_state`, completes, and picks up context on the next message from conversation history.
+**Channel abstraction.** Messaging channels implement the `ChannelAdapter` interface (`start`, `sendMessage`, `stop`). A `ChannelRegistry` routes outbound messages by parsing the prefix from `recipientId` strings (e.g. `telegram:601870898`). Each adapter owns message splitting via the generic `splitMessage` utility. Adding a new channel means writing a single adapter file.
+
+**Stateless message handling.** Every inbound message spawns a fresh `handle-message` task. There is no "wait for reply" — the agent saves state via `set_state`, completes, and picks up context on the next message from conversation history.
 
 **Durable workflows.** The agent has orchestration tools (`sleep_for`, `sleep_until`, `wait_for_event`, `emit_event`, `spawn_task`, `cancel_task`, `list_tasks`) that suspend and resume durably through Absurd. Suspending tools must NOT be wrapped in `ctx.step()` — they throw `SuspendTask` which must propagate to the Absurd worker.
 
 **Path containment.** `resolvePath` in `agent/tools/files.ts` validates that all file tool paths resolve within one of three writable directories (`data/notes/`, `skills/`, `tools/`). Paths that escape are rejected.
 
-**Config: secrets vs env.** Secrets (`TELEGRAM_BOT_TOKEN`, `ANTHROPIC_API_KEY`) are read from `.env` file only and never set in `process.env`. Non-secret config (`DATABASE_URL`, `QUEUE_NAME`, `CLAUDE_MODEL`, etc.) comes from `process.env` with defaults. Queue name is validated as a safe SQL identifier at load time.
+**Config: secrets vs env.** Secrets (`TELEGRAM_BOT_TOKEN`, `ANTHROPIC_API_KEY`) are read from `.env` file only and never set in `process.env`. Non-secret config (`DATABASE_URL`, `QUEUE_NAME`, `CLAUDE_MODEL`, etc.) comes from `process.env` with defaults. Channel tokens are stored in `config.channels[]`. Queue name is validated as a safe SQL identifier at load time.
 
 **Skill schedule sync.** Writing or deleting a skill file in `skills/` triggers `syncSchedules`, which reconciles YAML frontmatter `schedule` fields with Absurd's schedule registry. Schedules are prefixed `skill:`.
 
