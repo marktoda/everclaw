@@ -17,7 +17,7 @@ import { registerSendMessage } from "./send-message.ts";
 import { registerWorkflow } from "./workflow.ts";
 import { registerExecuteSkill } from "./execute-skill.ts";
 import type { Config } from "../config.ts";
-import type { Bot } from "grammy";
+import { ChannelRegistry } from "../channels/index.ts";
 
 let db: TestDb;
 let tmpDir: string;
@@ -29,9 +29,15 @@ let toolsDir: string;
 // taskDeps.anthropic before each test.
 let taskDeps: TaskDeps;
 
-// Mock bot with a spied sendMessage
-let bot: Bot;
-let sendMessageSpy: ReturnType<typeof vi.fn>;
+// Mock channels with a spied sendMessage
+const sendMessageSpy = vi.fn().mockResolvedValue(undefined);
+const channels = {
+  sendMessage: sendMessageSpy,
+  resolve: vi.fn(),
+  register: vi.fn(),
+  startAll: vi.fn(),
+  stopAll: vi.fn(),
+} as unknown as ChannelRegistry;
 
 beforeAll(async () => {
   db = await setupTestDb();
@@ -45,12 +51,8 @@ beforeAll(async () => {
   await fs.mkdir(skillsDir, { recursive: true });
   await fs.mkdir(toolsDir, { recursive: true });
 
-  // Build a sendMessage spy that resolves successfully
-  sendMessageSpy = vi.fn().mockResolvedValue({ message_id: 1 });
-  bot = { api: { sendMessage: sendMessageSpy } } as unknown as Bot;
-
   const config: Config = {
-    telegramToken: "fake-token",
+    channels: [{ type: "telegram", token: "fake-token" }],
     anthropicApiKey: "fake-key",
     databaseUrl: "unused",
     queueName: "test",
@@ -67,14 +69,14 @@ beforeAll(async () => {
   taskDeps = {
     anthropic: null as any, // set per test
     pool: db.pool,
-    bot,
+    channels,
     config,
     startedAt: new Date(),
   };
 
   // Register all task handlers ONCE
   registerHandleMessage(db.absurd, taskDeps);
-  registerSendMessage(db.absurd, bot);
+  registerSendMessage(db.absurd, channels);
   registerWorkflow(db.absurd, taskDeps);
   registerExecuteSkill(db.absurd, taskDeps);
 }, 60_000);
@@ -101,10 +103,10 @@ describe("system integration tests", () => {
   it("send-message: spawn → worker sends Telegram message", async () => {
     sendMessageSpy.mockClear();
 
-    const chatId = 100001;
+    const recipientId = "telegram:100001";
     const text = "Hello from send-message test";
 
-    await db.absurd.spawn("send-message", { chatId, text });
+    await db.absurd.spawn("send-message", { recipientId, text });
     const worker = await db.absurd.startWorker({
       concurrency: 1,
       claimTimeout: 30,
@@ -113,7 +115,7 @@ describe("system integration tests", () => {
     try {
       await waitFor(() => sendMessageSpy.mock.calls.length >= 1);
 
-      expect(sendMessageSpy).toHaveBeenCalledWith(chatId, text);
+      expect(sendMessageSpy).toHaveBeenCalledWith("telegram:100001", text);
     } finally {
       await worker.close();
     }
@@ -123,10 +125,10 @@ describe("system integration tests", () => {
     sendMessageSpy.mockClear();
     taskDeps.anthropic = new FakeAnthropic(SIMPLE_TEXT_REPLY) as any;
 
-    const chatId = 100002;
+    const recipientId = "telegram:100002";
     const text = "Hi there";
 
-    await db.absurd.spawn("handle-message", { chatId, text });
+    await db.absurd.spawn("handle-message", { recipientId, text });
     const worker = await db.absurd.startWorker({
       concurrency: 1,
       claimTimeout: 30,
@@ -136,12 +138,12 @@ describe("system integration tests", () => {
       await waitFor(() => sendMessageSpy.mock.calls.length >= 1);
 
       // Verify sendMessage was called with "Hello!" (from SIMPLE_TEXT_REPLY scenario)
-      expect(sendMessageSpy).toHaveBeenCalledWith(chatId, "Hello!");
+      expect(sendMessageSpy).toHaveBeenCalledWith("telegram:100002", "Hello!");
 
       // Verify history rows were persisted
       const result = await db.pool.query(
         `SELECT role, content FROM assistant.messages WHERE chat_id = $1 ORDER BY created_at`,
-        [chatId.toString()],
+        ["telegram:100002"],
       );
       expect(result.rows.length).toBeGreaterThanOrEqual(2);
       // First row: user message
@@ -159,10 +161,10 @@ describe("system integration tests", () => {
     sendMessageSpy.mockClear();
     taskDeps.anthropic = new FakeAnthropic(SIMPLE_TEXT_REPLY) as any;
 
-    const chatId = 100003;
+    const recipientId = "telegram:100003";
     const instructions = "Say hello to the user";
 
-    await db.absurd.spawn("workflow", { chatId, instructions });
+    await db.absurd.spawn("workflow", { recipientId, instructions });
     const worker = await db.absurd.startWorker({
       concurrency: 1,
       claimTimeout: 30,
@@ -172,7 +174,7 @@ describe("system integration tests", () => {
       await waitFor(() => sendMessageSpy.mock.calls.length >= 1);
 
       // Verify sendMessage was called with the workflow reply
-      expect(sendMessageSpy).toHaveBeenCalledWith(chatId, "Hello!");
+      expect(sendMessageSpy).toHaveBeenCalledWith("telegram:100003", "Hello!");
     } finally {
       await worker.close();
     }
@@ -183,7 +185,7 @@ describe("system integration tests", () => {
     const fake = new FakeAnthropic(SIMPLE_TEXT_REPLY);
     taskDeps.anthropic = fake as any;
 
-    const chatId = 100004;
+    const recipientId = "telegram:100004";
     const skillName = "test-skill";
     const skillContent = `---
 description: A test skill
@@ -194,7 +196,7 @@ Tell the user good morning.
     // Write the skill file to the temp skills directory
     await fs.writeFile(path.join(skillsDir, `${skillName}.md`), skillContent);
 
-    await db.absurd.spawn("execute-skill", { skillName, chatId });
+    await db.absurd.spawn("execute-skill", { skillName, recipientId });
     const worker = await db.absurd.startWorker({
       concurrency: 1,
       claimTimeout: 30,
@@ -204,7 +206,7 @@ Tell the user good morning.
       await waitFor(() => sendMessageSpy.mock.calls.length >= 1);
 
       // Verify sendMessage was called
-      expect(sendMessageSpy).toHaveBeenCalledWith(chatId, "Hello!");
+      expect(sendMessageSpy).toHaveBeenCalledWith("telegram:100004", "Hello!");
 
       // Verify FakeAnthropic received the skill content in the messages
       expect(fake.callCount).toBeGreaterThanOrEqual(1);

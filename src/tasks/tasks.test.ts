@@ -60,6 +60,7 @@ function makeChannels() {
 
 function makeConfig() {
   return {
+    channels: [{ type: "telegram", token: "tg-token" }],
     anthropicApiKey: "sk-key",
     databaseUrl: "postgres://localhost/test",
     queueName: "test-queue",

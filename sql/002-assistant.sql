@@ -2,7 +2,7 @@ CREATE SCHEMA IF NOT EXISTS assistant;
 
 CREATE TABLE IF NOT EXISTS assistant.messages (
   id          BIGSERIAL PRIMARY KEY,
-  chat_id     BIGINT NOT NULL,
+  chat_id     TEXT NOT NULL,
   role        TEXT NOT NULL CHECK (role IN ('user', 'assistant', 'tool')),
   content     TEXT NOT NULL,
   tool_use    JSONB,

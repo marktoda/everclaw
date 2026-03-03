@@ -31,8 +31,8 @@ afterAll(async () => {
   await db?.teardown();
 });
 
-// Unique chatId per test to avoid cross-contamination
-let chatIdCounter = 1000;
+// Unique recipientId per test to avoid cross-contamination
+let recipientIdCounter = 1000;
 
 // Temp dirs for notes/skills/tools
 let notesDir: string;
@@ -40,7 +40,7 @@ let skillsDir: string;
 let toolsDir: string;
 
 beforeEach(() => {
-  chatIdCounter += 1;
+  recipientIdCounter += 1;
   notesDir = fs.mkdtempSync(path.join(os.tmpdir(), "everclaw-notes-"));
   skillsDir = fs.mkdtempSync(path.join(os.tmpdir(), "everclaw-skills-"));
   toolsDir = fs.mkdtempSync(path.join(os.tmpdir(), "everclaw-tools-"));
@@ -64,14 +64,14 @@ function makeCtx(): any {
 }
 
 /** Build real AgentDeps wired to real Postgres, real executor, and FakeAnthropic. */
-function buildDeps(fake: FakeAnthropic, chatId: number): AgentDeps {
+function buildDeps(fake: FakeAnthropic, recipientId: string): AgentDeps {
   const ctx = makeCtx();
   const registry = createToolRegistry({
     absurd: db.absurd,
     pool: db.pool,
     ctx,
     queueName: "test",
-    chatId,
+    recipientId,
     notesDir,
     skillsDir,
     toolsDir,
@@ -91,18 +91,18 @@ function buildDeps(fake: FakeAnthropic, chatId: number): AgentDeps {
 
 describe("loop integration tests", () => {
   it("persists and retrieves conversation history through real Postgres", async () => {
-    const chatId = chatIdCounter;
+    const recipientId = `telegram:${recipientIdCounter}`;
     const fake = new FakeAnthropic(SIMPLE_TEXT_REPLY);
-    const deps = buildDeps(fake, chatId);
+    const deps = buildDeps(fake, recipientId);
     const ctx = makeCtx();
 
-    const reply = await runAgentLoop(ctx, chatId, "Hi there", deps);
+    const reply = await runAgentLoop(ctx, recipientId, "Hi there", deps);
 
     expect(reply).toBe("Hello!");
     fake.assertAllTurnsConsumed();
 
     // Verify messages persisted in Postgres
-    const messages = await getRecentMessages(db.pool, chatId, 50);
+    const messages = await getRecentMessages(db.pool, recipientId, 50);
     expect(messages.length).toBe(2);
     expect(messages[0].role).toBe("user");
     expect(messages[0].content).toBe("Hi there");
@@ -111,12 +111,12 @@ describe("loop integration tests", () => {
   });
 
   it("tool execution with real files: write -> read -> verify", async () => {
-    const chatId = chatIdCounter;
+    const recipientId = `telegram:${recipientIdCounter}`;
     const fake = new FakeAnthropic(WRITE_AND_READ);
-    const deps = buildDeps(fake, chatId);
+    const deps = buildDeps(fake, recipientId);
     const ctx = makeCtx();
 
-    const reply = await runAgentLoop(ctx, chatId, "Write and read a file", deps);
+    const reply = await runAgentLoop(ctx, recipientId, "Write and read a file", deps);
 
     expect(reply).toBe("File contains: hello world");
     fake.assertAllTurnsConsumed();
@@ -128,12 +128,12 @@ describe("loop integration tests", () => {
   });
 
   it("state persistence through real Postgres: set -> get", async () => {
-    const chatId = chatIdCounter;
+    const recipientId = `telegram:${recipientIdCounter}`;
     const fake = new FakeAnthropic(STATE_ROUNDTRIP);
-    const deps = buildDeps(fake, chatId);
+    const deps = buildDeps(fake, recipientId);
     const ctx = makeCtx();
 
-    const reply = await runAgentLoop(ctx, chatId, "Set my color", deps);
+    const reply = await runAgentLoop(ctx, recipientId, "Set my color", deps);
 
     expect(reply).toBe("Your color is blue.");
     fake.assertAllTurnsConsumed();
@@ -148,17 +148,17 @@ describe("loop integration tests", () => {
   });
 
   it("history reconstruction fidelity across two messages", async () => {
-    const chatId = chatIdCounter;
+    const recipientId = `telegram:${recipientIdCounter}`;
 
     // First: write a file so that SINGLE_TOOL_USE (read_file data/notes/test.md) succeeds
     fs.writeFileSync(path.join(notesDir, "test.md"), "hello from disk");
 
     // First message: uses SINGLE_TOOL_USE (read_file -> text reply)
     const fake1 = new FakeAnthropic(SINGLE_TOOL_USE);
-    const deps1 = buildDeps(fake1, chatId);
+    const deps1 = buildDeps(fake1, recipientId);
     const ctx1 = makeCtx();
 
-    const reply1 = await runAgentLoop(ctx1, chatId, "Read the test file", deps1);
+    const reply1 = await runAgentLoop(ctx1, recipientId, "Read the test file", deps1);
     expect(reply1).toBe("I read the file.");
     fake1.assertAllTurnsConsumed();
 
@@ -166,10 +166,10 @@ describe("loop integration tests", () => {
     // the reconstructed history (including tool_use + tool_result from the first
     // message) is valid API format.
     const fake2 = new FakeAnthropic(SIMPLE_TEXT_REPLY);
-    const deps2 = buildDeps(fake2, chatId);
+    const deps2 = buildDeps(fake2, recipientId);
     const ctx2 = makeCtx();
 
-    const reply2 = await runAgentLoop(ctx2, chatId, "Thanks!", deps2);
+    const reply2 = await runAgentLoop(ctx2, recipientId, "Thanks!", deps2);
     expect(reply2).toBe("Hello!");
     fake2.assertAllTurnsConsumed();
 
@@ -178,7 +178,7 @@ describe("loop integration tests", () => {
     // it would have thrown a contract violation error above.
 
     // Verify the full history is stored correctly
-    const messages = await getRecentMessages(db.pool, chatId, 50);
+    const messages = await getRecentMessages(db.pool, recipientId, 50);
     // First message: user + assistant(tool_use) + tool(result) + assistant(text)
     // Second message: user + assistant(text)
     // Total: 6 messages
@@ -200,7 +200,7 @@ describe("loop integration tests", () => {
   });
 
   it("real script execution via temp dir", async () => {
-    const chatId = chatIdCounter;
+    const recipientId = `telegram:${recipientIdCounter}`;
 
     // Write a bash script to toolsDir
     const scriptPath = path.join(toolsDir, "greet.sh");
@@ -231,10 +231,10 @@ describe("loop integration tests", () => {
     };
 
     const fake = new FakeAnthropic(scenario);
-    const deps = buildDeps(fake, chatId);
+    const deps = buildDeps(fake, recipientId);
     const ctx = makeCtx();
 
-    const reply = await runAgentLoop(ctx, chatId, "Run the greet script", deps);
+    const reply = await runAgentLoop(ctx, recipientId, "Run the greet script", deps);
 
     expect(reply).toBe("Script output received.");
     fake.assertAllTurnsConsumed();
