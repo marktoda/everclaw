@@ -3,7 +3,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 import type { TaskContext } from "absurd-sdk";
 import type { Pool } from "pg";
 import pino from "pino";
-import type { ToolDef } from "./tools.ts";
+import type { ToolDef } from "./tools/index.ts";
 import type { Logger } from "../logger.ts";
 import { getRecentMessages, appendMessage } from "../memory/history.ts";
 import { listSkills } from "../skills/manager.ts";
@@ -25,6 +25,7 @@ export interface AgentDeps {
   maxHistory: number;
   tools: ToolDef[];
   executeTool: (name: string, input: Record<string, any>) => Promise<string>;
+  isSuspending?: (name: string) => boolean;
   log?: Logger;
   /** Called with filtered text as it becomes available. */
   onText?: (text: string) => void;
@@ -178,7 +179,6 @@ export async function runAgentLoop(
     // SuspendTask — they must NOT be wrapped in ctx.step() because the
     // step would interfere with the SDK's internal checkpoint management.
     // Non-suspending tools are wrapped in ctx.step() for checkpointing.
-    const SUSPENDING_TOOLS = new Set(["sleep_for", "sleep_until", "wait_for_event"]);
     const toolBlocks = content.filter(
       (b): b is Anthropic.ToolUseBlock => b.type === "tool_use",
     );
@@ -186,7 +186,7 @@ export async function runAgentLoop(
     const results: Anthropic.ToolResultBlockParam[] = [];
     for (const tb of toolBlocks) {
       let result: string;
-      if (SUSPENDING_TOOLS.has(tb.name)) {
+      if (deps.isSuspending?.(tb.name)) {
         // Call directly — SuspendTask propagates up to the Absurd worker
         result = await deps.executeTool(tb.name, tb.input as Record<string, any>);
       } else {

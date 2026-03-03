@@ -108,6 +108,7 @@ function baseDeps(overrides: Partial<AgentDeps> = {}): AgentDeps {
     maxHistory: 50,
     tools: [],
     executeTool: vi.fn().mockResolvedValue("tool-result"),
+    isSuspending: () => false,
     ...overrides,
   };
 }
@@ -321,6 +322,9 @@ describe("runAgentLoop", () => {
   // ── 5. SUSPENDING_TOOLS: not wrapped in ctx.step() ─────────────────
 
   describe("suspending tools", () => {
+    const isSuspending = (name: string) =>
+      ["sleep_for", "sleep_until", "wait_for_event"].includes(name);
+
     it.each(["sleep_for", "sleep_until", "wait_for_event"])(
       "does NOT wrap %s in ctx.step()",
       async (toolName) => {
@@ -330,7 +334,7 @@ describe("runAgentLoop", () => {
           apiResponse([tb], "tool_use"),
           apiResponse([textBlock("after suspend")]),
         ]);
-        const deps = baseDeps({ anthropic, executeTool });
+        const deps = baseDeps({ anthropic, executeTool, isSuspending });
         const ctx = createMockCtx();
 
         await runAgentLoop(ctx, 1, "suspend", deps);
@@ -375,13 +379,15 @@ describe("runAgentLoop", () => {
   describe("mixed tool types", () => {
     it("wraps non-suspending in step but not suspending", async () => {
       const executeTool = vi.fn().mockResolvedValue("ok");
+      const isSuspending = (name: string) =>
+        ["sleep_for", "sleep_until", "wait_for_event"].includes(name);
       const tb1 = toolUseBlock("read_file", { path: "x" }, "m-1");
       const tb2 = toolUseBlock("sleep_for", { step_name: "s", seconds: 10 }, "m-2");
       const anthropic = createMockAnthropic([
         apiResponse([tb1, tb2], "tool_use"),
         apiResponse([textBlock("mixed done")]),
       ]);
-      const deps = baseDeps({ anthropic, executeTool });
+      const deps = baseDeps({ anthropic, executeTool, isSuspending });
       const ctx = createMockCtx();
 
       await runAgentLoop(ctx, 1, "mixed", deps);

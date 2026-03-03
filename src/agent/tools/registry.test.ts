@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { ExecutorDeps } from "./executor.ts";
+import type { ExecutorDeps } from "./index.ts";
 import * as path from "path";
 
 // ---------------------------------------------------------------------------
@@ -15,29 +15,29 @@ vi.mock("fs/promises", () => ({
   chmod: vi.fn(),
 }));
 
-vi.mock("../memory/state.ts", () => ({
+vi.mock("../../memory/state.ts", () => ({
   getState: vi.fn(),
   setState: vi.fn(),
 }));
 
-vi.mock("../skills/manager.ts", () => ({
+vi.mock("../../skills/manager.ts", () => ({
   listSkills: vi.fn(),
   syncSchedules: vi.fn(),
 }));
 
-vi.mock("../scripts/runner.ts", () => ({
+vi.mock("../../scripts/runner.ts", () => ({
   runScript: vi.fn(),
   listTools: vi.fn(),
 }));
 
 // Import mocked modules so we can configure per-test return values.
 import * as fs from "fs/promises";
-import { getState, setState } from "../memory/state.ts";
-import { listSkills, syncSchedules } from "../skills/manager.ts";
-import { runScript, listTools } from "../scripts/runner.ts";
+import { getState, setState } from "../../memory/state.ts";
+import { listSkills, syncSchedules } from "../../skills/manager.ts";
+import { runScript, listTools } from "../../scripts/runner.ts";
 import { TimeoutError } from "absurd-sdk";
 
-import { createExecutor } from "./executor.ts";
+import { createToolRegistry } from "./index.ts";
 
 // ---------------------------------------------------------------------------
 // Helpers to build the deps / mock objects
@@ -74,14 +74,15 @@ function makeDeps(overrides: Partial<ExecutorDeps> = {}): ExecutorDeps {
 // Tests
 // ---------------------------------------------------------------------------
 
-describe("executor", () => {
+describe("registry", () => {
   let deps: ExecutorDeps;
   let exec: (name: string, input: Record<string, any>) => Promise<string>;
 
   beforeEach(() => {
     vi.resetAllMocks();
     deps = makeDeps();
-    exec = createExecutor(deps);
+    const registry = createToolRegistry(deps);
+    exec = registry.execute;
   });
 
   // =========================================================================
@@ -932,6 +933,69 @@ describe("executor", () => {
     it("returns error message for empty tool name", async () => {
       const result = await exec("", {});
       expect(result).toBe("Unknown tool: ");
+    });
+  });
+
+  // =========================================================================
+  // isSuspending
+  // =========================================================================
+  describe("isSuspending", () => {
+    it("returns true for sleep_for", () => {
+      const registry = createToolRegistry(deps);
+      expect(registry.isSuspending("sleep_for")).toBe(true);
+    });
+
+    it("returns true for sleep_until", () => {
+      const registry = createToolRegistry(deps);
+      expect(registry.isSuspending("sleep_until")).toBe(true);
+    });
+
+    it("returns true for wait_for_event", () => {
+      const registry = createToolRegistry(deps);
+      expect(registry.isSuspending("wait_for_event")).toBe(true);
+    });
+
+    it("returns false for non-suspending tools", () => {
+      const registry = createToolRegistry(deps);
+      expect(registry.isSuspending("read_file")).toBe(false);
+      expect(registry.isSuspending("write_file")).toBe(false);
+      expect(registry.isSuspending("spawn_task")).toBe(false);
+    });
+
+    it("returns false for unknown tools", () => {
+      const registry = createToolRegistry(deps);
+      expect(registry.isSuspending("nonexistent")).toBe(false);
+    });
+  });
+
+  // =========================================================================
+  // definitions
+  // =========================================================================
+  describe("definitions", () => {
+    it("returns all 16 tool definitions", () => {
+      const registry = createToolRegistry(deps);
+      expect(registry.definitions.length).toBe(16);
+    });
+
+    it("includes expected tool names", () => {
+      const registry = createToolRegistry(deps);
+      const names = registry.definitions.map(d => d.name);
+      expect(names).toContain("read_file");
+      expect(names).toContain("write_file");
+      expect(names).toContain("list_files");
+      expect(names).toContain("delete_file");
+      expect(names).toContain("get_state");
+      expect(names).toContain("set_state");
+      expect(names).toContain("get_status");
+      expect(names).toContain("run_script");
+      expect(names).toContain("sleep_for");
+      expect(names).toContain("sleep_until");
+      expect(names).toContain("spawn_task");
+      expect(names).toContain("cancel_task");
+      expect(names).toContain("list_tasks");
+      expect(names).toContain("wait_for_event");
+      expect(names).toContain("emit_event");
+      expect(names).toContain("web_search");
     });
   });
 });
