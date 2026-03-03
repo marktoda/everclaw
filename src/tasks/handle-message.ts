@@ -45,9 +45,7 @@ export function registerHandleMessage(absurd: Absurd, deps: TaskDeps): void {
         skillsDir: deps.config.skillsDir,
         toolsDir: deps.config.toolsDir,
         maxHistory: deps.config.maxHistoryMessages,
-        tools: registry.definitions,
-        executeTool: registry.execute,
-        isSuspending: registry.isSuspending,
+        registry,
         log,
         onText: (text) => {
           deps.bot.api.sendMessage(params.chatId, text).catch(() => {});

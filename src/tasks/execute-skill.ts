@@ -47,9 +47,7 @@ export function registerExecuteSkill(absurd: Absurd, deps: TaskDeps): void {
           skillsDir: deps.config.skillsDir,
           toolsDir: deps.config.toolsDir,
           maxHistory: 10,
-          tools: registry.definitions,
-          executeTool: registry.execute,
-          isSuspending: registry.isSuspending,
+          registry,
           log,
           onText: (text) => {
             deps.bot.api.sendMessage(params.chatId, text).catch(() => {});

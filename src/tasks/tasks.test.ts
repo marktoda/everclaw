@@ -181,9 +181,7 @@ describe("handle-message", () => {
       skillsDir: deps.config.skillsDir,
       toolsDir: deps.config.toolsDir,
       maxHistory: deps.config.maxHistoryMessages,
-      tools: mockRegistry.definitions,
-      executeTool: mockRegistry.execute,
-      isSuspending: mockRegistry.isSuspending,
+      registry: mockRegistry,
       onText: expect.any(Function),
       log: undefined,
     });

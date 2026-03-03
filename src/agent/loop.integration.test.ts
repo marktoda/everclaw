@@ -87,9 +87,7 @@ function buildDeps(fake: FakeAnthropic, chatId: number): AgentDeps {
     skillsDir,
     toolsDir,
     maxHistory: 50,
-    tools: registry.definitions,
-    executeTool: registry.execute,
-    isSuspending: registry.isSuspending,
+    registry,
   };
 }
 

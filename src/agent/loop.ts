@@ -3,7 +3,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 import type { TaskContext } from "absurd-sdk";
 import type { Pool } from "pg";
 import pino from "pino";
-import type { ToolDef } from "./tools/index.ts";
+import type { ToolRegistry } from "./tools/index.ts";
 import type { Logger } from "../logger.ts";
 import { getRecentMessages, appendMessage } from "../memory/history.ts";
 import { listSkills } from "../skills/manager.ts";
@@ -23,9 +23,7 @@ export interface AgentDeps {
   skillsDir: string;
   toolsDir: string;
   maxHistory: number;
-  tools: ToolDef[];
-  executeTool: (name: string, input: Record<string, any>) => Promise<string>;
-  isSuspending?: (name: string) => boolean;
+  registry: ToolRegistry;
   log?: Logger;
   /** Called with filtered text as it becomes available. */
   onText?: (text: string) => void;
@@ -200,7 +198,7 @@ export async function runAgentLoop(
         max_tokens: 4096,
         system: systemPrompt,
         messages,
-        tools: deps.tools,
+        tools: deps.registry.definitions,
       });
       return { content: r.content, stopReason: r.stop_reason };
     });
@@ -244,12 +242,12 @@ export async function runAgentLoop(
     const results: Anthropic.ToolResultBlockParam[] = [];
     for (const tb of toolBlocks) {
       let result: string;
-      if (deps.isSuspending?.(tb.name)) {
+      if (deps.registry.isSuspending(tb.name)) {
         // Call directly — SuspendTask propagates up to the Absurd worker
-        result = await deps.executeTool(tb.name, tb.input as Record<string, any>);
+        result = await deps.registry.execute(tb.name, tb.input as Record<string, any>);
       } else {
         result = await ctx.step(`tool-${turn}-${tb.name}`, () =>
-          deps.executeTool(tb.name, tb.input as Record<string, any>),
+          deps.registry.execute(tb.name, tb.input as Record<string, any>),
         );
       }
       results.push({ type: "tool_result", tool_use_id: tb.id, content: result as string });
