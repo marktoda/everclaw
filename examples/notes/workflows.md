@@ -32,7 +32,7 @@ Use `spawn_task` so the user can keep chatting.
 
 ```
 User: "Run a health check on all my services in the background"
-1. spawn_task("workflow", {chatId, instructions: "Check health of..."})
+1. spawn_task("workflow", {recipientId: "current", instructions: "Check health of..."})
 2. Reply "Started background health check, I'll report back."
 3. Current task completes, user keeps chatting
 4. Background workflow runs independently, sends results when done
@@ -73,7 +73,7 @@ Use events for task-to-task signaling. Name events with task IDs.
 
 ```
 Parent task spawns child:
-1. result = spawn_task("workflow", {chatId, instructions: "..."})
+1. result = spawn_task("workflow", {recipientId: "current", instructions: "..."})
 2. wait_for_event("done:${result.taskID}", timeout: 300)
 3. Resume when child emits "done:{taskID}" with result payload
 
