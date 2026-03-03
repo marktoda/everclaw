@@ -1,0 +1,222 @@
+// src/tasks/system.integration.test.ts — Layer 3 system tests.
+// Registers real task handlers on a real Absurd instance (with Testcontainers Postgres),
+// starts a real worker, spawns tasks, and verifies they complete.
+// Only mocks: Claude API (FakeAnthropic) and Telegram bot (bot.api.sendMessage).
+
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
+import * as fs from "fs/promises";
+import * as path from "path";
+import * as os from "os";
+import type { TestDb } from "../test/harness.ts";
+import { setupTestDb } from "../test/harness.ts";
+import { FakeAnthropic } from "../test/fake-anthropic.ts";
+import { SIMPLE_TEXT_REPLY } from "../test/scenarios.ts";
+import { registerHandleMessage } from "./handle-message.ts";
+import type { TaskDeps } from "./handle-message.ts";
+import { registerSendMessage } from "./send-message.ts";
+import { registerWorkflow } from "./workflow.ts";
+import { registerExecuteSkill } from "./execute-skill.ts";
+import type { Config } from "../config.ts";
+import type { Bot } from "grammy";
+
+let db: TestDb;
+let tmpDir: string;
+let notesDir: string;
+let skillsDir: string;
+let toolsDir: string;
+
+// Mutable deps object — task handlers capture by reference, so we can swap
+// taskDeps.anthropic before each test.
+let taskDeps: TaskDeps;
+
+// Mock bot with a spied sendMessage
+let bot: Bot;
+let sendMessageSpy: ReturnType<typeof vi.fn>;
+
+beforeAll(async () => {
+  db = await setupTestDb();
+
+  // Create isolated temp directories for notes, skills, and tools
+  tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "everclaw-system-test-"));
+  notesDir = path.join(tmpDir, "notes");
+  skillsDir = path.join(tmpDir, "skills");
+  toolsDir = path.join(tmpDir, "tools");
+  await fs.mkdir(notesDir, { recursive: true });
+  await fs.mkdir(skillsDir, { recursive: true });
+  await fs.mkdir(toolsDir, { recursive: true });
+
+  // Build a sendMessage spy that resolves successfully
+  sendMessageSpy = vi.fn().mockResolvedValue({ message_id: 1 });
+  bot = { api: { sendMessage: sendMessageSpy } } as unknown as Bot;
+
+  const config: Config = {
+    telegramToken: "fake-token",
+    anthropicApiKey: "fake-key",
+    databaseUrl: "unused",
+    queueName: "test",
+    notesDir,
+    skillsDir,
+    toolsDir,
+    model: "fake-model",
+    maxHistoryMessages: 50,
+    workerConcurrency: 1,
+    claimTimeout: 30,
+    scriptTimeout: 10,
+  };
+
+  taskDeps = {
+    anthropic: null as any, // set per test
+    pool: db.pool,
+    bot,
+    config,
+    startedAt: new Date(),
+  };
+
+  // Register all task handlers ONCE
+  registerHandleMessage(db.absurd, taskDeps);
+  registerSendMessage(db.absurd, bot);
+  registerWorkflow(db.absurd, taskDeps);
+  registerExecuteSkill(db.absurd, taskDeps);
+}, 60_000);
+
+afterAll(async () => {
+  await db?.teardown();
+  if (tmpDir) {
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+/** Poll until a condition is met, up to ~10 seconds. */
+async function waitFor(condition: () => boolean, timeoutMs = 10_000): Promise<void> {
+  const interval = 250;
+  const iterations = Math.ceil(timeoutMs / interval);
+  for (let i = 0; i < iterations; i++) {
+    await new Promise((r) => setTimeout(r, interval));
+    if (condition()) return;
+  }
+  throw new Error("waitFor timed out");
+}
+
+describe("system integration tests", () => {
+  it("send-message: spawn → worker sends Telegram message", async () => {
+    sendMessageSpy.mockClear();
+
+    const chatId = 100001;
+    const text = "Hello from send-message test";
+
+    await db.absurd.spawn("send-message", { chatId, text });
+    const worker = await db.absurd.startWorker({
+      concurrency: 1,
+      claimTimeout: 30,
+    });
+
+    try {
+      await waitFor(() => sendMessageSpy.mock.calls.length >= 1);
+
+      expect(sendMessageSpy).toHaveBeenCalledWith(chatId, text);
+    } finally {
+      await worker.close();
+    }
+  });
+
+  it("handle-message: spawn → worker executes agent loop → bot sends reply", async () => {
+    sendMessageSpy.mockClear();
+    taskDeps.anthropic = new FakeAnthropic(SIMPLE_TEXT_REPLY) as any;
+
+    const chatId = 100002;
+    const text = "Hi there";
+
+    await db.absurd.spawn("handle-message", { chatId, text });
+    const worker = await db.absurd.startWorker({
+      concurrency: 1,
+      claimTimeout: 30,
+    });
+
+    try {
+      await waitFor(() => sendMessageSpy.mock.calls.length >= 1);
+
+      // Verify sendMessage was called with "Hello!" (from SIMPLE_TEXT_REPLY scenario)
+      expect(sendMessageSpy).toHaveBeenCalledWith(chatId, "Hello!");
+
+      // Verify history rows were persisted
+      const result = await db.pool.query(
+        `SELECT role, content FROM assistant.messages WHERE chat_id = $1 ORDER BY created_at`,
+        [chatId.toString()],
+      );
+      expect(result.rows.length).toBeGreaterThanOrEqual(2);
+      // First row: user message
+      expect(result.rows[0].role).toBe("user");
+      expect(result.rows[0].content).toBe(text);
+      // Second row: assistant reply
+      expect(result.rows[1].role).toBe("assistant");
+      expect(result.rows[1].content).toBe("Hello!");
+    } finally {
+      await worker.close();
+    }
+  });
+
+  it("workflow: spawn with instructions → worker runs agent loop", async () => {
+    sendMessageSpy.mockClear();
+    taskDeps.anthropic = new FakeAnthropic(SIMPLE_TEXT_REPLY) as any;
+
+    const chatId = 100003;
+    const instructions = "Say hello to the user";
+
+    await db.absurd.spawn("workflow", { chatId, instructions });
+    const worker = await db.absurd.startWorker({
+      concurrency: 1,
+      claimTimeout: 30,
+    });
+
+    try {
+      await waitFor(() => sendMessageSpy.mock.calls.length >= 1);
+
+      // Verify sendMessage was called with the workflow reply
+      expect(sendMessageSpy).toHaveBeenCalledWith(chatId, "Hello!");
+    } finally {
+      await worker.close();
+    }
+  });
+
+  it("execute-skill: write skill → spawn → worker runs skill content", async () => {
+    sendMessageSpy.mockClear();
+    const fake = new FakeAnthropic(SIMPLE_TEXT_REPLY);
+    taskDeps.anthropic = fake as any;
+
+    const chatId = 100004;
+    const skillName = "test-skill";
+    const skillContent = `---
+description: A test skill
+---
+
+Tell the user good morning.
+`;
+    // Write the skill file to the temp skills directory
+    await fs.writeFile(path.join(skillsDir, `${skillName}.md`), skillContent);
+
+    await db.absurd.spawn("execute-skill", { skillName, chatId });
+    const worker = await db.absurd.startWorker({
+      concurrency: 1,
+      claimTimeout: 30,
+    });
+
+    try {
+      await waitFor(() => sendMessageSpy.mock.calls.length >= 1);
+
+      // Verify sendMessage was called
+      expect(sendMessageSpy).toHaveBeenCalledWith(chatId, "Hello!");
+
+      // Verify FakeAnthropic received the skill content in the messages
+      expect(fake.callCount).toBeGreaterThanOrEqual(1);
+      const firstRequest = fake.allRequests[0];
+      // The user message should contain the skill content
+      const userMessages = firstRequest.messages.filter(
+        (m: any) => m.role === "user",
+      );
+      const lastUserMsg = userMessages[userMessages.length - 1];
+      expect(lastUserMsg.content).toContain("Tell the user good morning.");
+    } finally {
+      await worker.close();
+    }
+  });
+});
