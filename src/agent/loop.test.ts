@@ -681,6 +681,101 @@ describe("runAgentLoop", () => {
       // 5. New user message
       expect(messages[4]).toEqual({ role: "user", content: "Hi" });
     });
+
+    it("drops orphaned tool_result at start of history window", async () => {
+      // Simulates a LIMIT-clipped history that starts with a tool_result
+      vi.mocked(getRecentMessages).mockResolvedValueOnce([
+        {
+          chatId: 1,
+          role: "tool",
+          content: "[tu-1]: result",
+          toolUse: [{ tool_use_id: "tu-1", content: "result" }],
+        },
+        { chatId: 1, role: "assistant", content: "Got it" },
+        { chatId: 1, role: "user", content: "thanks" },
+        { chatId: 1, role: "assistant", content: "Welcome!" },
+      ] as any);
+
+      const anthropic = createMockAnthropic([
+        apiResponse([textBlock("hi")]),
+      ]);
+      const deps = baseDeps({ anthropic });
+      const ctx = createMockCtx();
+
+      await runAgentLoop(ctx, 1, "hello", deps);
+
+      const messages = anthropic.snapshots[0].messages;
+      // Orphaned tool_result should be dropped; starts with "Got it"
+      expect(messages).toHaveLength(4);
+      expect(messages[0]).toEqual({ role: "assistant", content: "Got it" });
+      expect(messages[1]).toEqual({ role: "user", content: "thanks" });
+      expect(messages[2]).toEqual({ role: "assistant", content: "Welcome!" });
+      expect(messages[3]).toEqual({ role: "user", content: "hello" });
+    });
+
+    it("drops orphaned assistant tool_use without following tool_result", async () => {
+      // History starts with an assistant tool_use but no following tool_result
+      vi.mocked(getRecentMessages).mockResolvedValueOnce([
+        {
+          chatId: 1,
+          role: "assistant",
+          content: "(tool use only)",
+          toolUse: [{ id: "tu-1", name: "read_file", input: { path: "x" } }],
+        },
+        { chatId: 1, role: "user", content: "hi" },
+        { chatId: 1, role: "assistant", content: "hello" },
+      ] as any);
+
+      const anthropic = createMockAnthropic([
+        apiResponse([textBlock("hey")]),
+      ]);
+      const deps = baseDeps({ anthropic });
+      const ctx = createMockCtx();
+
+      await runAgentLoop(ctx, 1, "yo", deps);
+
+      const messages = anthropic.snapshots[0].messages;
+      // Orphaned tool_use should be dropped
+      expect(messages).toHaveLength(3);
+      expect(messages[0]).toEqual({ role: "user", content: "hi" });
+      expect(messages[1]).toEqual({ role: "assistant", content: "hello" });
+      expect(messages[2]).toEqual({ role: "user", content: "yo" });
+    });
+
+    it("keeps valid tool_use + tool_result pair at start of history", async () => {
+      vi.mocked(getRecentMessages).mockResolvedValueOnce([
+        {
+          chatId: 1,
+          role: "assistant",
+          content: "(tool use only)",
+          toolUse: [{ id: "tu-1", name: "get_state", input: { namespace: "n", key: "k" } }],
+        },
+        {
+          chatId: 1,
+          role: "tool",
+          content: "[tu-1]: value",
+          toolUse: [{ tool_use_id: "tu-1", content: "value" }],
+        },
+        { chatId: 1, role: "assistant", content: "done" },
+      ] as any);
+
+      const anthropic = createMockAnthropic([
+        apiResponse([textBlock("ok")]),
+      ]);
+      const deps = baseDeps({ anthropic });
+      const ctx = createMockCtx();
+
+      await runAgentLoop(ctx, 1, "q", deps);
+
+      const messages = anthropic.snapshots[0].messages;
+      // Pair is valid — both should be kept
+      expect(messages).toHaveLength(4);
+      expect(messages[0].role).toBe("assistant");
+      expect(messages[1].role).toBe("user"); // tool_result
+      expect((messages[1].content as any[])[0].type).toBe("tool_result");
+      expect(messages[2]).toEqual({ role: "assistant", content: "done" });
+      expect(messages[3]).toEqual({ role: "user", content: "q" });
+    });
   });
 
   // ── 13. Persistence ────────────────────────────────────────────────

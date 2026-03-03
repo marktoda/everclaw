@@ -24,7 +24,7 @@ export async function getRecentMessages(
   const result = await pool.query(
     `SELECT id, chat_id, role, content, tool_use, created_at
      FROM assistant.messages WHERE chat_id = $1
-     ORDER BY created_at DESC LIMIT $2`,
+     ORDER BY created_at DESC, id DESC LIMIT $2`,
     [chatId, limit],
   );
   return result.rows.reverse().map((r) => ({

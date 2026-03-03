@@ -192,17 +192,25 @@ export function createExecutor(deps: ExecutorDeps) {
       case "list_tasks": {
         const qn = deps.queueName; // validated at config load time
         const result = await deps.pool.query(
-          `SELECT t.task_id, t.task_name, t.state, r.state as run_state, r.available_at
+          `SELECT t.task_id, t.task_name, t.params, t.state, r.state as run_state, r.available_at
            FROM absurd.t_${qn} t
            JOIN absurd.r_${qn} r ON r.run_id = t.last_attempt_run
            WHERE t.state IN ('running', 'sleeping', 'pending')
            ORDER BY t.enqueue_at DESC LIMIT 20`
         );
         if (result.rows.length === 0) return "No active tasks.";
-        return result.rows.map((r: any) =>
-          `- ${r.task_name} (${r.task_id.slice(0, 8)}...) state=${r.run_state}` +
-          (r.available_at ? ` wakes=${new Date(r.available_at).toISOString()}` : "")
-        ).join("\n");
+        return result.rows.map((r: any) => {
+          const params = r.params ?? {};
+          const summary = params.text
+            ? ` "${params.text.slice(0, 80)}${params.text.length > 80 ? "..." : ""}"`
+            : params.instructions
+              ? ` "${params.instructions.slice(0, 80)}${params.instructions.length > 80 ? "..." : ""}"`
+              : params.skillName
+                ? ` skill=${params.skillName}`
+                : "";
+          return `- ${r.task_name} (${r.task_id}) state=${r.run_state}${summary}` +
+            (r.available_at ? ` wakes=${new Date(r.available_at).toISOString()}` : "");
+        }).join("\n");
       }
 
       // --- Web Tools ---

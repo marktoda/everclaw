@@ -102,6 +102,34 @@ export async function runAgentLoop(
       messages.push({ role: msg.role, content: msg.content });
     }
   }
+
+  // Trim orphaned messages from the start of the history window.
+  // The LIMIT-based query can clip mid-conversation, producing:
+  //  - tool_result without a preceding tool_use (API rejects this)
+  //  - assistant tool_use without a following tool_result (API rejects this)
+  // Drop messages until we reach a clean starting point.
+  while (messages.length > 0) {
+    const first = messages[0];
+    // Drop orphaned tool_result (user message with tool_result content)
+    if (first.role === "user" && Array.isArray(first.content) &&
+        (first.content as any[])[0]?.type === "tool_result") {
+      messages.shift();
+      continue;
+    }
+    // Drop orphaned assistant tool_use without a following tool_result
+    if (first.role === "assistant" && Array.isArray(first.content) &&
+        (first.content as any[]).some((b: any) => b.type === "tool_use")) {
+      // Check if next message is the matching tool_result
+      const next = messages[1];
+      if (!next || next.role !== "user" || !Array.isArray(next.content) ||
+          (next.content as any[])[0]?.type !== "tool_result") {
+        messages.shift();
+        continue;
+      }
+    }
+    break;
+  }
+
   messages.push({ role: "user", content: userMessage });
 
   let reply = "";
