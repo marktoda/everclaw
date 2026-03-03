@@ -2,7 +2,7 @@ import * as pg from "pg";
 import Anthropic from "@anthropic-ai/sdk";
 import { Absurd } from "absurd-sdk";
 import { loadConfig } from "./config.ts";
-import { createBot } from "./bot.ts";
+import { ChannelRegistry, TelegramAdapter } from "./channels/index.ts";
 import { registerHandleMessage } from "./tasks/handle-message.ts";
 import { registerExecuteSkill } from "./tasks/execute-skill.ts";
 import { registerSendMessage } from "./tasks/send-message.ts";
@@ -21,25 +21,24 @@ async function main() {
 
   await absurd.createQueue();
 
-  // Persist defaultChatId via state store
-  let defaultChatId = ((await getState(pool, "system", "defaultChatId")) ?? 0) as number;
-  const bot = createBot(config.telegramToken, absurd, {
-    onFirstMessage: defaultChatId === 0
-      ? async (chatId) => {
-          defaultChatId = chatId;
-          await setState(pool, "system", "defaultChatId", chatId);
-        }
-      : undefined,
-  });
+  const channelRegistry = new ChannelRegistry();
+  for (const ch of config.channels) {
+    if (ch.type === "telegram") {
+      channelRegistry.register(new TelegramAdapter(ch.token));
+    }
+  }
 
-  const taskDeps = { anthropic, pool, bot, config, startedAt, log: logger };
+  // Persist defaultRecipientId via state store
+  let defaultRecipientId = ((await getState(pool, "system", "defaultRecipientId")) ?? "") as string;
+
+  const taskDeps = { anthropic, pool, channels: channelRegistry, config, startedAt, log: logger };
   registerHandleMessage(absurd, taskDeps);
   registerExecuteSkill(absurd, taskDeps);
-  registerSendMessage(absurd, bot);
+  registerSendMessage(absurd, channelRegistry);
   registerWorkflow(absurd, taskDeps);
 
   // Sync skill schedules on startup
-  await syncSchedules(absurd, config.skillsDir, defaultChatId);
+  await syncSchedules(absurd, config.skillsDir, defaultRecipientId);
 
   const worker = await absurd.startWorker({
     concurrency: config.workerConcurrency,
@@ -49,11 +48,21 @@ async function main() {
 
   logger.info({ queue: config.queueName }, "everclaw started");
 
-  bot.start({ onStart: () => logger.info("telegram bot connected") });
+  await channelRegistry.startAll(async (msg) => {
+    if (!defaultRecipientId) {
+      defaultRecipientId = msg.recipientId;
+      await setState(pool, "system", "defaultRecipientId", msg.recipientId);
+    }
+    logger.info({ recipientId: msg.recipientId }, "message received");
+    await absurd.spawn("handle-message", {
+      recipientId: msg.recipientId,
+      text: msg.text,
+    });
+  });
 
   const shutdown = async () => {
     logger.info("shutting down");
-    bot.stop();
+    await channelRegistry.stopAll();
     await worker.close();
     await pool.end();
     process.exit(0);

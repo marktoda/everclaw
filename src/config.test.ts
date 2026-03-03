@@ -27,7 +27,7 @@ describe("loadConfig", () => {
   it("reads secrets from .env file, not process.env", () => {
     fs.writeFileSync(envPath, "TELEGRAM_BOT_TOKEN=tg\nANTHROPIC_API_KEY=sk\n");
     const c = loadConfig(envPath);
-    expect(c.telegramToken).toBe("tg");
+    expect(c.channels).toEqual([{ type: "telegram", token: "tg" }]);
     expect(c.anthropicApiKey).toBe("sk");
     // Secrets should NOT be in process.env
     expect(process.env.TELEGRAM_BOT_TOKEN).toBeUndefined();

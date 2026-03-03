@@ -67,7 +67,7 @@ export async function listSkills(skillsDir: string): Promise<SkillSummary[]> {
 export async function syncSchedules(
   absurd: Absurd,
   skillsDir: string,
-  chatId: number,
+  defaultRecipientId: string,
 ): Promise<void> {
   const skills = await listSkills(skillsDir);
   const schedules = await absurd.listSchedules();
@@ -83,7 +83,7 @@ export async function syncSchedules(
       .filter(s => s.schedule)
       .map(s => [
         `skill:${s.name}`,
-        { skillName: s.name, schedule: s.schedule!, chatId },
+        { skillName: s.name, schedule: s.schedule!, recipientId: defaultRecipientId },
       ]),
   );
 
@@ -95,7 +95,7 @@ export async function syncSchedules(
         try { await absurd.deleteSchedule(name); } catch { /* ok */ }
       }
       await absurd.createSchedule(name, "execute-skill", skill.schedule, {
-        params: { skillName: skill.skillName, chatId: skill.chatId },
+        params: { skillName: skill.skillName, recipientId: skill.recipientId },
       });
     }
   }

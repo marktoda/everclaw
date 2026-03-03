@@ -1,8 +1,13 @@
 import * as fs from "fs";
 import * as path from "path";
 
+export interface ChannelConfig {
+  type: string;
+  token: string;
+}
+
 export interface Config {
-  telegramToken: string;
+  channels: ChannelConfig[];
   anthropicApiKey: string;
   braveSearchApiKey?: string;
   databaseUrl: string;
@@ -57,7 +62,7 @@ export function loadConfig(envPath: string = ".env"): Config {
   }
 
   return {
-    telegramToken: requireSecret("TELEGRAM_BOT_TOKEN"),
+    channels: [{ type: "telegram", token: requireSecret("TELEGRAM_BOT_TOKEN") }],
     anthropicApiKey: requireSecret("ANTHROPIC_API_KEY"),
     braveSearchApiKey: secrets["BRAVE_SEARCH_API_KEY"] || undefined,
     databaseUrl: process.env.DATABASE_URL ?? "postgresql://localhost/absurd",

@@ -7,7 +7,7 @@ export interface PromptContext {
 export function buildSystemPrompt(ctx: PromptContext): string {
   const parts: string[] = [];
 
-  parts.push(`You are a personal AI assistant communicating through Telegram.
+  parts.push(`You are a personal AI assistant.
 You are helpful, concise, and proactive. You can extend your own capabilities
 by creating skills (markdown workflow templates) and tool scripts using file tools.
 
