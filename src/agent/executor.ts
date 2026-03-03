@@ -179,8 +179,15 @@ export function createExecutor(deps: ExecutorDeps) {
       }
 
       case "cancel_task":
-        await deps.absurd.cancelTask(input.task_id);
-        return `Task ${input.task_id} cancelled.`;
+        try {
+          await deps.absurd.cancelTask(input.task_id);
+          return `Task ${input.task_id} cancelled.`;
+        } catch (err: any) {
+          if (err.message?.includes("not found")) {
+            return `Task ${input.task_id} not found (may have already completed or been cancelled).`;
+          }
+          throw err;
+        }
 
       case "list_tasks": {
         const qn = deps.queueName; // validated at config load time

@@ -1,4 +1,4 @@
-# Absurd Assistant: Agent as Workflow Author
+# Everclaw: Agent as Workflow Author
 
 An AI personal assistant built on Absurd — a durable task queue with
 checkpointing, sleep, events, and scheduling. The agent doesn't just answer
@@ -39,7 +39,7 @@ everything.
 ```
 Host machine
   |
-  +-- Docker container (absurd-assistant)
+  +-- Docker container (everclaw)
   |     |
   |     +-- Node.js process
   |     |     +-- Telegram bot (grammY, long-polling)
@@ -436,7 +436,7 @@ It cannot access API keys or tokens via environment variables.
 ## Project Structure
 
 ```
-absurd-assistant/
+everclaw/
   src/
     index.ts              # Entry: init Absurd, bot, worker
     config.ts             # Config from .env file

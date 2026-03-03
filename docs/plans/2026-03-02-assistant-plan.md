@@ -1,4 +1,4 @@
-# Absurd Assistant Implementation Plan
+# Everclaw Implementation Plan
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
@@ -29,7 +29,7 @@
 **Step 1: Initialize the repo**
 
 ```bash
-mkdir absurd-assistant && cd absurd-assistant
+mkdir everclaw && cd everclaw
 git init
 mkdir -p src/tasks src/agent src/memory src/skills src/scripts skills tools data/notes sql
 ```
@@ -41,7 +41,7 @@ GitHub monorepo (`sdks/typescript/` in `marktoda/absurd`).
 
 ```json
 {
-  "name": "absurd-assistant",
+  "name": "everclaw",
   "version": "0.0.1",
   "type": "module",
   "private": true,
@@ -215,7 +215,7 @@ ANTHROPIC_API_KEY=sk-ant-your-key
 **Step 10: Create minimal src/index.ts and verify**
 
 ```typescript
-console.log("absurd-assistant starting...");
+console.log("everclaw starting...");
 ```
 
 ```bash
@@ -227,7 +227,7 @@ pnpm tsc --noEmit
 
 ```bash
 git add -A
-git commit -m "feat: scaffold absurd-assistant project"
+git commit -m "feat: scaffold everclaw project"
 ```
 
 ---
@@ -1924,7 +1924,7 @@ async function main() {
     onError: (err) => console.error("[worker]", err.message),
   });
 
-  console.log(`absurd-assistant started (queue=${config.queueName})`);
+  console.log(`everclaw started (queue=${config.queueName})`);
 
   bot.start({ onStart: () => console.log("Telegram bot connected") });
 
@@ -1976,7 +1976,7 @@ docker compose up --build
 
 Wait for:
 ```
-absurd-assistant started (queue=assistant)
+everclaw started (queue=assistant)
 Telegram bot connected
 ```
 

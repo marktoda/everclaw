@@ -583,7 +583,7 @@ describe("runAgentLoop", () => {
       expect(messages[2]).toEqual({ role: "user", content: "follow-up" });
     });
 
-    it("skips non-user/assistant messages from history (e.g. tool role)", async () => {
+    it("skips tool messages without toolUse (old format, backwards compat)", async () => {
       vi.mocked(getRecentMessages).mockResolvedValueOnce([
         { chatId: 1, role: "user", content: "q1" },
         { chatId: 1, role: "tool", content: "tool output" },
@@ -605,6 +605,57 @@ describe("runAgentLoop", () => {
       expect(messages[0]).toEqual({ role: "user", content: "q1" });
       expect(messages[1]).toEqual({ role: "assistant", content: "a1" });
       expect(messages[2]).toEqual({ role: "user", content: "q2" });
+    });
+
+    it("reconstructs tool_use and tool_result from history with toolUse metadata", async () => {
+      vi.mocked(getRecentMessages).mockResolvedValueOnce([
+        { chatId: 1, role: "user", content: "remind me" },
+        {
+          chatId: 1,
+          role: "assistant",
+          content: "(tool use only)",
+          toolUse: [{ id: "tu-1", name: "spawn_task", input: { task_name: "workflow" } }],
+        },
+        {
+          chatId: 1,
+          role: "tool",
+          content: "[tu-1]: Task spawned",
+          toolUse: [{ tool_use_id: "tu-1", content: "Task spawned" }],
+        },
+        { chatId: 1, role: "assistant", content: "Done!" },
+      ] as any);
+
+      const anthropic = createMockAnthropic([
+        apiResponse([textBlock("hello")]),
+      ]);
+      const deps = baseDeps({ anthropic });
+      const ctx = createMockCtx();
+
+      await runAgentLoop(ctx, 1, "Hi", deps);
+
+      const messages = anthropic.snapshots[0].messages;
+      expect(messages).toHaveLength(5);
+
+      // 1. Original user message
+      expect(messages[0]).toEqual({ role: "user", content: "remind me" });
+
+      // 2. Assistant with tool_use block (no text block for "(tool use only)")
+      expect(messages[1].role).toBe("assistant");
+      expect(messages[1].content).toEqual([
+        { type: "tool_use", id: "tu-1", name: "spawn_task", input: { task_name: "workflow" } },
+      ]);
+
+      // 3. Tool result as user message
+      expect(messages[2].role).toBe("user");
+      expect(messages[2].content).toEqual([
+        { type: "tool_result", tool_use_id: "tu-1", content: "Task spawned" },
+      ]);
+
+      // 4. Final assistant text
+      expect(messages[3]).toEqual({ role: "assistant", content: "Done!" });
+
+      // 5. New user message
+      expect(messages[4]).toEqual({ role: "user", content: "Hi" });
     });
   });
 
@@ -644,15 +695,16 @@ describe("runAgentLoop", () => {
       // 1. User message
       expect(calls[0][1]).toMatchObject({ chatId: 42, role: "user", content: "q" });
 
-      // 2. Assistant with tool_use
+      // 2. Assistant with tool_use (includes id for history reconstruction)
       expect(calls[1][1]).toMatchObject({ chatId: 42, role: "assistant" });
       expect(calls[1][1].toolUse).toBeDefined();
-      expect(calls[1][1].toolUse).toEqual([{ name: "get_state", input: { namespace: "n", key: "k" } }]);
+      expect(calls[1][1].toolUse).toEqual([{ id: "tool-p", name: "get_state", input: { namespace: "n", key: "k" } }]);
 
-      // 3. Tool results
+      // 3. Tool results (structured toolUse for history reconstruction)
       expect(calls[2][1]).toMatchObject({ chatId: 42, role: "tool" });
       expect(calls[2][1].content).toContain("tool-p");
       expect(calls[2][1].content).toContain("tool-result");
+      expect(calls[2][1].toolUse).toEqual([{ tool_use_id: "tool-p", content: "tool-result" }]);
 
       // 4. Final assistant text
       expect(calls[3][1]).toMatchObject({

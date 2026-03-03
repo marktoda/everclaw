@@ -74,10 +74,31 @@ export async function runAgentLoop(
     tools: (context.tools as any[]).map(t => ({ name: t.name })),
   });
 
-  // Build messages array
+  // Build messages array — reconstruct full Anthropic content blocks from
+  // stored history so Claude sees tool_use / tool_result context.
   const messages: Anthropic.MessageParam[] = [];
   for (const msg of context.history as any[]) {
-    if (msg.role === "user" || msg.role === "assistant") {
+    if (msg.role === "assistant" && msg.toolUse?.length > 0 && msg.toolUse[0].id) {
+      // Reconstruct assistant message with tool_use content blocks
+      const content: (Anthropic.TextBlock | Anthropic.ToolUseBlock)[] = [];
+      if (msg.content && msg.content !== "(tool use only)") {
+        content.push({ type: "text", text: msg.content, citations: null } as Anthropic.TextBlock);
+      }
+      for (const tu of msg.toolUse) {
+        content.push({ type: "tool_use", id: tu.id, name: tu.name, input: tu.input });
+      }
+      messages.push({ role: "assistant", content });
+    } else if (msg.role === "tool" && msg.toolUse?.length > 0) {
+      // Reconstruct tool results as user message with tool_result blocks
+      messages.push({
+        role: "user",
+        content: msg.toolUse.map((r: any) => ({
+          type: "tool_result" as const,
+          tool_use_id: r.tool_use_id,
+          content: r.content,
+        })),
+      });
+    } else if (msg.role === "user" || msg.role === "assistant") {
       messages.push({ role: msg.role, content: msg.content });
     }
   }
@@ -100,13 +121,22 @@ export async function runAgentLoop(
     const content = resp.content as Anthropic.ContentBlock[];
     messages.push({ role: "assistant", content });
 
-    // Send text blocks to the caller per-turn
+    // Extract text blocks for reply and sending
     const textBlocks = content.filter(
       (b): b is Anthropic.TextBlock => b.type === "text",
     );
-    for (const block of textBlocks) {
-      const filtered = stripInternalTags(block.text);
-      if (filtered && deps.onText) deps.onText(filtered);
+
+    // Send text to the caller — wrapped in ctx.step() so that text is NOT
+    // re-sent when the task resumes after a suspending tool (sleep_for, etc.).
+    // On replay, ctx.step returns the cached result without executing the fn.
+    if (textBlocks.length > 0 && deps.onText) {
+      await ctx.step(`send-text-${turn}`, async () => {
+        for (const block of textBlocks) {
+          const filtered = stripInternalTags(block.text);
+          if (filtered) deps.onText!(filtered);
+        }
+        return true;
+      });
     }
 
     if ((resp.stopReason as string) !== "tool_use") {
@@ -163,7 +193,7 @@ export async function runAgentLoop(
           .join("\n");
         const toolUse = blocks
           .filter((b): b is Anthropic.ToolUseBlock => b.type === "tool_use")
-          .map(b => ({ name: b.name, input: b.input }));
+          .map(b => ({ id: b.id, name: b.name, input: b.input }));
         await appendMessage(deps.pool, {
           chatId,
           role: "assistant",
@@ -171,14 +201,16 @@ export async function runAgentLoop(
           toolUse: toolUse.length > 0 ? toolUse : undefined,
         });
       } else if (msg.role === "user" && Array.isArray(msg.content)) {
-        // Tool results — store as a single tool message with all results
-        const toolResults = (msg.content as Anthropic.ToolResultBlockParam[])
+        // Tool results — store structured data for history reconstruction
+        const results = msg.content as Anthropic.ToolResultBlockParam[];
+        const toolResults = results
           .map(r => `[${r.tool_use_id}]: ${r.content}`)
           .join("\n");
         await appendMessage(deps.pool, {
           chatId,
           role: "tool",
           content: toolResults,
+          toolUse: results.map(r => ({ tool_use_id: r.tool_use_id, content: r.content })),
         });
       }
     }
