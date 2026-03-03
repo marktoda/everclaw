@@ -4,16 +4,23 @@ import * as path from "node:path";
 
 const SCRIPT_EXTENSIONS = new Set([".sh", ".bash", ".py", ".js", ".ts"]);
 
+const PYTHON_EXTENSIONS = new Set([".py"]);
+
 export function runScript(
   scriptPath: string,
   input: string,
   timeoutSeconds: number,
   env?: Record<string, string>,
 ): Promise<string> {
+  const ext = path.extname(scriptPath);
+  const isPython = PYTHON_EXTENSIONS.has(ext);
+  const command = isPython ? "uv" : scriptPath;
+  const args = isPython ? ["run", "--script", scriptPath] : [];
+
   return new Promise((resolve, reject) => {
     const child = execFile(
-      scriptPath,
-      [],
+      command,
+      args,
       {
         timeout: timeoutSeconds * 1000,
         maxBuffer: 1024 * 1024, // 1MB
