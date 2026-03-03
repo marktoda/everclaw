@@ -8,11 +8,13 @@ export interface BotOptions {
 
 export function createBot(token: string, absurd: Absurd, opts?: BotOptions): Bot {
   const bot = new Bot(token);
+  let firstMessageCallback = opts?.onFirstMessage;
 
   bot.on("message:text", async (ctx) => {
-    if (opts?.onFirstMessage) {
-      await opts.onFirstMessage(ctx.chat.id);
-      opts.onFirstMessage = undefined; // Only fire once
+    if (firstMessageCallback) {
+      const cb = firstMessageCallback;
+      firstMessageCallback = undefined;
+      await cb(ctx.chat.id);
     }
     await absurd.spawn("handle-message", {
       chatId: ctx.chat.id,
