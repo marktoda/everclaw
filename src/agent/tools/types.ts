@@ -21,13 +21,13 @@ export interface ExecutorDeps {
 export interface ToolHandler {
   def: ToolDef;
   suspends?: boolean;
-  execute(input: Record<string, any>, deps: ExecutorDeps): Promise<string>;
+  execute(input: Record<string, unknown>, deps: ExecutorDeps): Promise<string>;
 }
 
 export function defineTool(
   name: string,
   description: string,
-  properties: Record<string, any>,
+  properties: Record<string, { type?: string; description?: string }> = {},
   required: string[] = [],
 ): ToolDef {
   return {

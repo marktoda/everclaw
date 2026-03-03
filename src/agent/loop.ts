@@ -138,10 +138,10 @@ export async function runAgentLoop(
       let result: string;
       if (deps.registry.isSuspending(tb.name)) {
         // Call directly — SuspendTask propagates up to the Absurd worker
-        result = await deps.registry.execute(tb.name, tb.input as Record<string, any>);
+        result = await deps.registry.execute(tb.name, tb.input as Record<string, unknown>);
       } else {
         result = await ctx.step(`tool-${turn}-${tb.name}`, () =>
-          deps.registry.execute(tb.name, tb.input as Record<string, any>),
+          deps.registry.execute(tb.name, tb.input as Record<string, unknown>),
         );
       }
       results.push({ type: "tool_result", tool_use_id: tb.id, content: result as string });

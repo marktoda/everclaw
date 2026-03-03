@@ -22,7 +22,7 @@ async function main() {
   await absurd.createQueue();
 
   // Persist defaultChatId via state store
-  let defaultChatId = (await getState(pool, "system", "defaultChatId")) ?? 0;
+  let defaultChatId = ((await getState(pool, "system", "defaultChatId")) ?? 0) as number;
   const bot = createBot(config.telegramToken, absurd, {
     onFirstMessage: defaultChatId === 0
       ? async (chatId) => {

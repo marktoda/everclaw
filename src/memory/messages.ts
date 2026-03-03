@@ -28,9 +28,9 @@ export function reconstructMessages(history: Message[]): Anthropic.MessageParam[
 
   for (const msg of history) {
     if (msg.role === "assistant" && msg.toolUse && msg.toolUse.length > 0) {
-      const content: (Anthropic.TextBlock | Anthropic.ToolUseBlock)[] = [];
+      const content: ContentBlock[] = [];
       if (msg.content && msg.content !== "(tool use only)") {
-        content.push({ type: "text", text: msg.content, citations: null } as Anthropic.TextBlock);
+        content.push({ type: "text", text: msg.content });
       }
       for (const tu of msg.toolUse) {
         content.push({ type: "tool_use", id: tu.id, name: tu.name, input: tu.input });
@@ -66,14 +66,14 @@ export function deconstructMessages(
 
   for (const msg of loopMessages) {
     if (msg.role === "assistant") {
-      const blocks = msg.content as Anthropic.ContentBlock[];
+      const blocks = contentBlocks(msg) ?? [];
       const text = blocks
-        .filter((b): b is Anthropic.TextBlock => b.type === "text")
+        .filter((b): b is Anthropic.TextBlockParam => b.type === "text")
         .map(b => b.text)
         .join("\n");
       const toolUse = blocks
-        .filter((b): b is Anthropic.ToolUseBlock => b.type === "tool_use")
-        .map(b => ({ id: b.id, name: b.name, input: b.input as Record<string, any> }));
+        .filter(isToolUse)
+        .map(b => ({ id: b.id, name: b.name, input: b.input as Record<string, unknown> }));
       result.push({
         chatId,
         role: "assistant",

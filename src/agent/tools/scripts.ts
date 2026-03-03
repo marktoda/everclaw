@@ -9,10 +9,11 @@ export const scriptTools: ToolHandler[] = [
       input: { type: "object", description: "JSON input to pass to the script" },
     }, ["name"]),
     async execute(input, deps) {
+      const { name, input: scriptInput } = input as { name: string; input?: unknown };
       const tools = await listTools(deps.toolsDir);
-      const tool = tools.find(t => t.name === input.name);
-      if (!tool) return `Tool "${input.name}" not found. Available: ${tools.map(t => t.name).join(", ")}`;
-      return await runScript(tool.path, JSON.stringify(input.input ?? {}), deps.scriptTimeout);
+      const tool = tools.find(t => t.name === name);
+      if (!tool) return `Tool "${name}" not found. Available: ${tools.map(t => t.name).join(", ")}`;
+      return await runScript(tool.path, JSON.stringify(scriptInput ?? {}), deps.scriptTimeout);
     },
   },
 ];
