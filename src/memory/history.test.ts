@@ -13,7 +13,7 @@ describe("appendMessage", () => {
     const pool = createMockPool();
 
     await appendMessage(pool, {
-      chatId: 42,
+      recipientId: "telegram:42",
       role: "user",
       content: "hello world",
     });
@@ -22,7 +22,7 @@ describe("appendMessage", () => {
     const [sql, params] = pool.query.mock.calls[0];
     expect(sql).toContain("INSERT INTO assistant.messages");
     expect(sql).toContain("chat_id, role, content, tool_use");
-    expect(params).toEqual([42, "user", "hello world", null]);
+    expect(params).toEqual(["telegram:42", "user", "hello world", null]);
   });
 
   it("serialises toolUse as JSON when present", async () => {
@@ -30,7 +30,7 @@ describe("appendMessage", () => {
     const toolUse = [{ id: "tu-1", name: "search", input: { q: "test" } }];
 
     await appendMessage(pool, {
-      chatId: 1,
+      recipientId: "telegram:1",
       role: "assistant",
       content: "using tool",
       toolUse,
@@ -44,7 +44,7 @@ describe("appendMessage", () => {
     const pool = createMockPool();
 
     await appendMessage(pool, {
-      chatId: 1,
+      recipientId: "telegram:1",
       role: "assistant",
       content: "result",
     });
@@ -58,7 +58,7 @@ describe("appendMessage", () => {
     pool.query.mockRejectedValueOnce(new Error("connection lost"));
 
     await expect(
-      appendMessage(pool, { chatId: 1, role: "user", content: "hi" }),
+      appendMessage(pool, { recipientId: "telegram:1", role: "user", content: "hi" }),
     ).rejects.toThrow("connection lost");
   });
 });
@@ -67,23 +67,23 @@ describe("getRecentMessages", () => {
   it("queries with correct chatId and default limit", async () => {
     const pool = createMockPool([]);
 
-    await getRecentMessages(pool, 7);
+    await getRecentMessages(pool, "telegram:7");
 
     expect(pool.query).toHaveBeenCalledOnce();
     const [sql, params] = pool.query.mock.calls[0];
     expect(sql).toContain("WHERE chat_id = $1");
     expect(sql).toContain("ORDER BY created_at DESC, id DESC");
     expect(sql).toContain("LIMIT $2");
-    expect(params).toEqual([7, 50]);
+    expect(params).toEqual(["telegram:7", 50]);
   });
 
   it("respects a custom limit", async () => {
     const pool = createMockPool([]);
 
-    await getRecentMessages(pool, 7, 10);
+    await getRecentMessages(pool, "telegram:7", 10);
 
     const [, params] = pool.query.mock.calls[0];
-    expect(params).toEqual([7, 10]);
+    expect(params).toEqual(["telegram:7", 10]);
   });
 
   it("maps rows and reverses DESC order to chronological", async () => {
@@ -94,7 +94,7 @@ describe("getRecentMessages", () => {
     const pool = createMockPool([
       {
         id: 2,
-        chat_id: 5,
+        chat_id: "telegram:5",
         role: "assistant",
         content: "reply",
         tool_use: null,
@@ -102,7 +102,7 @@ describe("getRecentMessages", () => {
       },
       {
         id: 1,
-        chat_id: 5,
+        chat_id: "telegram:5",
         role: "user",
         content: "hello",
         tool_use: null,
@@ -110,20 +110,20 @@ describe("getRecentMessages", () => {
       },
     ]);
 
-    const messages = await getRecentMessages(pool, 5);
+    const messages = await getRecentMessages(pool, "telegram:5");
 
     // After reverse: oldest first (chronological)
     expect(messages).toEqual([
       {
         id: 1,
-        chatId: 5,
+        recipientId: "telegram:5",
         role: "user",
         content: "hello",
         createdAt: earlier,
       },
       {
         id: 2,
-        chatId: 5,
+        recipientId: "telegram:5",
         role: "assistant",
         content: "reply",
         toolUse: undefined,
@@ -135,7 +135,7 @@ describe("getRecentMessages", () => {
   it("returns an empty array when no rows exist", async () => {
     const pool = createMockPool([]);
 
-    const messages = await getRecentMessages(pool, 99);
+    const messages = await getRecentMessages(pool, "telegram:99");
 
     expect(messages).toEqual([]);
   });
@@ -145,7 +145,7 @@ describe("getRecentMessages", () => {
     const pool = createMockPool([
       {
         id: 10,
-        chat_id: 3,
+        chat_id: "telegram:3",
         role: "assistant",
         content: "computing",
         tool_use: toolData,
@@ -153,7 +153,7 @@ describe("getRecentMessages", () => {
       },
     ]);
 
-    const [msg] = await getRecentMessages(pool, 3);
+    const [msg] = await getRecentMessages(pool, "telegram:3");
 
     expect((msg as import("./history.ts").AssistantMessage).toolUse).toEqual(toolData);
   });

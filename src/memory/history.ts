@@ -3,7 +3,7 @@ import type { Pool } from "pg";
 
 export interface BaseMessage {
   id?: number;
-  chatId: number;
+  recipientId: string;
   content: string;
   createdAt?: Date;
 }
@@ -29,21 +29,21 @@ export async function appendMessage(pool: Pool, msg: Message): Promise<void> {
   await pool.query(
     `INSERT INTO assistant.messages (chat_id, role, content, tool_use)
      VALUES ($1, $2, $3, $4)`,
-    [msg.chatId, msg.role, msg.content, toolUse ? JSON.stringify(toolUse) : null],
+    [msg.recipientId, msg.role, msg.content, toolUse ? JSON.stringify(toolUse) : null],
   );
 }
 
 export async function getRecentMessages(
-  pool: Pool, chatId: number, limit: number = 50,
+  pool: Pool, recipientId: string, limit: number = 50,
 ): Promise<Message[]> {
   const result = await pool.query(
     `SELECT id, chat_id, role, content, tool_use, created_at
      FROM assistant.messages WHERE chat_id = $1
      ORDER BY created_at DESC, id DESC LIMIT $2`,
-    [chatId, limit],
+    [recipientId, limit],
   );
   return result.rows.reverse().map((r): Message => {
-    const base = { id: r.id, chatId: r.chat_id, content: r.content, createdAt: r.created_at };
+    const base = { id: r.id, recipientId: r.chat_id as string, content: r.content, createdAt: r.created_at };
     if (r.role === "tool") return { ...base, role: "tool", toolUse: r.tool_use ?? [] };
     if (r.role === "assistant") return { ...base, role: "assistant", toolUse: r.tool_use ?? undefined };
     return { ...base, role: "user" };
