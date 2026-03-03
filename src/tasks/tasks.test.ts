@@ -66,7 +66,7 @@ function makeConfig() {
     queueName: "test-queue",
     notesDir: "/tmp/notes",
     skillsDir: "/tmp/skills",
-    toolsDir: "/tmp/tools",
+    toolsDir: "/tmp/scripts",
     model: "claude-sonnet-4-5-20250929",
     maxHistoryMessages: 50,
     workerConcurrency: 1,

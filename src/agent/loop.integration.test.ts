@@ -43,7 +43,7 @@ beforeEach(() => {
   recipientIdCounter += 1;
   notesDir = fs.mkdtempSync(path.join(os.tmpdir(), "everclaw-notes-"));
   skillsDir = fs.mkdtempSync(path.join(os.tmpdir(), "everclaw-skills-"));
-  toolsDir = fs.mkdtempSync(path.join(os.tmpdir(), "everclaw-tools-"));
+  toolsDir = fs.mkdtempSync(path.join(os.tmpdir(), "everclaw-scripts-"));
 });
 
 afterEach(() => {

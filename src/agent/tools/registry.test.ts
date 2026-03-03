@@ -27,14 +27,14 @@ vi.mock("../../skills/manager.ts", () => ({
 
 vi.mock("../../scripts/runner.ts", () => ({
   runScript: vi.fn(),
-  listTools: vi.fn(),
+  listScripts: vi.fn(),
 }));
 
 // Import mocked modules so we can configure per-test return values.
 import * as fs from "fs/promises";
 import { getState, setState } from "../../memory/state.ts";
 import { listSkills, syncSchedules } from "../../skills/manager.ts";
-import { runScript, listTools } from "../../scripts/runner.ts";
+import { runScript, listScripts } from "../../scripts/runner.ts";
 import { TimeoutError } from "absurd-sdk";
 
 import { createToolRegistry } from "./index.ts";
@@ -63,7 +63,7 @@ function makeDeps(overrides: Partial<ExecutorDeps> = {}): ExecutorDeps {
     recipientId: "telegram:42",
     notesDir: "/data/notes",
     skillsDir: "/data/skills",
-    toolsDir: "/data/tools",
+    toolsDir: "/data/scripts",
     scriptTimeout: 30,
     scriptEnv: {},
     startedAt: new Date("2025-01-01T00:00:00Z"),
@@ -144,9 +144,9 @@ describe("registry", () => {
       expect(fs.readFile).not.toHaveBeenCalled();
     });
 
-    it("rejects traversal from tools/ directory", async () => {
+    it("rejects traversal from scripts/ directory", async () => {
       const result = await exec("read_file", {
-        path: "tools/../../secret",
+        path: "scripts/../../secret",
       });
       expect(result).toMatch(/Error/);
       expect(fs.readFile).not.toHaveBeenCalled();
@@ -193,11 +193,11 @@ describe("registry", () => {
       );
     });
 
-    it("maps tools/ to toolsDir", async () => {
+    it("maps scripts/ to toolsDir", async () => {
       vi.mocked(fs.readFile).mockResolvedValue("tool content");
-      await exec("read_file", { path: "tools/my-tool.sh" });
+      await exec("read_file", { path: "scripts/my-tool.sh" });
       expect(fs.readFile).toHaveBeenCalledWith(
-        path.resolve("/data/tools", "my-tool.sh"),
+        path.resolve("/data/scripts", "my-tool.sh"),
         "utf-8",
       );
     });
@@ -275,18 +275,18 @@ describe("registry", () => {
       expect(fs.writeFile).not.toHaveBeenCalled();
     });
 
-    it("chmods to 0o755 when writing to tools/", async () => {
+    it("chmods to 0o755 when writing to scripts/", async () => {
       vi.mocked(fs.mkdir).mockResolvedValue(undefined);
       vi.mocked(fs.writeFile).mockResolvedValue(undefined);
       vi.mocked(fs.chmod).mockResolvedValue(undefined);
 
       await exec("write_file", {
-        path: "tools/my-tool.sh",
+        path: "scripts/my-tool.sh",
         content: "#!/bin/bash\necho hi",
       });
 
       expect(fs.chmod).toHaveBeenCalledWith(
-        path.resolve("/data/tools", "my-tool.sh"),
+        path.resolve("/data/scripts", "my-tool.sh"),
         0o755,
       );
     });
@@ -320,13 +320,13 @@ describe("registry", () => {
       );
     });
 
-    it("does NOT call syncSchedules when writing to tools/", async () => {
+    it("does NOT call syncSchedules when writing to scripts/", async () => {
       vi.mocked(fs.mkdir).mockResolvedValue(undefined);
       vi.mocked(fs.writeFile).mockResolvedValue(undefined);
       vi.mocked(fs.chmod).mockResolvedValue(undefined);
 
       await exec("write_file", {
-        path: "tools/script.sh",
+        path: "scripts/script.sh",
         content: "#!/bin/bash",
       });
 
@@ -352,11 +352,11 @@ describe("registry", () => {
       expect(fs.readdir).toHaveBeenCalledWith("/data/skills");
     });
 
-    it("lists files from tools directory", async () => {
+    it("lists files from scripts directory", async () => {
       vi.mocked(fs.readdir).mockResolvedValue(["tool.sh"] as any);
-      const result = await exec("list_files", { directory: "tools" });
+      const result = await exec("list_files", { directory: "scripts" });
       expect(result).toBe("tool.sh");
-      expect(fs.readdir).toHaveBeenCalledWith("/data/tools");
+      expect(fs.readdir).toHaveBeenCalledWith("/data/scripts");
     });
 
     it("accepts trailing slash variants", async () => {
@@ -534,8 +534,8 @@ describe("registry", () => {
         { name: "s1", description: "", filename: "s1.md" },
         { name: "s2", description: "", schedule: "* * * * *", filename: "s2.md" },
       ]);
-      vi.mocked(listTools).mockResolvedValue([
-        { name: "t1", path: "/data/tools/t1.sh" },
+      vi.mocked(listScripts).mockResolvedValue([
+        { name: "t1", path: "/data/scripts/t1.sh" },
       ]);
       vi.mocked(deps.absurd.listSchedules).mockResolvedValue([
         { scheduleName: "sched1" } as any,
@@ -556,7 +556,7 @@ describe("registry", () => {
       vi.spyOn(Date, "now").mockReturnValue(now);
 
       vi.mocked(listSkills).mockResolvedValue([]);
-      vi.mocked(listTools).mockResolvedValue([]);
+      vi.mocked(listScripts).mockResolvedValue([]);
       vi.mocked(deps.absurd.listSchedules).mockResolvedValue([]);
       vi.mocked(fs.readdir).mockRejectedValue(new Error("ENOENT"));
 
@@ -572,9 +572,9 @@ describe("registry", () => {
   // =========================================================================
   describe("run_script", () => {
     it("runs a matching tool and returns output", async () => {
-      vi.mocked(listTools).mockResolvedValue([
-        { name: "weather", path: "/data/tools/weather.sh" },
-        { name: "calc", path: "/data/tools/calc.py" },
+      vi.mocked(listScripts).mockResolvedValue([
+        { name: "weather", path: "/data/scripts/weather.sh" },
+        { name: "calc", path: "/data/scripts/calc.py" },
       ]);
       vi.mocked(runScript).mockResolvedValue("sunny, 72F");
 
@@ -584,7 +584,7 @@ describe("registry", () => {
       });
 
       expect(runScript).toHaveBeenCalledWith(
-        "/data/tools/weather.sh",
+        "/data/scripts/weather.sh",
         JSON.stringify({ city: "NYC" }),
         30,
         {},
@@ -593,8 +593,8 @@ describe("registry", () => {
     });
 
     it("returns error when tool is not found", async () => {
-      vi.mocked(listTools).mockResolvedValue([
-        { name: "calc", path: "/data/tools/calc.py" },
+      vi.mocked(listScripts).mockResolvedValue([
+        { name: "calc", path: "/data/scripts/calc.py" },
       ]);
 
       const result = await exec("run_script", { name: "missing" });
@@ -605,15 +605,15 @@ describe("registry", () => {
     });
 
     it("passes empty object when input is undefined", async () => {
-      vi.mocked(listTools).mockResolvedValue([
-        { name: "hello", path: "/data/tools/hello.sh" },
+      vi.mocked(listScripts).mockResolvedValue([
+        { name: "hello", path: "/data/scripts/hello.sh" },
       ]);
       vi.mocked(runScript).mockResolvedValue("hi");
 
       await exec("run_script", { name: "hello" });
 
       expect(runScript).toHaveBeenCalledWith(
-        "/data/tools/hello.sh",
+        "/data/scripts/hello.sh",
         "{}",
         30,
         {},
@@ -621,7 +621,7 @@ describe("registry", () => {
     });
 
     it("returns error when no tools exist", async () => {
-      vi.mocked(listTools).mockResolvedValue([]);
+      vi.mocked(listScripts).mockResolvedValue([]);
 
       const result = await exec("run_script", { name: "anything" });
 

@@ -8,5 +8,8 @@ dist/
 # The agent creates and manages these — see examples/ for patterns.
 data/
 skills/
-tools/
 docs/plans/
+
+# Scripts: ignore agent-written scripts, but track default utilities
+scripts/*
+!scripts/fetch-url.sh

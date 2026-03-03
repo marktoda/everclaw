@@ -1,7 +1,7 @@
 import * as fs from "fs/promises";
 import { getState, setState } from "../../memory/state.ts";
 import { listSkills } from "../../skills/manager.ts";
-import { listTools } from "../../scripts/runner.ts";
+import { listScripts } from "../../scripts/runner.ts";
 import { defineTool } from "./types.ts";
 import type { ToolHandler } from "./types.ts";
 
@@ -34,7 +34,7 @@ export const stateTools: ToolHandler[] = [
     async execute(_input, deps) {
       const uptime = Math.floor((Date.now() - deps.startedAt.getTime()) / 1000);
       const skills = await listSkills(deps.skillsDir);
-      const tools = await listTools(deps.toolsDir);
+      const tools = await listScripts(deps.toolsDir);
       const schedules = await deps.absurd.listSchedules();
       return [
         `Uptime: ${uptime}s`,

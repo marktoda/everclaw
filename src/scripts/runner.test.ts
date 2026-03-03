@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
-import { runScript, listTools } from "./runner.ts";
+import { runScript, listScripts } from "./runner.ts";
 
 describe("script runner", () => {
   let tmpDir: string;
@@ -45,7 +45,7 @@ describe("script runner", () => {
     expect(result.trim()).toBe("/");
   });
 
-  it("lists tool scripts", async () => {
+  it("lists scripts", async () => {
     fs.writeFileSync(path.join(tmpDir, "foo.sh"), "#!/bin/bash\n", {
       mode: 0o755,
     });
@@ -54,8 +54,8 @@ describe("script runner", () => {
       "#!/usr/bin/env python3\n",
       { mode: 0o755 },
     );
-    fs.writeFileSync(path.join(tmpDir, "readme.md"), "not a tool");
-    const tools = await listTools(tmpDir);
-    expect(tools).toHaveLength(2);
+    fs.writeFileSync(path.join(tmpDir, "readme.md"), "not a script");
+    const scripts = await listScripts(tmpDir);
+    expect(scripts).toHaveLength(2);
   });
 });

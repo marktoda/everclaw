@@ -1,4 +1,4 @@
-import { runScript, listTools } from "../../scripts/runner.ts";
+import { runScript, listScripts } from "../../scripts/runner.ts";
 import { defineTool } from "./types.ts";
 import type { ToolHandler } from "./types.ts";
 
@@ -10,10 +10,10 @@ export const scriptTools: ToolHandler[] = [
     }, ["name"]),
     async execute(input, deps) {
       const { name, input: scriptInput } = input as { name: string; input?: unknown };
-      const tools = await listTools(deps.toolsDir);
-      const tool = tools.find(t => t.name === name);
-      if (!tool) return `Tool "${name}" not found. Available: ${tools.map(t => t.name).join(", ")}`;
-      return await runScript(tool.path, JSON.stringify(scriptInput ?? {}), deps.scriptTimeout, deps.scriptEnv);
+      const scripts = await listScripts(deps.toolsDir);
+      const script = scripts.find(s => s.name === name);
+      if (!script) return `Tool "${name}" not found. Available: ${scripts.map(s => s.name).join(", ")}`;
+      return await runScript(script.path, JSON.stringify(scriptInput ?? {}), deps.scriptTimeout, deps.scriptEnv);
     },
   },
 ];
