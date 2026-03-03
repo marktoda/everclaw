@@ -84,14 +84,17 @@ Current date and time: ${new Date().toISOString()}`);
   }
 
   if (ctx.skills.length > 0) {
-    const list = ctx.skills.map(s =>
-      `- **${s.name}**: ${s.description}${s.schedule ? ` (scheduled: ${s.schedule})` : ""}`
-    ).join("\n");
+    const list = ctx.skills
+      .map(
+        (s) =>
+          `- **${s.name}**: ${s.description}${s.schedule ? ` (scheduled: ${s.schedule})` : ""}`,
+      )
+      .join("\n");
     parts.push(`## Available Skills\n\n${list}`);
   }
 
   if (ctx.tools.length > 0) {
-    const list = ctx.tools.map(t => `- ${t.name}`).join("\n");
+    const list = ctx.tools.map((t) => `- ${t.name}`).join("\n");
     parts.push(`## Available Tool Scripts\n\n${list}`);
   }
 

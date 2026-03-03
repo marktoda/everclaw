@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
-import { reconstructMessages, deconstructMessages, sanitizeMessages } from "./messages.ts";
+import { describe, expect, it } from "vitest";
 import type { Message } from "./history.ts";
+import { deconstructMessages, reconstructMessages, sanitizeMessages } from "./messages.ts";
 
 describe("reconstructMessages", () => {
   it("converts plain user/assistant history to MessageParam[]", () => {
@@ -19,11 +19,15 @@ describe("reconstructMessages", () => {
     const history: Message[] = [
       { recipientId: "telegram:1", role: "user", content: "do it" },
       {
-        recipientId: "telegram:1", role: "assistant", content: "(tool use only)",
+        recipientId: "telegram:1",
+        role: "assistant",
+        content: "(tool use only)",
         toolUse: [{ id: "tu-1", name: "read_file", input: { path: "a" } }],
       },
       {
-        recipientId: "telegram:1", role: "tool", content: "[tu-1]: data",
+        recipientId: "telegram:1",
+        role: "tool",
+        content: "[tu-1]: data",
         toolUse: [{ tool_use_id: "tu-1", content: "data" }],
       },
       { recipientId: "telegram:1", role: "assistant", content: "done" },
@@ -42,11 +46,15 @@ describe("reconstructMessages", () => {
       { recipientId: "telegram:1", role: "assistant", content: "ok" },
       { recipientId: "telegram:1", role: "user", content: "msg2" },
       {
-        recipientId: "telegram:1", role: "assistant", content: "(tool use only)",
+        recipientId: "telegram:1",
+        role: "assistant",
+        content: "(tool use only)",
         toolUse: [{ id: "tu-A", name: "read_file", input: {} }],
       },
       {
-        recipientId: "telegram:1", role: "tool", content: "[tu-B]: wrong",
+        recipientId: "telegram:1",
+        role: "tool",
+        content: "[tu-B]: wrong",
         toolUse: [{ tool_use_id: "tu-B", content: "wrong" }],
       },
       { recipientId: "telegram:1", role: "user", content: "msg3" },
@@ -54,15 +62,15 @@ describe("reconstructMessages", () => {
     ];
     const result = reconstructMessages(history);
     // Mismatched pair dropped, consecutive users merged
-    expect(result.every((m, i) =>
-      i === 0 || result[i - 1].role !== m.role
-    )).toBe(true);
+    expect(result.every((m, i) => i === 0 || result[i - 1].role !== m.role)).toBe(true);
   });
 
   it("drops orphaned tool_result at start", () => {
     const history: Message[] = [
       {
-        recipientId: "telegram:1", role: "tool", content: "[tu-1]: data",
+        recipientId: "telegram:1",
+        role: "tool",
+        content: "[tu-1]: data",
         toolUse: [{ tool_use_id: "tu-1", content: "data" }],
       },
       { recipientId: "telegram:1", role: "user", content: "hi" },
@@ -89,7 +97,10 @@ describe("reconstructMessages", () => {
 describe("deconstructMessages", () => {
   it("converts assistant text message to Message", () => {
     const messages = [
-      { role: "assistant" as const, content: [{ type: "text" as const, text: "hello", citations: null }] },
+      {
+        role: "assistant" as const,
+        content: [{ type: "text" as const, text: "hello", citations: null }],
+      },
     ];
     const result = deconstructMessages("telegram:1", messages as any);
     expect(result).toHaveLength(1);
@@ -99,26 +110,33 @@ describe("deconstructMessages", () => {
 
   it("converts assistant tool_use to Message with toolUse array", () => {
     const messages = [
-      { role: "assistant" as const, content: [
-        { type: "tool_use" as const, id: "tu-1", name: "read_file", input: { path: "a" } },
-      ]},
-      { role: "user" as const, content: [
-        { type: "tool_result" as const, tool_use_id: "tu-1", content: "data" },
-      ]},
+      {
+        role: "assistant" as const,
+        content: [
+          { type: "tool_use" as const, id: "tu-1", name: "read_file", input: { path: "a" } },
+        ],
+      },
+      {
+        role: "user" as const,
+        content: [{ type: "tool_result" as const, tool_use_id: "tu-1", content: "data" }],
+      },
     ];
     const result = deconstructMessages("telegram:1", messages as any);
     expect(result).toHaveLength(2);
     expect(result[0].role).toBe("assistant");
-    expect((result[0] as any).toolUse).toEqual([{ id: "tu-1", name: "read_file", input: { path: "a" } }]);
+    expect((result[0] as any).toolUse).toEqual([
+      { id: "tu-1", name: "read_file", input: { path: "a" } },
+    ]);
     expect(result[1].role).toBe("tool");
     expect((result[1] as any).toolUse).toEqual([{ tool_use_id: "tu-1", content: "data" }]);
   });
 
   it("uses '(tool use only)' when assistant has no text blocks", () => {
     const messages = [
-      { role: "assistant" as const, content: [
-        { type: "tool_use" as const, id: "tu-1", name: "get_state", input: {} },
-      ]},
+      {
+        role: "assistant" as const,
+        content: [{ type: "tool_use" as const, id: "tu-1", name: "get_state", input: {} }],
+      },
     ];
     const result = deconstructMessages("telegram:1", messages as any);
     expect(result[0].content).toBe("(tool use only)");
@@ -139,12 +157,14 @@ describe("sanitizeMessages", () => {
   it("passes through valid tool_use/tool_result pairs", () => {
     const messages = [
       { role: "user" as const, content: "do it" },
-      { role: "assistant" as const, content: [
-        { type: "tool_use", id: "tu-1", name: "read_file", input: {} },
-      ]},
-      { role: "user" as const, content: [
-        { type: "tool_result", tool_use_id: "tu-1", content: "file data" },
-      ]},
+      {
+        role: "assistant" as const,
+        content: [{ type: "tool_use", id: "tu-1", name: "read_file", input: {} }],
+      },
+      {
+        role: "user" as const,
+        content: [{ type: "tool_result", tool_use_id: "tu-1", content: "file data" }],
+      },
       { role: "assistant" as const, content: "done" },
     ];
     expect(sanitizeMessages(messages as any)).toEqual(messages);
@@ -152,9 +172,10 @@ describe("sanitizeMessages", () => {
 
   it("drops orphaned tool_result at the start", () => {
     const messages = [
-      { role: "user" as const, content: [
-        { type: "tool_result", tool_use_id: "tu-1", content: "data" },
-      ]},
+      {
+        role: "user" as const,
+        content: [{ type: "tool_result", tool_use_id: "tu-1", content: "data" }],
+      },
       { role: "user" as const, content: "hi" },
       { role: "assistant" as const, content: "hello" },
     ];
@@ -168,9 +189,10 @@ describe("sanitizeMessages", () => {
     const messages = [
       { role: "user" as const, content: "hi" },
       { role: "assistant" as const, content: "hello" },
-      { role: "user" as const, content: [
-        { type: "tool_result", tool_use_id: "tu-orphan", content: "data" },
-      ]},
+      {
+        role: "user" as const,
+        content: [{ type: "tool_result", tool_use_id: "tu-orphan", content: "data" }],
+      },
       { role: "user" as const, content: "next" },
       { role: "assistant" as const, content: "reply" },
     ];
@@ -184,9 +206,10 @@ describe("sanitizeMessages", () => {
 
   it("drops assistant tool_use without following tool_result", () => {
     const messages = [
-      { role: "assistant" as const, content: [
-        { type: "tool_use", id: "tu-1", name: "read_file", input: {} },
-      ]},
+      {
+        role: "assistant" as const,
+        content: [{ type: "tool_use", id: "tu-1", name: "read_file", input: {} }],
+      },
       { role: "user" as const, content: "hi" },
       { role: "assistant" as const, content: "hello" },
     ];
@@ -199,12 +222,14 @@ describe("sanitizeMessages", () => {
   it("drops pair where tool_result has wrong IDs", () => {
     const messages = [
       { role: "user" as const, content: "hi" },
-      { role: "assistant" as const, content: [
-        { type: "tool_use", id: "tu-A", name: "read_file", input: {} },
-      ]},
-      { role: "user" as const, content: [
-        { type: "tool_result", tool_use_id: "tu-B", content: "data" },
-      ]},
+      {
+        role: "assistant" as const,
+        content: [{ type: "tool_use", id: "tu-A", name: "read_file", input: {} }],
+      },
+      {
+        role: "user" as const,
+        content: [{ type: "tool_result", tool_use_id: "tu-B", content: "data" }],
+      },
       { role: "assistant" as const, content: "reply" },
     ];
     const result = sanitizeMessages(messages as any);
@@ -217,13 +242,17 @@ describe("sanitizeMessages", () => {
   it("drops pair where tool_result has extra IDs (parallel mismatch)", () => {
     const messages = [
       { role: "user" as const, content: "hi" },
-      { role: "assistant" as const, content: [
-        { type: "tool_use", id: "tu-A", name: "read_file", input: {} },
-      ]},
-      { role: "user" as const, content: [
-        { type: "tool_result", tool_use_id: "tu-A", content: "data" },
-        { type: "tool_result", tool_use_id: "tu-B", content: "extra" },
-      ]},
+      {
+        role: "assistant" as const,
+        content: [{ type: "tool_use", id: "tu-A", name: "read_file", input: {} }],
+      },
+      {
+        role: "user" as const,
+        content: [
+          { type: "tool_result", tool_use_id: "tu-A", content: "data" },
+          { type: "tool_result", tool_use_id: "tu-B", content: "extra" },
+        ],
+      },
       { role: "assistant" as const, content: "reply" },
     ];
     const result = sanitizeMessages(messages as any);
@@ -236,13 +265,17 @@ describe("sanitizeMessages", () => {
   it("drops pair where tool_result is missing one ID", () => {
     const messages = [
       { role: "user" as const, content: "hi" },
-      { role: "assistant" as const, content: [
-        { type: "tool_use", id: "tu-A", name: "read_file", input: {} },
-        { type: "tool_use", id: "tu-B", name: "get_state", input: {} },
-      ]},
-      { role: "user" as const, content: [
-        { type: "tool_result", tool_use_id: "tu-A", content: "data" },
-      ]},
+      {
+        role: "assistant" as const,
+        content: [
+          { type: "tool_use", id: "tu-A", name: "read_file", input: {} },
+          { type: "tool_use", id: "tu-B", name: "get_state", input: {} },
+        ],
+      },
+      {
+        role: "user" as const,
+        content: [{ type: "tool_result", tool_use_id: "tu-A", content: "data" }],
+      },
       { role: "assistant" as const, content: "reply" },
     ];
     const result = sanitizeMessages(messages as any);
@@ -257,12 +290,14 @@ describe("sanitizeMessages", () => {
       { role: "user" as const, content: "msg1" },
       { role: "assistant" as const, content: "ok" },
       { role: "user" as const, content: "msg2" },
-      { role: "assistant" as const, content: [
-        { type: "tool_use", id: "tu-X", name: "read_file", input: {} },
-      ]},
-      { role: "user" as const, content: [
-        { type: "tool_result", tool_use_id: "tu-Y", content: "wrong" },
-      ]},
+      {
+        role: "assistant" as const,
+        content: [{ type: "tool_use", id: "tu-X", name: "read_file", input: {} }],
+      },
+      {
+        role: "user" as const,
+        content: [{ type: "tool_result", tool_use_id: "tu-Y", content: "wrong" }],
+      },
       { role: "user" as const, content: "msg3" },
       { role: "assistant" as const, content: "final" },
     ];
@@ -282,14 +317,20 @@ describe("sanitizeMessages", () => {
   it("keeps valid parallel tool calls with matching IDs", () => {
     const messages = [
       { role: "user" as const, content: "do both" },
-      { role: "assistant" as const, content: [
-        { type: "tool_use", id: "tu-1", name: "read_file", input: {} },
-        { type: "tool_use", id: "tu-2", name: "get_state", input: {} },
-      ]},
-      { role: "user" as const, content: [
-        { type: "tool_result", tool_use_id: "tu-1", content: "file" },
-        { type: "tool_result", tool_use_id: "tu-2", content: "state" },
-      ]},
+      {
+        role: "assistant" as const,
+        content: [
+          { type: "tool_use", id: "tu-1", name: "read_file", input: {} },
+          { type: "tool_use", id: "tu-2", name: "get_state", input: {} },
+        ],
+      },
+      {
+        role: "user" as const,
+        content: [
+          { type: "tool_result", tool_use_id: "tu-1", content: "file" },
+          { type: "tool_result", tool_use_id: "tu-2", content: "state" },
+        ],
+      },
       { role: "assistant" as const, content: "done" },
     ];
     expect(sanitizeMessages(messages as any)).toEqual(messages);

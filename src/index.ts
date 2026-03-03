@@ -1,15 +1,15 @@
-import * as pg from "pg";
 import Anthropic from "@anthropic-ai/sdk";
 import { Absurd } from "absurd-sdk";
-import { loadConfig } from "./config.ts";
+import * as pg from "pg";
 import { ChannelRegistry, TelegramAdapter } from "./channels/index.ts";
-import { registerHandleMessage } from "./tasks/handle-message.ts";
+import { loadConfig } from "./config.ts";
+import { logger } from "./logger.ts";
+import { getState, setState } from "./memory/state.ts";
+import { syncSchedules } from "./skills/manager.ts";
 import { registerExecuteSkill } from "./tasks/execute-skill.ts";
+import { registerHandleMessage } from "./tasks/handle-message.ts";
 import { registerSendMessage } from "./tasks/send-message.ts";
 import { registerWorkflow } from "./tasks/workflow.ts";
-import { syncSchedules } from "./skills/manager.ts";
-import { getState, setState } from "./memory/state.ts";
-import { logger } from "./logger.ts";
 
 async function main() {
   const config = loadConfig();

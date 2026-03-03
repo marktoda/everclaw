@@ -9,7 +9,12 @@ export async function getState(pool: Pool, namespace: string, key: string): Prom
   return r.rows.length === 0 ? null : r.rows[0].value;
 }
 
-export async function setState(pool: Pool, namespace: string, key: string, value: unknown): Promise<void> {
+export async function setState(
+  pool: Pool,
+  namespace: string,
+  key: string,
+  value: unknown,
+): Promise<void> {
   await pool.query(
     `INSERT INTO assistant.state (namespace, key, value, updated_at)
      VALUES ($1, $2, $3, now())
@@ -19,13 +24,16 @@ export async function setState(pool: Pool, namespace: string, key: string, value
 }
 
 export async function deleteState(pool: Pool, namespace: string, key: string): Promise<void> {
-  await pool.query(
-    `DELETE FROM assistant.state WHERE namespace = $1 AND key = $2`,
-    [namespace, key],
-  );
+  await pool.query(`DELETE FROM assistant.state WHERE namespace = $1 AND key = $2`, [
+    namespace,
+    key,
+  ]);
 }
 
-export async function listState(pool: Pool, namespace: string): Promise<Array<{ key: string; value: unknown }>> {
+export async function listState(
+  pool: Pool,
+  namespace: string,
+): Promise<Array<{ key: string; value: unknown }>> {
   const r = await pool.query(
     `SELECT key, value FROM assistant.state WHERE namespace = $1 ORDER BY key`,
     [namespace],

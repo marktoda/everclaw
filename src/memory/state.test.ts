@@ -1,6 +1,6 @@
-import { describe, it, expect, vi } from "vitest";
-import { getState, setState, deleteState, listState } from "./state.ts";
 import type { Pool } from "pg";
+import { describe, expect, it, vi } from "vitest";
+import { deleteState, getState, listState, setState } from "./state.ts";
 
 function createMockPool(rows: any[] = []) {
   return {
@@ -82,9 +82,7 @@ describe("setState", () => {
     const pool = createMockPool();
     pool.query.mockRejectedValueOnce(new Error("unique violation"));
 
-    await expect(
-      setState(pool, "ns", "key", "val"),
-    ).rejects.toThrow("unique violation");
+    await expect(setState(pool, "ns", "key", "val")).rejects.toThrow("unique violation");
   });
 });
 
@@ -112,9 +110,7 @@ describe("deleteState", () => {
     const pool = createMockPool();
     pool.query.mockRejectedValueOnce(new Error("permission denied"));
 
-    await expect(
-      deleteState(pool, "ns", "key"),
-    ).rejects.toThrow("permission denied");
+    await expect(deleteState(pool, "ns", "key")).rejects.toThrow("permission denied");
   });
 });
 
@@ -148,8 +144,6 @@ describe("listState", () => {
     const pool = createMockPool();
     pool.query.mockRejectedValueOnce(new Error("relation does not exist"));
 
-    await expect(listState(pool, "ns")).rejects.toThrow(
-      "relation does not exist",
-    );
+    await expect(listState(pool, "ns")).rejects.toThrow("relation does not exist");
   });
 });

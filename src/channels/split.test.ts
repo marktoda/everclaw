@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { splitMessage } from "./split.ts";
 
 describe("splitMessage", () => {
@@ -12,7 +12,7 @@ describe("splitMessage", () => {
   });
 
   it("splits at paragraph boundary when possible", () => {
-    const text = "a".repeat(50) + "\n\n" + "b".repeat(60);
+    const text = `${"a".repeat(50)}\n\n${"b".repeat(60)}`;
     const chunks = splitMessage(text, 80);
     expect(chunks).toHaveLength(2);
     expect(chunks[0]).toBe("a".repeat(50));
@@ -20,7 +20,7 @@ describe("splitMessage", () => {
   });
 
   it("falls back to line boundary when no paragraph break", () => {
-    const text = "a".repeat(50) + "\n" + "b".repeat(60);
+    const text = `${"a".repeat(50)}\n${"b".repeat(60)}`;
     const chunks = splitMessage(text, 80);
     expect(chunks).toHaveLength(2);
     expect(chunks[0]).toBe("a".repeat(50));
@@ -37,7 +37,7 @@ describe("splitMessage", () => {
   });
 
   it("strips leading newlines from subsequent chunks", () => {
-    const text = "a".repeat(50) + "\n\n\n" + "b".repeat(30);
+    const text = `${"a".repeat(50)}\n\n\n${"b".repeat(30)}`;
     const chunks = splitMessage(text, 60);
     expect(chunks[1]).toBe("b".repeat(30));
     expect(chunks[1]).not.toMatch(/^\n/);

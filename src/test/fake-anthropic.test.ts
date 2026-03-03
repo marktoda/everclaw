@@ -1,8 +1,9 @@
 // src/test/fake-anthropic.test.ts
-import { describe, it, expect } from "vitest";
+
 import type Anthropic from "@anthropic-ai/sdk";
-import { FakeAnthropic } from "./fake-anthropic.ts";
+import { describe, expect, it } from "vitest";
 import type { Scenario, ScenarioTurn } from "./fake-anthropic.ts";
+import { FakeAnthropic } from "./fake-anthropic.ts";
 
 // ── Helpers ────────────────────────────────────────────────────────────
 
@@ -19,9 +20,7 @@ function toolUseBlock(
 }
 
 /** A minimal valid create() params object. */
-function validParams(
-  messages: Anthropic.MessageParam[] = [{ role: "user", content: "hello" }],
-) {
+function validParams(messages: Anthropic.MessageParam[] = [{ role: "user", content: "hello" }]) {
   return {
     model: "claude-sonnet-4-20250514",
     max_tokens: 1024,
@@ -242,9 +241,7 @@ describe("FakeAnthropic", () => {
             { role: "assistant", content: "text only reply" },
             {
               role: "user",
-              content: [
-                { type: "tool_result", tool_use_id: "orphan-1", content: "result" },
-              ],
+              content: [{ type: "tool_result", tool_use_id: "orphan-1", content: "result" }],
             },
           ],
         }),
@@ -309,9 +306,7 @@ describe("FakeAnthropic", () => {
             },
             {
               role: "user",
-              content: [
-                { type: "tool_result", tool_use_id: "tu-WRONG", content: "data" },
-              ],
+              content: [{ type: "tool_result", tool_use_id: "tu-WRONG", content: "data" }],
             },
           ],
         }),
@@ -335,9 +330,7 @@ describe("FakeAnthropic", () => {
             },
             {
               role: "user",
-              content: [
-                { type: "tool_result", tool_use_id: "tu-1", content: "file data" },
-              ],
+              content: [{ type: "tool_result", tool_use_id: "tu-1", content: "file data" }],
             },
           ],
         }),
@@ -391,9 +384,7 @@ describe("FakeAnthropic", () => {
             },
             {
               role: "user",
-              content: [
-                { type: "tool_result", tool_use_id: "tu-1", content: "data" },
-              ],
+              content: [{ type: "tool_result", tool_use_id: "tu-1", content: "data" }],
             },
             {
               role: "assistant",
@@ -401,9 +392,7 @@ describe("FakeAnthropic", () => {
             },
             {
               role: "user",
-              content: [
-                { type: "tool_result", tool_use_id: "tu-2", content: "ok" },
-              ],
+              content: [{ type: "tool_result", tool_use_id: "tu-2", content: "ok" }],
             },
           ],
         }),

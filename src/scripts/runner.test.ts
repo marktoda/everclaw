@@ -1,8 +1,8 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import * as fs from "fs";
-import * as path from "path";
-import * as os from "os";
-import { runScript, listScripts } from "./runner.ts";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { listScripts, runScript } from "./runner.ts";
 
 describe("script runner", () => {
   let tmpDir: string;
@@ -49,11 +49,7 @@ describe("script runner", () => {
     fs.writeFileSync(path.join(tmpDir, "foo.sh"), "#!/bin/bash\n", {
       mode: 0o755,
     });
-    fs.writeFileSync(
-      path.join(tmpDir, "bar.py"),
-      "#!/usr/bin/env python3\n",
-      { mode: 0o755 },
-    );
+    fs.writeFileSync(path.join(tmpDir, "bar.py"), "#!/usr/bin/env python3\n", { mode: 0o755 });
     fs.writeFileSync(path.join(tmpDir, "readme.md"), "not a script");
     const scripts = await listScripts(tmpDir);
     expect(scripts).toHaveLength(2);

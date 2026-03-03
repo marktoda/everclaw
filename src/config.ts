@@ -1,5 +1,5 @@
-import * as fs from "fs";
-import * as path from "path";
+import * as fs from "node:fs";
+import * as path from "node:path";
 
 export interface ChannelConfig {
   type: string;
@@ -39,8 +39,7 @@ function readEnvFile(envPath: string): Record<string, string> {
     if (eq === -1) continue;
     const key = trimmed.substring(0, eq).trim();
     let val = trimmed.substring(eq + 1).trim();
-    if ((val.startsWith('"') && val.endsWith('"')) ||
-        (val.startsWith("'") && val.endsWith("'"))) {
+    if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
       val = val.slice(1, -1);
     }
     result[key] = val;
@@ -65,7 +64,7 @@ export function loadConfig(envPath: string = ".env"): Config {
   return {
     channels: [{ type: "telegram", token: requireSecret("TELEGRAM_BOT_TOKEN") }],
     anthropicApiKey: requireSecret("ANTHROPIC_API_KEY"),
-    braveSearchApiKey: secrets["BRAVE_SEARCH_API_KEY"] || undefined,
+    braveSearchApiKey: secrets.BRAVE_SEARCH_API_KEY || undefined,
     databaseUrl: process.env.DATABASE_URL ?? "postgresql://localhost/absurd",
     queueName,
     notesDir: path.resolve(process.env.NOTES_DIR ?? "data/notes"),
@@ -76,8 +75,6 @@ export function loadConfig(envPath: string = ".env"): Config {
     workerConcurrency: parseInt(process.env.WORKER_CONCURRENCY ?? "2", 10),
     claimTimeout: parseInt(process.env.CLAIM_TIMEOUT ?? "300", 10),
     scriptTimeout: parseInt(process.env.SCRIPT_TIMEOUT ?? "30", 10),
-    scriptEnv: Object.fromEntries(
-      Object.entries(secrets).filter(([k]) => k.startsWith("TOOL_")),
-    ),
+    scriptEnv: Object.fromEntries(Object.entries(secrets).filter(([k]) => k.startsWith("TOOL_"))),
   };
 }

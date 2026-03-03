@@ -1,16 +1,21 @@
-import * as fs from "fs/promises";
+import * as fs from "node:fs/promises";
 import { getState, setState } from "../../memory/state.ts";
-import { listSkills } from "../../skills/manager.ts";
 import { listScripts } from "../../scripts/runner.ts";
-import { defineTool } from "./types.ts";
+import { listSkills } from "../../skills/manager.ts";
 import type { ToolHandler } from "./types.ts";
+import { defineTool } from "./types.ts";
 
 export const stateTools: ToolHandler[] = [
   {
-    def: defineTool("get_state", "Read a value from the state store.", {
-      namespace: { type: "string", description: "Namespace (e.g. 'workflow', 'skill:name')" },
-      key: { type: "string", description: "Key" },
-    }, ["namespace", "key"]),
+    def: defineTool(
+      "get_state",
+      "Read a value from the state store.",
+      {
+        namespace: { type: "string", description: "Namespace (e.g. 'workflow', 'skill:name')" },
+        key: { type: "string", description: "Key" },
+      },
+      ["namespace", "key"],
+    ),
     async execute(input, deps) {
       const { namespace, key } = input as { namespace: string; key: string };
       const val = await getState(deps.pool, namespace, key);
@@ -18,11 +23,16 @@ export const stateTools: ToolHandler[] = [
     },
   },
   {
-    def: defineTool("set_state", "Write a value to the state store.", {
-      namespace: { type: "string", description: "Namespace" },
-      key: { type: "string", description: "Key" },
-      value: { description: "JSON value to store" },
-    }, ["namespace", "key", "value"]),
+    def: defineTool(
+      "set_state",
+      "Write a value to the state store.",
+      {
+        namespace: { type: "string", description: "Namespace" },
+        key: { type: "string", description: "Key" },
+        value: { description: "JSON value to store" },
+      },
+      ["namespace", "key", "value"],
+    ),
     async execute(input, deps) {
       const { namespace, key, value } = input as { namespace: string; key: string; value: unknown };
       await setState(deps.pool, namespace, key, value);

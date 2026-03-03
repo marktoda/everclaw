@@ -1,5 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { InboundMessage } from "./adapter.ts";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock grammy
 type Handler = (ctx: any) => Promise<void>;
@@ -11,10 +10,16 @@ vi.mock("grammy", () => {
   class Bot {
     token: string;
     api = { sendMessage: mockSendMessage };
-    constructor(token: string) { this.token = token; }
-    on(_filter: string, handler: Handler) { capturedHandler = handler; }
+    constructor(token: string) {
+      this.token = token;
+    }
+    on(_filter: string, handler: Handler) {
+      capturedHandler = handler;
+    }
     start(_opts?: any) {}
-    stop() { mockStop(); }
+    stop() {
+      mockStop();
+    }
   }
   return { Bot };
 });
@@ -45,7 +50,7 @@ describe("TelegramAdapter", () => {
     await adapter.start(onMessage);
     expect(capturedHandler).toBeDefined();
 
-    await capturedHandler!(makeGrammyCtx(601870898, "hello"));
+    await capturedHandler?.(makeGrammyCtx(601870898, "hello"));
 
     expect(onMessage).toHaveBeenCalledOnce();
     expect(onMessage).toHaveBeenCalledWith({

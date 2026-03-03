@@ -34,7 +34,9 @@ export async function appendMessage(pool: Pool, msg: Message): Promise<void> {
 }
 
 export async function getRecentMessages(
-  pool: Pool, recipientId: string, limit: number = 50,
+  pool: Pool,
+  recipientId: string,
+  limit: number = 50,
 ): Promise<Message[]> {
   const result = await pool.query(
     `SELECT id, chat_id, role, content, tool_use, created_at
@@ -43,9 +45,15 @@ export async function getRecentMessages(
     [recipientId, limit],
   );
   return result.rows.reverse().map((r): Message => {
-    const base = { id: r.id, recipientId: r.chat_id as string, content: r.content, createdAt: r.created_at };
+    const base = {
+      id: r.id,
+      recipientId: r.chat_id as string,
+      content: r.content,
+      createdAt: r.created_at,
+    };
     if (r.role === "tool") return { ...base, role: "tool", toolUse: r.tool_use ?? [] };
-    if (r.role === "assistant") return { ...base, role: "assistant", toolUse: r.tool_use ?? undefined };
+    if (r.role === "assistant")
+      return { ...base, role: "assistant", toolUse: r.tool_use ?? undefined };
     return { ...base, role: "user" };
   });
 }

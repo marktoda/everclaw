@@ -6,11 +6,7 @@ function text(t: string): Anthropic.TextBlock {
   return { type: "text", text: t, citations: null };
 }
 
-function toolUse(
-  name: string,
-  input: Record<string, unknown>,
-  id: string,
-): Anthropic.ToolUseBlock {
+function toolUse(name: string, input: Record<string, unknown>, id: string): Anthropic.ToolUseBlock {
   return { type: "tool_use", id, name, input };
 }
 
@@ -67,13 +63,7 @@ export const MULTI_TURN_TOOLS: Scenario = {
       stop_reason: "tool_use",
     },
     {
-      content: [
-        toolUse(
-          "write_file",
-          { path: "data/notes/b.md", content: "new" },
-          "tu-2",
-        ),
-      ],
+      content: [toolUse("write_file", { path: "data/notes/b.md", content: "new" }, "tu-2")],
       stop_reason: "tool_use",
     },
     {
@@ -120,13 +110,7 @@ export const SUSPENDING_TOOL: Scenario = {
   name: "suspending-tool",
   turns: [
     {
-      content: [
-        toolUse(
-          "sleep_for",
-          { step_name: "wait-1", seconds: 0 },
-          "tu-1",
-        ),
-      ],
+      content: [toolUse("sleep_for", { step_name: "wait-1", seconds: 0 }, "tu-1")],
       stop_reason: "tool_use",
     },
     {
@@ -142,18 +126,12 @@ export const WRITE_AND_READ: Scenario = {
   turns: [
     {
       content: [
-        toolUse(
-          "write_file",
-          { path: "data/notes/test.md", content: "hello world" },
-          "tu-1",
-        ),
+        toolUse("write_file", { path: "data/notes/test.md", content: "hello world" }, "tu-1"),
       ],
       stop_reason: "tool_use",
     },
     {
-      content: [
-        toolUse("read_file", { path: "data/notes/test.md" }, "tu-2"),
-      ],
+      content: [toolUse("read_file", { path: "data/notes/test.md" }, "tu-2")],
       stop_reason: "tool_use",
     },
     {
@@ -168,19 +146,11 @@ export const STATE_ROUNDTRIP: Scenario = {
   name: "state-roundtrip",
   turns: [
     {
-      content: [
-        toolUse(
-          "set_state",
-          { namespace: "test", key: "color", value: "blue" },
-          "tu-1",
-        ),
-      ],
+      content: [toolUse("set_state", { namespace: "test", key: "color", value: "blue" }, "tu-1")],
       stop_reason: "tool_use",
     },
     {
-      content: [
-        toolUse("get_state", { namespace: "test", key: "color" }, "tu-2"),
-      ],
+      content: [toolUse("get_state", { namespace: "test", key: "color" }, "tu-2")],
       stop_reason: "tool_use",
     },
     {

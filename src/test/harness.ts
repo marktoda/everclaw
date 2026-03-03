@@ -1,8 +1,8 @@
-import { GenericContainer, type StartedTestContainer } from "testcontainers";
-import * as pg from "pg";
-import * as fs from "fs";
-import * as path from "path";
+import * as fs from "node:fs";
+import * as path from "node:path";
 import { Absurd } from "absurd-sdk";
+import * as pg from "pg";
+import { GenericContainer, type StartedTestContainer } from "testcontainers";
 
 export interface TestDb {
   pool: pg.Pool;

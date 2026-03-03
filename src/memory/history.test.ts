@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { appendMessage, getRecentMessages } from "./history.ts";
 import type { Pool } from "pg";
+import { describe, expect, it, vi } from "vitest";
+import { appendMessage, getRecentMessages } from "./history.ts";
 
 function createMockPool(rows: any[] = []) {
   return {

@@ -1,19 +1,20 @@
 // src/agent/loop.ts
+
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
 import type Anthropic from "@anthropic-ai/sdk";
 import type { TaskContext } from "absurd-sdk";
 import type { Pool } from "pg";
 import pino from "pino";
-import type { ToolRegistry } from "./tools/index.ts";
 import type { Logger } from "../logger.ts";
-import { getRecentMessages, appendMessage } from "../memory/history.ts";
 import type { Message } from "../memory/history.ts";
-import { reconstructMessages, deconstructMessages } from "../memory/messages.ts";
-import { listSkills } from "../skills/manager.ts";
+import { appendMessage, getRecentMessages } from "../memory/history.ts";
+import { deconstructMessages, reconstructMessages } from "../memory/messages.ts";
 import { listScripts } from "../scripts/runner.ts";
-import { buildSystemPrompt } from "./prompt.ts";
+import { listSkills } from "../skills/manager.ts";
 import { stripInternalTags } from "./output.ts";
-import * as fs from "fs/promises";
-import * as path from "path";
+import { buildSystemPrompt } from "./prompt.ts";
+import type { ToolRegistry } from "./tools/index.ts";
 
 const MAX_TURNS = 20;
 
@@ -75,8 +76,12 @@ export async function runAgentLoop(
 
   const systemPrompt = buildSystemPrompt({
     notes: context.notes as string,
-    skills: (context.skills as any[]).map(s => ({ name: s.name, description: s.description, schedule: s.schedule })),
-    tools: (context.tools as any[]).map(t => ({ name: t.name })),
+    skills: (context.skills as any[]).map((s) => ({
+      name: s.name,
+      description: s.description,
+      schedule: s.schedule,
+    })),
+    tools: (context.tools as any[]).map((t) => ({ name: t.name })),
   });
 
   const messages = reconstructMessages(context.history as Message[]);
@@ -101,9 +106,7 @@ export async function runAgentLoop(
     messages.push({ role: "assistant", content });
 
     // Extract text blocks for reply and sending
-    const textBlocks = content.filter(
-      (b): b is Anthropic.TextBlock => b.type === "text",
-    );
+    const textBlocks = content.filter((b): b is Anthropic.TextBlock => b.type === "text");
 
     // Send text to the caller — wrapped in ctx.step() so that text is NOT
     // re-sent when the task resumes after a suspending tool (sleep_for, etc.).
@@ -112,14 +115,14 @@ export async function runAgentLoop(
       await ctx.step(`send-text-${turn}`, async () => {
         for (const block of textBlocks) {
           const filtered = stripInternalTags(block.text);
-          if (filtered) deps.onText!(filtered);
+          if (filtered) deps.onText?.(filtered);
         }
         return true;
       });
     }
 
     if ((resp.stopReason as string) !== "tool_use") {
-      reply = textBlocks.map(b => b.text).join("\n");
+      reply = textBlocks.map((b) => b.text).join("\n");
       log.info({ turns: turn + 1 }, "agent loop complete");
       break;
     }
@@ -129,10 +132,8 @@ export async function runAgentLoop(
     // SuspendTask — they must NOT be wrapped in ctx.step() because the
     // step would interfere with the SDK's internal checkpoint management.
     // Non-suspending tools are wrapped in ctx.step() for checkpointing.
-    const toolBlocks = content.filter(
-      (b): b is Anthropic.ToolUseBlock => b.type === "tool_use",
-    );
-    log.info({ turn: turn + 1, tools: toolBlocks.map(b => b.name) }, "executing tools");
+    const toolBlocks = content.filter((b): b is Anthropic.ToolUseBlock => b.type === "tool_use");
+    log.info({ turn: turn + 1, tools: toolBlocks.map((b) => b.name) }, "executing tools");
     const results: Anthropic.ToolResultBlockParam[] = [];
     for (const tb of toolBlocks) {
       let result: string;
