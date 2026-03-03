@@ -4,10 +4,14 @@ import { getTools } from "../agent/tools.ts";
 import { createExecutor } from "../agent/executor.ts";
 import type { TaskDeps } from "./handle-message.ts";
 
+
 export function registerWorkflow(absurd: Absurd, deps: TaskDeps): void {
   absurd.registerTask(
     { name: "workflow" },
     async (params: { chatId: number; instructions: string; context?: any }, ctx: TaskContext) => {
+      const log = deps.log?.child({ task: "workflow", chatId: params.chatId });
+      log?.info("workflow started");
+
       const executeTool = createExecutor({
         absurd,
         pool: deps.pool,
@@ -40,12 +44,14 @@ export function registerWorkflow(absurd: Absurd, deps: TaskDeps): void {
           maxHistory: 10,
           tools: getTools(),
           executeTool,
+          log,
           onText: (text) => {
             deps.bot.api.sendMessage(params.chatId, text).catch(() => {});
           },
         },
       );
 
+      log?.info("workflow complete");
       return { reply };
     },
   );

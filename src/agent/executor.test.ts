@@ -772,8 +772,47 @@ describe("executor", () => {
 
       expect(deps.absurd.spawn).toHaveBeenCalledWith("my-task", {
         key: "val",
+        chatId: 42,
       });
       expect(result).toBe("Task spawned: my-task (ID: abc-123)");
+    });
+
+    it("resolves chatId 'current' to the executor's chatId", async () => {
+      vi.mocked(deps.absurd.spawn).mockResolvedValue({
+        taskID: "def-456",
+        runID: "run-2",
+        attempt: 1,
+        created: true,
+      });
+
+      await exec("spawn_task", {
+        task_name: "workflow",
+        params: { chatId: "current", instructions: "do stuff" },
+      });
+
+      expect(deps.absurd.spawn).toHaveBeenCalledWith("workflow", {
+        chatId: 42,
+        instructions: "do stuff",
+      });
+    });
+
+    it("preserves an explicit numeric chatId", async () => {
+      vi.mocked(deps.absurd.spawn).mockResolvedValue({
+        taskID: "ghi-789",
+        runID: "run-3",
+        attempt: 1,
+        created: true,
+      });
+
+      await exec("spawn_task", {
+        task_name: "workflow",
+        params: { chatId: 99, instructions: "other" },
+      });
+
+      expect(deps.absurd.spawn).toHaveBeenCalledWith("workflow", {
+        chatId: 99,
+        instructions: "other",
+      });
     });
   });
 

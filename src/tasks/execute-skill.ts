@@ -6,10 +6,14 @@ import type { TaskDeps } from "./handle-message.ts";
 import * as fs from "fs/promises";
 import * as path from "path";
 
+
 export function registerExecuteSkill(absurd: Absurd, deps: TaskDeps): void {
   absurd.registerTask(
     { name: "execute-skill" },
     async (params: { skillName: string; chatId: number }, ctx: TaskContext) => {
+      const log = deps.log?.child({ task: "execute-skill", chatId: params.chatId, skill: params.skillName });
+      log?.info("skill execution started");
+
       const skillContent = await ctx.step("read-skill", async () => {
         const abs = path.resolve(deps.config.skillsDir, `${params.skillName}.md`);
         if (!abs.startsWith(deps.config.skillsDir + path.sep)) {
@@ -46,12 +50,14 @@ export function registerExecuteSkill(absurd: Absurd, deps: TaskDeps): void {
           maxHistory: 10,
           tools: getTools(),
           executeTool,
+          log,
           onText: (text) => {
             deps.bot.api.sendMessage(params.chatId, text).catch(() => {});
           },
         },
       );
 
+      log?.info("skill execution complete");
       return { skillName: params.skillName, reply };
     },
   );

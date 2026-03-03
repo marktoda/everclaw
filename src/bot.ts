@@ -1,6 +1,7 @@
 // src/bot.ts
 import { Bot } from "grammy";
 import type { Absurd } from "absurd-sdk";
+import { logger } from "./logger.ts";
 
 export interface BotOptions {
   onFirstMessage?: (chatId: number) => Promise<void>;
@@ -16,6 +17,7 @@ export function createBot(token: string, absurd: Absurd, opts?: BotOptions): Bot
       firstMessageCallback = undefined;
       await cb(ctx.chat.id);
     }
+    logger.info({ chatId: ctx.chat.id }, "telegram message received");
     await absurd.spawn("handle-message", {
       chatId: ctx.chat.id,
       text: ctx.message.text,
