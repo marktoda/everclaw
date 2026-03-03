@@ -1,8 +1,8 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
-import { listSkills, parseSkillFrontmatter } from "./manager.ts";
+import { listSkills, parseSkillFrontmatter, syncSchedules } from "./manager.ts";
 
 describe("skill manager", () => {
   let tmpDir: string;
@@ -32,5 +32,141 @@ describe("skill manager", () => {
   it("handles missing frontmatter", () => {
     const fm = parseSkillFrontmatter("# Just a heading\nSome text");
     expect(fm.name).toBeUndefined();
+  });
+});
+
+describe("syncSchedules", () => {
+  let tmpDir: string;
+
+  function makeAbsurd(existingSchedules: Array<{ scheduleName: string; scheduleExpr: string }> = []) {
+    return {
+      listSchedules: vi.fn().mockResolvedValue(existingSchedules),
+      createSchedule: vi.fn().mockResolvedValue(undefined),
+      deleteSchedule: vi.fn().mockResolvedValue(undefined),
+    } as any;
+  }
+
+  beforeEach(() => { tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "skills-sync-")); });
+  afterEach(() => fs.rmSync(tmpDir, { recursive: true }));
+
+  it("creates a schedule for a skill with a schedule field", async () => {
+    fs.writeFileSync(
+      path.join(tmpDir, "morning.md"),
+      "---\nname: morning\nschedule: 0 9 * * *\n---\nDo morning stuff.",
+    );
+    const absurd = makeAbsurd();
+
+    await syncSchedules(absurd, tmpDir, "telegram:42");
+
+    expect(absurd.createSchedule).toHaveBeenCalledOnce();
+    expect(absurd.createSchedule).toHaveBeenCalledWith(
+      "skill:morning",
+      "execute-skill",
+      "0 9 * * *",
+      { params: { skillName: "morning", recipientId: "telegram:42" } },
+    );
+    expect(absurd.deleteSchedule).not.toHaveBeenCalled();
+  });
+
+  it("skips skills without a schedule field", async () => {
+    fs.writeFileSync(
+      path.join(tmpDir, "manual.md"),
+      "---\nname: manual\ndescription: No schedule\n---\nManual only.",
+    );
+    const absurd = makeAbsurd();
+
+    await syncSchedules(absurd, tmpDir, "telegram:1");
+
+    expect(absurd.createSchedule).not.toHaveBeenCalled();
+    expect(absurd.deleteSchedule).not.toHaveBeenCalled();
+  });
+
+  it("deletes orphaned schedules with no matching skill file", async () => {
+    // No skill files, but an existing schedule
+    const absurd = makeAbsurd([
+      { scheduleName: "skill:deleted-skill", scheduleExpr: "0 9 * * *" },
+    ]);
+
+    await syncSchedules(absurd, tmpDir, "telegram:1");
+
+    expect(absurd.deleteSchedule).toHaveBeenCalledOnce();
+    expect(absurd.deleteSchedule).toHaveBeenCalledWith("skill:deleted-skill");
+    expect(absurd.createSchedule).not.toHaveBeenCalled();
+  });
+
+  it("does not delete non-skill schedules", async () => {
+    const absurd = makeAbsurd([
+      { scheduleName: "other:custom", scheduleExpr: "* * * * *" },
+    ]);
+
+    await syncSchedules(absurd, tmpDir, "telegram:1");
+
+    // "other:custom" should not be touched — it's not prefixed with "skill:"
+    expect(absurd.deleteSchedule).not.toHaveBeenCalled();
+  });
+
+  it("updates a schedule when the expression changes", async () => {
+    fs.writeFileSync(
+      path.join(tmpDir, "daily.md"),
+      "---\nname: daily\nschedule: 0 10 * * *\n---\nNew time.",
+    );
+    const absurd = makeAbsurd([
+      { scheduleName: "skill:daily", scheduleExpr: "0 9 * * *" },
+    ]);
+
+    await syncSchedules(absurd, tmpDir, "telegram:42");
+
+    // Should delete the old one, then create with new expression
+    expect(absurd.deleteSchedule).toHaveBeenCalledWith("skill:daily");
+    expect(absurd.createSchedule).toHaveBeenCalledWith(
+      "skill:daily",
+      "execute-skill",
+      "0 10 * * *",
+      { params: { skillName: "daily", recipientId: "telegram:42" } },
+    );
+  });
+
+  it("does not recreate a schedule when expression is unchanged", async () => {
+    fs.writeFileSync(
+      path.join(tmpDir, "stable.md"),
+      "---\nname: stable\nschedule: 0 9 * * *\n---\nSame.",
+    );
+    const absurd = makeAbsurd([
+      { scheduleName: "skill:stable", scheduleExpr: "0 9 * * *" },
+    ]);
+
+    await syncSchedules(absurd, tmpDir, "telegram:1");
+
+    expect(absurd.createSchedule).not.toHaveBeenCalled();
+    expect(absurd.deleteSchedule).not.toHaveBeenCalled();
+  });
+
+  it("handles create + delete in the same sync", async () => {
+    fs.writeFileSync(
+      path.join(tmpDir, "new-skill.md"),
+      "---\nname: new-skill\nschedule: 0 8 * * *\n---\nNew.",
+    );
+    const absurd = makeAbsurd([
+      { scheduleName: "skill:old-skill", scheduleExpr: "0 9 * * *" },
+    ]);
+
+    await syncSchedules(absurd, tmpDir, "telegram:42");
+
+    expect(absurd.createSchedule).toHaveBeenCalledWith(
+      "skill:new-skill",
+      "execute-skill",
+      "0 8 * * *",
+      { params: { skillName: "new-skill", recipientId: "telegram:42" } },
+    );
+    expect(absurd.deleteSchedule).toHaveBeenCalledWith("skill:old-skill");
+  });
+
+  it("handles empty skills directory gracefully", async () => {
+    const absurd = makeAbsurd();
+
+    await syncSchedules(absurd, tmpDir, "telegram:1");
+
+    expect(absurd.createSchedule).not.toHaveBeenCalled();
+    expect(absurd.deleteSchedule).not.toHaveBeenCalled();
   });
 });

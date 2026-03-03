@@ -1,5 +1,5 @@
 import * as path from "node:path";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ExecutorDeps } from "./index.ts";
 
 // ---------------------------------------------------------------------------
@@ -963,6 +963,129 @@ describe("registry", () => {
       const sql = vi.mocked(deps.pool.query).mock.calls[0][0] as string;
       expect(sql).toContain("absurd.t_test_queue");
       expect(sql).toContain("absurd.r_test_queue");
+    });
+  });
+
+  // =========================================================================
+  // web_search
+  // =========================================================================
+  describe("web_search", () => {
+    let searchExec: (name: string, input: Record<string, any>) => Promise<string>;
+    let fetchSpy: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+      fetchSpy = vi.fn();
+      vi.stubGlobal("fetch", fetchSpy);
+      const searchDeps = makeDeps({ searchApiKey: "brave-key-123" });
+      const registry = createToolRegistry(searchDeps);
+      searchExec = registry.execute;
+    });
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it("returns error when searchApiKey is not set", async () => {
+      // Use the default exec (no searchApiKey in deps)
+      const result = await exec("web_search", { query: "test" });
+      expect(result).toContain("not configured");
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
+
+    it("returns error for empty query", async () => {
+      const result = await searchExec("web_search", { query: "   " });
+      expect(result).toBe("Error: query is required");
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
+
+    it("calls Brave API with correct URL, headers, and default count", async () => {
+      fetchSpy.mockResolvedValue({
+        ok: true,
+        json: async () => ({ web: { results: [] } }),
+      });
+
+      await searchExec("web_search", { query: "hello world" });
+
+      expect(fetchSpy).toHaveBeenCalledOnce();
+      const [url, opts] = fetchSpy.mock.calls[0];
+      expect(url).toBe(
+        "https://api.search.brave.com/res/v1/web/search?q=hello%20world&count=5",
+      );
+      expect(opts.headers["X-Subscription-Token"]).toBe("brave-key-123");
+      expect(opts.headers.Accept).toBe("application/json");
+    });
+
+    it("clamps count to max 20", async () => {
+      fetchSpy.mockResolvedValue({
+        ok: true,
+        json: async () => ({ web: { results: [] } }),
+      });
+
+      await searchExec("web_search", { query: "test", count: 100 });
+
+      const url = fetchSpy.mock.calls[0][0] as string;
+      expect(url).toContain("count=20");
+    });
+
+    it("returns formatted results", async () => {
+      fetchSpy.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          web: {
+            results: [
+              { title: "Result 1", url: "https://example.com/1", description: "Desc 1" },
+              { title: "Result 2", url: "https://example.com/2" },
+            ],
+          },
+        }),
+      });
+
+      const result = await searchExec("web_search", { query: "test" });
+
+      expect(result).toContain("**Result 1**");
+      expect(result).toContain("https://example.com/1");
+      expect(result).toContain("Desc 1");
+      expect(result).toContain("**Result 2**");
+      expect(result).toContain("https://example.com/2");
+    });
+
+    it("returns 'No results found.' when API returns empty results", async () => {
+      fetchSpy.mockResolvedValue({
+        ok: true,
+        json: async () => ({ web: { results: [] } }),
+      });
+
+      const result = await searchExec("web_search", { query: "obscure query" });
+      expect(result).toBe("No results found.");
+    });
+
+    it("returns 'No results found.' when web field is missing", async () => {
+      fetchSpy.mockResolvedValue({
+        ok: true,
+        json: async () => ({}),
+      });
+
+      const result = await searchExec("web_search", { query: "test" });
+      expect(result).toBe("No results found.");
+    });
+
+    it("returns error message on non-200 response", async () => {
+      fetchSpy.mockResolvedValue({ ok: false, status: 429 });
+
+      const result = await searchExec("web_search", { query: "test" });
+      expect(result).toBe("Error: search API returned 429");
+    });
+
+    it("uses AbortSignal.timeout for request", async () => {
+      fetchSpy.mockResolvedValue({
+        ok: true,
+        json: async () => ({ web: { results: [] } }),
+      });
+
+      await searchExec("web_search", { query: "test" });
+
+      const opts = fetchSpy.mock.calls[0][1];
+      expect(opts.signal).toBeDefined();
     });
   });
 
