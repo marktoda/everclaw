@@ -13,6 +13,7 @@ vi.mock("fs/promises", () => ({
   unlink: vi.fn(),
   readdir: vi.fn(),
   chmod: vi.fn(),
+  realpath: vi.fn(),
 }));
 
 vi.mock("../../memory/state.ts", () => ({
@@ -63,7 +64,7 @@ function makeDeps(overrides: Partial<ExecutorDeps> = {}): ExecutorDeps {
     recipientId: "telegram:42",
     notesDir: "/data/notes",
     skillsDir: "/data/skills",
-    toolsDir: "/data/scripts",
+    scriptsDir: "/data/scripts",
     scriptTimeout: 30,
     scriptEnv: {},
     startedAt: new Date("2025-01-01T00:00:00Z"),
@@ -81,6 +82,10 @@ describe("registry", () => {
 
   beforeEach(() => {
     vi.resetAllMocks();
+    // Default: realpath returns the input path (no symlinks)
+    vi.mocked(fs.realpath as (p: string) => Promise<string>).mockImplementation(
+      async (p) => p,
+    );
     deps = makeDeps();
     const registry = createToolRegistry(deps);
     exec = registry.execute;
@@ -163,6 +168,87 @@ describe("registry", () => {
   });
 
   // =========================================================================
+  // symlink escape protection (validateRealPath)
+  // =========================================================================
+  describe("symlink escape protection", () => {
+    it("rejects read_file through a symlink that escapes the sandbox", async () => {
+      vi.mocked(fs.realpath as (p: string) => Promise<string>).mockResolvedValue(
+        "/etc/passwd",
+      );
+      const result = await exec("read_file", { path: "data/notes/leaked.md" });
+      expect(result).toMatch(/symlink/);
+      expect(fs.readFile).not.toHaveBeenCalled();
+    });
+
+    it("rejects write_file through a symlink that escapes the sandbox", async () => {
+      vi.mocked(fs.mkdir).mockResolvedValue(undefined);
+      vi.mocked(fs.realpath as (p: string) => Promise<string>).mockResolvedValue(
+        "/etc/shadow",
+      );
+      const result = await exec("write_file", {
+        path: "data/notes/evil.md",
+        content: "payload",
+      });
+      expect(result).toMatch(/symlink/);
+      expect(fs.writeFile).not.toHaveBeenCalled();
+    });
+
+    it("rejects delete_file through a symlink that escapes the sandbox", async () => {
+      vi.mocked(fs.realpath as (p: string) => Promise<string>).mockResolvedValue(
+        "/etc/important",
+      );
+      const result = await exec("delete_file", { path: "data/notes/target.md" });
+      expect(result).toMatch(/symlink/);
+      expect(fs.unlink).not.toHaveBeenCalled();
+    });
+
+    it("allows read_file when realpath stays within the sandbox", async () => {
+      vi.mocked(fs.realpath as (p: string) => Promise<string>).mockResolvedValue(
+        "/data/notes/safe.md",
+      );
+      vi.mocked(fs.readFile).mockResolvedValue("content");
+      const result = await exec("read_file", { path: "data/notes/safe.md" });
+      expect(result).toBe("content");
+    });
+
+    it("allows write when file does not exist and parent is contained", async () => {
+      const enoent = Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      vi.mocked(fs.realpath as (p: string) => Promise<string>).mockRejectedValueOnce(
+        enoent,
+      );
+      // Parent check succeeds — parent is contained
+      vi.mocked(fs.realpath as (p: string) => Promise<string>).mockResolvedValueOnce(
+        "/data/notes",
+      );
+      vi.mocked(fs.mkdir).mockResolvedValue(undefined);
+      vi.mocked(fs.writeFile).mockResolvedValue(undefined);
+      const result = await exec("write_file", {
+        path: "data/notes/new.md",
+        content: "hello",
+      });
+      expect(result).toBe("File written: data/notes/new.md");
+    });
+
+    it("rejects write when file does not exist but parent escapes", async () => {
+      const enoent = Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      vi.mocked(fs.realpath as (p: string) => Promise<string>).mockRejectedValueOnce(
+        enoent,
+      );
+      // Parent resolves outside sandbox
+      vi.mocked(fs.realpath as (p: string) => Promise<string>).mockResolvedValueOnce(
+        "/etc",
+      );
+      vi.mocked(fs.mkdir).mockResolvedValue(undefined);
+      const result = await exec("write_file", {
+        path: "data/notes/sub/new.md",
+        content: "payload",
+      });
+      expect(result).toMatch(/symlink/);
+      expect(fs.writeFile).not.toHaveBeenCalled();
+    });
+  });
+
+  // =========================================================================
   // resolvePath — directory mappings
   // =========================================================================
   describe("resolvePath directory mappings", () => {
@@ -181,7 +267,7 @@ describe("registry", () => {
       );
     });
 
-    it("maps scripts/ to toolsDir", async () => {
+    it("maps scripts/ to scriptsDir", async () => {
       vi.mocked(fs.readFile).mockResolvedValue("tool content");
       await exec("read_file", { path: "scripts/my-tool.sh" });
       expect(fs.readFile).toHaveBeenCalledWith(

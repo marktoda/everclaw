@@ -5,7 +5,6 @@ import { ChannelRegistry } from "./registry.ts";
 function fakeAdapter(name: string): ChannelAdapter {
   return {
     name,
-    maxMessageLength: 4096,
     start: vi.fn().mockResolvedValue(undefined),
     sendMessage: vi.fn().mockResolvedValue(undefined),
     stop: vi.fn().mockResolvedValue(undefined),

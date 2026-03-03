@@ -37,10 +37,9 @@ describe("TelegramAdapter", () => {
     mockStop.mockClear();
   });
 
-  it("has name 'telegram' and maxMessageLength 4096", () => {
+  it("has name 'telegram'", () => {
     const adapter = new TelegramAdapter("token");
     expect(adapter.name).toBe("telegram");
-    expect(adapter.maxMessageLength).toBe(4096);
   });
 
   it("start registers a message handler and calls onMessage with prefixed recipientId", async () => {

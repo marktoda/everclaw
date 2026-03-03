@@ -4,7 +4,7 @@ import { splitMessage } from "./split.ts";
 
 export class TelegramAdapter implements ChannelAdapter {
   name = "telegram" as const;
-  maxMessageLength = 4096;
+  private maxMessageLength = 4096;
   private bot: Bot;
 
   constructor(token: string) {

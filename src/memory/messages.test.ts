@@ -310,6 +310,31 @@ describe("sanitizeMessages", () => {
     ]);
   });
 
+  it("extracts text from content block arrays when merging same-role messages", () => {
+    // Two assistant messages with array content become adjacent after an
+    // orphaned tool_result between them is dropped in Pass 1.
+    const messages = [
+      { role: "user" as const, content: "question" },
+      {
+        role: "assistant" as const,
+        content: [{ type: "text", text: "part one" }],
+      },
+      {
+        role: "user" as const,
+        content: [{ type: "tool_result", tool_use_id: "tu-orphan", content: "stale" }],
+      },
+      {
+        role: "assistant" as const,
+        content: [{ type: "text", text: "part two" }],
+      },
+    ];
+    const result = sanitizeMessages(messages as any);
+    expect(result).toHaveLength(2);
+    expect(result[0]).toEqual({ role: "user", content: "question" });
+    // Text extracted from content block arrays, not silently dropped
+    expect(result[1].content).toBe("part one\n\npart two");
+  });
+
   it("handles empty messages array", () => {
     expect(sanitizeMessages([])).toEqual([]);
   });

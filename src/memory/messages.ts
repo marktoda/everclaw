@@ -17,6 +17,15 @@ function isToolResult(b: ContentBlock): b is Anthropic.ToolResultBlockParam {
   return b.type === "tool_result";
 }
 
+/** Extract text from message content (handles both string and content block arrays). */
+function extractText(content: Anthropic.MessageParam["content"]): string {
+  if (typeof content === "string") return content;
+  return content
+    .filter((b): b is Anthropic.TextBlockParam => b.type === "text")
+    .map((b) => b.text)
+    .join("\n");
+}
+
 /**
  * Convert DB Message[] → Anthropic MessageParam[] (ready for API).
  * Reconstructs tool_use/tool_result content blocks from stored history,
@@ -154,8 +163,8 @@ export function sanitizeMessages(messages: Anthropic.MessageParam[]): Anthropic.
   for (const msg of cleaned) {
     if (result.length > 0 && result[result.length - 1].role === msg.role) {
       const prev = result[result.length - 1];
-      const prevText = typeof prev.content === "string" ? prev.content : "";
-      const curText = typeof msg.content === "string" ? msg.content : "";
+      const prevText = extractText(prev.content);
+      const curText = extractText(msg.content);
       result[result.length - 1] = {
         role: msg.role,
         content: [prevText, curText].filter(Boolean).join("\n\n"),

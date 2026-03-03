@@ -25,7 +25,7 @@ export interface Config {
   queueName: string;
   notesDir: string;
   skillsDir: string;
-  toolsDir: string;
+  scriptsDir: string;
   model: string;
   maxHistoryMessages: number;
   workerConcurrency: number;
@@ -78,7 +78,7 @@ export function loadConfig(envPath: string = ".env"): Config {
     queueName,
     notesDir: path.resolve(process.env.NOTES_DIR ?? "data/notes"),
     skillsDir: path.resolve(process.env.SKILLS_DIR ?? "skills"),
-    toolsDir: path.resolve(process.env.TOOLS_DIR ?? "scripts"),
+    scriptsDir: path.resolve(process.env.TOOLS_DIR ?? "scripts"),
     model: process.env.CLAUDE_MODEL ?? "claude-sonnet-4-5-20250929",
     maxHistoryMessages: parseInt(process.env.MAX_HISTORY_MESSAGES ?? "50", 10),
     workerConcurrency: parseInt(process.env.WORKER_CONCURRENCY ?? "2", 10),
