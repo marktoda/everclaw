@@ -13,7 +13,7 @@ export const scriptTools: ToolHandler[] = [
       const tools = await listTools(deps.toolsDir);
       const tool = tools.find(t => t.name === name);
       if (!tool) return `Tool "${name}" not found. Available: ${tools.map(t => t.name).join(", ")}`;
-      return await runScript(tool.path, JSON.stringify(scriptInput ?? {}), deps.scriptTimeout);
+      return await runScript(tool.path, JSON.stringify(scriptInput ?? {}), deps.scriptTimeout, deps.scriptEnv);
     },
   },
 ];

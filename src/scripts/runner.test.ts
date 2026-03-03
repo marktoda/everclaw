@@ -31,6 +31,20 @@ describe("script runner", () => {
     await expect(runScript(script, "{}", 1)).rejects.toThrow();
   });
 
+  it("passes env vars to child process", async () => {
+    const script = path.join(tmpDir, "env.sh");
+    fs.writeFileSync(script, '#!/bin/bash\necho "$TOOL_API_KEY"', { mode: 0o755 });
+    const result = await runScript(script, "{}", 5, { TOOL_API_KEY: "secret123" });
+    expect(result.trim()).toBe("secret123");
+  });
+
+  it("inherits process.env when env is provided", async () => {
+    const script = path.join(tmpDir, "path.sh");
+    fs.writeFileSync(script, '#!/bin/bash\necho "$PATH" | head -c 1', { mode: 0o755 });
+    const result = await runScript(script, "{}", 5, { TOOL_X: "y" });
+    expect(result.trim()).toBe("/");
+  });
+
   it("lists tool scripts", async () => {
     fs.writeFileSync(path.join(tmpDir, "foo.sh"), "#!/bin/bash\n", {
       mode: 0o755,

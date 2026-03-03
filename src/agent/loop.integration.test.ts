@@ -76,6 +76,7 @@ function buildDeps(fake: FakeAnthropic, recipientId: string): AgentDeps {
     skillsDir,
     toolsDir,
     scriptTimeout: 10,
+    scriptEnv: {},
     startedAt: new Date(),
   });
 

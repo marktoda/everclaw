@@ -8,6 +8,7 @@ export function runScript(
   scriptPath: string,
   input: string,
   timeoutSeconds: number,
+  env?: Record<string, string>,
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     const child = execFile(
@@ -16,6 +17,7 @@ export function runScript(
       {
         timeout: timeoutSeconds * 1000,
         maxBuffer: 1024 * 1024, // 1MB
+        env: env ? { ...process.env, ...env } : undefined,
       },
       (err, stdout, stderr) => {
         if (err) {
