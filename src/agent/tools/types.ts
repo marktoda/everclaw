@@ -14,6 +14,7 @@ export interface ExecutorDeps {
   skillsDir: string;
   toolsDir: string;
   scriptTimeout: number;
+  scriptEnv: Record<string, string>;
   startedAt: Date;
   searchApiKey?: string;
 }

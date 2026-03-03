@@ -37,6 +37,7 @@ export function buildAgentDeps(
     skillsDir: deps.config.skillsDir,
     toolsDir: deps.config.toolsDir,
     scriptTimeout: deps.config.scriptTimeout,
+    scriptEnv: deps.config.scriptEnv,
     startedAt: deps.startedAt,
     searchApiKey: deps.config.braveSearchApiKey,
   });

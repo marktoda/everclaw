@@ -41,4 +41,22 @@ describe("loadConfig", () => {
     expect(c.queueName).toBe("assistant");
     expect(c.model).toBe("claude-sonnet-4-5-20250929");
   });
+
+  it("populates scriptEnv with TOOL_* keys from .env", () => {
+    fs.writeFileSync(
+      envPath,
+      "TELEGRAM_BOT_TOKEN=tg\nANTHROPIC_API_KEY=sk\nTOOL_SOME_KEY=val1\nTOOL_OTHER=val2\n",
+    );
+    const c = loadConfig(envPath);
+    expect(c.scriptEnv).toEqual({ TOOL_SOME_KEY: "val1", TOOL_OTHER: "val2" });
+  });
+
+  it("excludes non-TOOL keys from scriptEnv", () => {
+    fs.writeFileSync(
+      envPath,
+      "TELEGRAM_BOT_TOKEN=tg\nANTHROPIC_API_KEY=sk\nBRAVE_SEARCH_API_KEY=brave\n",
+    );
+    const c = loadConfig(envPath);
+    expect(c.scriptEnv).toEqual({});
+  });
 });

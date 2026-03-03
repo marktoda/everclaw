@@ -64,6 +64,7 @@ beforeAll(async () => {
     workerConcurrency: 1,
     claimTimeout: 30,
     scriptTimeout: 10,
+    scriptEnv: {},
   };
 
   taskDeps = {

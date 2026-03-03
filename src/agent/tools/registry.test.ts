@@ -65,6 +65,7 @@ function makeDeps(overrides: Partial<ExecutorDeps> = {}): ExecutorDeps {
     skillsDir: "/data/skills",
     toolsDir: "/data/tools",
     scriptTimeout: 30,
+    scriptEnv: {},
     startedAt: new Date("2025-01-01T00:00:00Z"),
     ...overrides,
   };
@@ -586,6 +587,7 @@ describe("registry", () => {
         "/data/tools/weather.sh",
         JSON.stringify({ city: "NYC" }),
         30,
+        {},
       );
       expect(result).toBe("sunny, 72F");
     });
@@ -614,6 +616,7 @@ describe("registry", () => {
         "/data/tools/hello.sh",
         "{}",
         30,
+        {},
       );
     });
 
