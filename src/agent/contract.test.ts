@@ -85,7 +85,7 @@ describe("contract tests — API-valid message arrays", () => {
     const deps = baseDeps(fake);
     const ctx = createMockCtx();
 
-    await runAgentLoop(ctx, 1, "hello", deps);
+    await runAgentLoop(ctx, "telegram:1", "hello", deps);
 
     fake.assertAllTurnsConsumed();
   });
@@ -96,7 +96,7 @@ describe("contract tests — API-valid message arrays", () => {
     const deps = baseDeps(fake);
     const ctx = createMockCtx();
 
-    await runAgentLoop(ctx, 1, "read the file", deps);
+    await runAgentLoop(ctx, "telegram:1", "read the file", deps);
 
     fake.assertAllTurnsConsumed();
   });
@@ -107,7 +107,7 @@ describe("contract tests — API-valid message arrays", () => {
     const deps = baseDeps(fake);
     const ctx = createMockCtx();
 
-    await runAgentLoop(ctx, 1, "read and get state", deps);
+    await runAgentLoop(ctx, "telegram:1", "read and get state", deps);
 
     fake.assertAllTurnsConsumed();
   });
@@ -118,7 +118,7 @@ describe("contract tests — API-valid message arrays", () => {
     const deps = baseDeps(fake);
     const ctx = createMockCtx();
 
-    await runAgentLoop(ctx, 1, "read then write", deps);
+    await runAgentLoop(ctx, "telegram:1", "read then write", deps);
 
     fake.assertAllTurnsConsumed();
   });
@@ -129,7 +129,7 @@ describe("contract tests — API-valid message arrays", () => {
     const deps = baseDeps(fake);
     const ctx = createMockCtx();
 
-    await runAgentLoop(ctx, 1, "check something", deps);
+    await runAgentLoop(ctx, "telegram:1", "check something", deps);
 
     fake.assertAllTurnsConsumed();
   });
@@ -141,7 +141,7 @@ describe("contract tests — API-valid message arrays", () => {
     const deps = baseDeps(fake);
     const ctx = createMockCtx();
 
-    await runAgentLoop(ctx, 1, "loop forever", deps);
+    await runAgentLoop(ctx, "telegram:1", "loop forever", deps);
 
     expect(fake.callCount).toBe(20);
     fake.assertAllTurnsConsumed();
@@ -170,7 +170,7 @@ describe("contract tests — API-valid message arrays", () => {
     const deps = baseDeps(fake);
     const ctx = createMockCtx();
 
-    await runAgentLoop(ctx, 1, "follow up", deps);
+    await runAgentLoop(ctx, "telegram:1", "follow up", deps);
 
     fake.assertAllTurnsConsumed();
   });
@@ -197,7 +197,7 @@ describe("contract tests — API-valid message arrays", () => {
 
     // FakeAnthropic validates every request — if the orphaned tool_result
     // leaked through, it would throw a contract violation.
-    await runAgentLoop(ctx, 1, "hello again", deps);
+    await runAgentLoop(ctx, "telegram:1", "hello again", deps);
 
     fake.assertAllTurnsConsumed();
   });
@@ -233,7 +233,7 @@ describe("contract tests — API-valid message arrays", () => {
     // FakeAnthropic validates the contract — if the mismatched IDs
     // leaked through, it would throw. The sanitizer should drop the
     // invalid pair and produce a clean messages array.
-    await runAgentLoop(ctx, 1, "follow up", deps);
+    await runAgentLoop(ctx, "telegram:1", "follow up", deps);
 
     fake.assertAllTurnsConsumed();
   });
