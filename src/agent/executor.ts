@@ -169,7 +169,12 @@ export function createExecutor(deps: ExecutorDeps) {
         return `Event "${input.event_name}" emitted.`;
 
       case "spawn_task": {
-        const result = await deps.absurd.spawn(input.task_name, input.params);
+        const params = { ...input.params };
+        // Resolve "current" or missing chatId to the executor's chatId
+        if (params.chatId === "current" || params.chatId == null) {
+          params.chatId = deps.chatId;
+        }
+        const result = await deps.absurd.spawn(input.task_name, params);
         return `Task spawned: ${input.task_name} (ID: ${result.taskID})`;
       }
 

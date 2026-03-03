@@ -61,7 +61,7 @@ export function getTools(): ToolDef[] {
 
     tool("spawn_task", "Spawn an independent sub-task that runs in the background. The spawned task has NO access to your current conversation — only the instructions you provide.", {
       task_name: { type: "string", description: "Task type: 'execute-skill', 'send-message', or 'workflow'" },
-      params: { type: "object", description: "Task parameters (for 'workflow': {chatId, instructions})" },
+      params: { type: "object", description: "Task parameters (for 'workflow': {instructions}, for 'send-message': {text}, for 'execute-skill': {skillName}). chatId is auto-injected." },
     }, ["task_name", "params"]),
 
     tool("cancel_task", "Cancel a running or sleeping task.", {

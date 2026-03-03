@@ -9,6 +9,7 @@ import { registerSendMessage } from "./tasks/send-message.ts";
 import { registerWorkflow } from "./tasks/workflow.ts";
 import { syncSchedules } from "./skills/manager.ts";
 import { getState, setState } from "./memory/state.ts";
+import { logger } from "./logger.ts";
 
 async function main() {
   const config = loadConfig();
@@ -31,7 +32,7 @@ async function main() {
       : undefined,
   });
 
-  const taskDeps = { anthropic, pool, bot, config, startedAt };
+  const taskDeps = { anthropic, pool, bot, config, startedAt, log: logger };
   registerHandleMessage(absurd, taskDeps);
   registerExecuteSkill(absurd, taskDeps);
   registerSendMessage(absurd, bot);
@@ -43,15 +44,15 @@ async function main() {
   const worker = await absurd.startWorker({
     concurrency: config.workerConcurrency,
     claimTimeout: config.claimTimeout,
-    onError: (err) => console.error("[worker]", err.message),
+    onError: (err) => logger.error({ err }, "worker error"),
   });
 
-  console.log(`absurd-assistant started (queue=${config.queueName})`);
+  logger.info({ queue: config.queueName }, "everclaw started");
 
-  bot.start({ onStart: () => console.log("Telegram bot connected") });
+  bot.start({ onStart: () => logger.info("telegram bot connected") });
 
   const shutdown = async () => {
-    console.log("Shutting down...");
+    logger.info("shutting down");
     bot.stop();
     await worker.close();
     await pool.end();
@@ -62,6 +63,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error("Fatal:", err);
+  logger.fatal({ err }, "fatal startup error");
   process.exit(1);
 });

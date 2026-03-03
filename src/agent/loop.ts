@@ -2,7 +2,9 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import type { TaskContext } from "absurd-sdk";
 import type { Pool } from "pg";
+import pino from "pino";
 import type { ToolDef } from "./tools.ts";
+import type { Logger } from "../logger.ts";
 import { getRecentMessages, appendMessage } from "../memory/history.ts";
 import { listSkills } from "../skills/manager.ts";
 import { listTools } from "../scripts/runner.ts";
@@ -23,6 +25,7 @@ export interface AgentDeps {
   maxHistory: number;
   tools: ToolDef[];
   executeTool: (name: string, input: Record<string, any>) => Promise<string>;
+  log?: Logger;
   /** Called with filtered text as it becomes available. */
   onText?: (text: string) => void;
 }
@@ -50,6 +53,8 @@ export async function runAgentLoop(
   userMessage: string,
   deps: AgentDeps,
 ): Promise<string> {
+  const log = deps.log ?? pino({ level: "silent" });
+
   // Load context (checkpointed)
   const context = await ctx.step("load-context", async () => {
     const [notes, history, skills, tools] = await Promise.all([
@@ -60,6 +65,8 @@ export async function runAgentLoop(
     ]);
     return { notes, history, skills, tools };
   });
+
+  log.debug("context loaded");
 
   const systemPrompt = buildSystemPrompt({
     notes: context.notes as string,
@@ -104,6 +111,7 @@ export async function runAgentLoop(
 
     if ((resp.stopReason as string) !== "tool_use") {
       reply = textBlocks.map(b => b.text).join("\n");
+      log.info({ turns: turn + 1 }, "agent loop complete");
       break;
     }
 
@@ -116,6 +124,7 @@ export async function runAgentLoop(
     const toolBlocks = content.filter(
       (b): b is Anthropic.ToolUseBlock => b.type === "tool_use",
     );
+    log.info({ turn: turn + 1, tools: toolBlocks.map(b => b.name) }, "executing tools");
     const results: Anthropic.ToolResultBlockParam[] = [];
     for (const tb of toolBlocks) {
       let result: string;
@@ -130,6 +139,10 @@ export async function runAgentLoop(
       results.push({ type: "tool_result", tool_use_id: tb.id, content: result as string });
     }
     messages.push({ role: "user", content: results });
+
+    if (turn === MAX_TURNS - 1) {
+      log.warn({ maxTurns: MAX_TURNS }, "max turns exhausted");
+    }
   }
 
   // Persist messages — store the user message, all tool interactions, and
