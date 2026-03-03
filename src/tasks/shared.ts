@@ -8,6 +8,31 @@ import type { Logger } from "../logger.ts";
 import type { AgentDeps } from "../agent/loop.ts";
 import { createToolRegistry } from "../agent/tools/index.ts";
 
+const TG_MAX = 4096;
+
+/** Split text into chunks that fit within Telegram's message limit. */
+function splitForTelegram(text: string): string[] {
+  if (text.length <= TG_MAX) return [text];
+  const chunks: string[] = [];
+  let remaining = text;
+  while (remaining.length > TG_MAX) {
+    // Try to split at a double-newline (paragraph boundary) within the limit
+    let splitAt = remaining.lastIndexOf("\n\n", TG_MAX);
+    if (splitAt <= 0) {
+      // Fall back to single newline
+      splitAt = remaining.lastIndexOf("\n", TG_MAX);
+    }
+    if (splitAt <= 0) {
+      // Last resort: hard split
+      splitAt = TG_MAX;
+    }
+    chunks.push(remaining.slice(0, splitAt));
+    remaining = remaining.slice(splitAt).replace(/^\n+/, "");
+  }
+  if (remaining) chunks.push(remaining);
+  return chunks;
+}
+
 export interface TaskDeps {
   anthropic: Anthropic;
   pool: Pool;
@@ -54,7 +79,10 @@ export function buildAgentDeps(
     registry,
     log,
     onText: opts?.silent ? undefined : (text) => {
-      deps.bot.api.sendMessage(chatId, text).catch(() => {});
+      // Telegram has a 4096-char limit per message; split at paragraph boundaries
+      for (const chunk of splitForTelegram(text)) {
+        deps.bot.api.sendMessage(chatId, chunk).catch(() => {});
+      }
     },
   };
 }
