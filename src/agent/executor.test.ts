@@ -850,21 +850,37 @@ describe("executor", () => {
   // list_tasks
   // =========================================================================
   describe("list_tasks", () => {
-    it("returns formatted active tasks", async () => {
+    it("returns formatted active tasks with params summary", async () => {
       const wakeDate = new Date("2025-06-01T10:00:00Z");
       vi.mocked(deps.pool.query).mockResolvedValue({
         rows: [
           {
-            task_name: "agent-loop",
+            task_name: "handle-message",
             task_id: "abcdefgh-1234-5678",
+            params: { text: "hello", chatId: 1 },
             run_state: "running",
             available_at: null,
           },
           {
-            task_name: "check-email",
+            task_name: "handle-message",
             task_id: "12345678-abcd-efgh",
+            params: { text: "Check ETH price every minute", chatId: 1 },
             run_state: "sleeping",
             available_at: wakeDate,
+          },
+          {
+            task_name: "workflow",
+            task_id: "aabbccdd-1111-2222",
+            params: { instructions: "Monitor prices", chatId: 1 },
+            run_state: "sleeping",
+            available_at: null,
+          },
+          {
+            task_name: "execute-skill",
+            task_id: "eeffaabb-3333-4444",
+            params: { skillName: "daily-check", chatId: 1 },
+            run_state: "running",
+            available_at: null,
           },
         ],
       } as any);
@@ -874,11 +890,14 @@ describe("executor", () => {
       expect(deps.pool.query).toHaveBeenCalledWith(
         expect.stringContaining("absurd.t_test_queue"),
       );
-      expect(result).toContain("agent-loop");
-      expect(result).toContain("abcdefgh...");
-      expect(result).toContain("state=running");
-      expect(result).toContain("check-email");
-      expect(result).toContain("state=sleeping");
+      // Full task IDs shown
+      expect(result).toContain("abcdefgh-1234-5678");
+      expect(result).toContain("12345678-abcd-efgh");
+      // Params summaries included
+      expect(result).toContain('"hello"');
+      expect(result).toContain('"Check ETH price every minute"');
+      expect(result).toContain('"Monitor prices"');
+      expect(result).toContain("skill=daily-check");
       expect(result).toContain("wakes=2025-06-01T10:00:00.000Z");
     });
 

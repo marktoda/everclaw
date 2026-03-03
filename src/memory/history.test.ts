@@ -73,6 +73,7 @@ describe("getRecentMessages", () => {
     expect(pool.query).toHaveBeenCalledOnce();
     const [sql, params] = pool.query.mock.calls[0];
     expect(sql).toContain("WHERE chat_id = $1");
+    expect(sql).toContain("ORDER BY created_at DESC, id DESC");
     expect(sql).toContain("LIMIT $2");
     expect(params).toEqual([7, 50]);
   });
