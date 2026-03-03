@@ -83,7 +83,10 @@ export async function runAgentLoop(
       description: s.description,
       schedule: s.schedule,
     })),
-    tools: (context.tools as ScriptEntry[]).map((t) => ({ name: t.name })),
+    tools: (context.tools as ScriptEntry[]).map((t) => ({
+      name: t.name,
+      description: t.description,
+    })),
   });
 
   const messages = reconstructMessages(context.history as Message[]);

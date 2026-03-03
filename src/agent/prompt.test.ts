@@ -34,4 +34,23 @@ describe("buildSystemPrompt", () => {
     expect(p).toContain("spawn_task");
     expect(p).toContain("pending-action");
   });
+
+  it("renders tool scripts with descriptions", () => {
+    const p = buildSystemPrompt({
+      notes: "",
+      skills: [],
+      tools: [{ name: "search-flights", description: "Search for flights" }],
+    });
+    expect(p).toContain("**search-flights**: Search for flights");
+  });
+
+  it("renders tool scripts without descriptions as plain names", () => {
+    const p = buildSystemPrompt({
+      notes: "",
+      skills: [],
+      tools: [{ name: "bare-script" }],
+    });
+    expect(p).toContain("- bare-script");
+    expect(p).not.toContain("**bare-script**");
+  });
 });

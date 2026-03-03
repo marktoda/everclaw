@@ -1,7 +1,7 @@
 export interface PromptContext {
   notes: string;
   skills: Array<{ name: string; description: string; schedule?: string }>;
-  tools: Array<{ name: string }>;
+  tools: Array<{ name: string; description?: string }>;
 }
 
 export function buildSystemPrompt(ctx: PromptContext): string {
@@ -94,7 +94,9 @@ Current date and time: ${new Date().toISOString()}`);
   }
 
   if (ctx.tools.length > 0) {
-    const list = ctx.tools.map((t) => `- ${t.name}`).join("\n");
+    const list = ctx.tools
+      .map((t) => (t.description ? `- **${t.name}**: ${t.description}` : `- ${t.name}`))
+      .join("\n");
     parts.push(`## Available Tool Scripts\n\n${list}`);
   }
 
