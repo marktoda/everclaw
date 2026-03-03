@@ -17,13 +17,17 @@ import * as path from "path";
 
 const MAX_TURNS = 20;
 
+export interface Dirs {
+  notes: string;
+  skills: string;
+  tools: string;
+}
+
 export interface AgentDeps {
   anthropic: Anthropic;
   pool: Pool;
   model: string;
-  notesDir: string;
-  skillsDir: string;
-  toolsDir: string;
+  dirs: Dirs;
   maxHistory: number;
   registry: ToolRegistry;
   log?: Logger;
@@ -59,10 +63,10 @@ export async function runAgentLoop(
   // Load context (checkpointed)
   const context = await ctx.step("load-context", async () => {
     const [notes, history, skills, tools] = await Promise.all([
-      readAllNotes(deps.notesDir),
+      readAllNotes(deps.dirs.notes),
       getRecentMessages(deps.pool, chatId, deps.maxHistory),
-      listSkills(deps.skillsDir),
-      listTools(deps.toolsDir),
+      listSkills(deps.dirs.skills),
+      listTools(deps.dirs.tools),
     ]);
     return { notes, history, skills, tools };
   });
