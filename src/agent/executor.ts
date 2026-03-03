@@ -23,18 +23,25 @@ export interface ExecutorDeps {
 
 /** Writable base directories the agent is allowed to access. */
 function resolvePath(input: string, deps: ExecutorDeps): { abs: string; dir: "notes" | "skills" | "tools" } | null {
-  // Normalize: strip leading / or ./ if present
   const clean = input.replace(/^\.?\//, "");
+  let abs: string;
+  let dir: "notes" | "skills" | "tools";
   if (clean.startsWith("data/notes/")) {
-    return { abs: path.resolve(deps.notesDir, clean.slice("data/notes/".length)), dir: "notes" };
+    abs = path.resolve(deps.notesDir, clean.slice("data/notes/".length));
+    dir = "notes";
+    if (!abs.startsWith(deps.notesDir + path.sep) && abs !== deps.notesDir) return null;
+  } else if (clean.startsWith("skills/")) {
+    abs = path.resolve(deps.skillsDir, clean.slice("skills/".length));
+    dir = "skills";
+    if (!abs.startsWith(deps.skillsDir + path.sep) && abs !== deps.skillsDir) return null;
+  } else if (clean.startsWith("tools/")) {
+    abs = path.resolve(deps.toolsDir, clean.slice("tools/".length));
+    dir = "tools";
+    if (!abs.startsWith(deps.toolsDir + path.sep) && abs !== deps.toolsDir) return null;
+  } else {
+    return null;
   }
-  if (clean.startsWith("skills/")) {
-    return { abs: path.resolve(deps.skillsDir, clean.slice("skills/".length)), dir: "skills" };
-  }
-  if (clean.startsWith("tools/")) {
-    return { abs: path.resolve(deps.toolsDir, clean.slice("tools/".length)), dir: "tools" };
-  }
-  return null;
+  return { abs, dir };
 }
 
 export function createExecutor(deps: ExecutorDeps) {
@@ -170,6 +177,7 @@ export function createExecutor(deps: ExecutorDeps) {
 
       case "list_tasks": {
         const qn = deps.queueName;
+        if (!/^[a-z_][a-z0-9_]*$/i.test(qn)) return "Error: invalid queue name";
         const result = await deps.pool.query(
           `SELECT t.task_id, t.task_name, t.state, r.state as run_state, r.available_at
            FROM absurd.t_${qn} t

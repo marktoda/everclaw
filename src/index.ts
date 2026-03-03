@@ -20,16 +20,15 @@ async function main() {
 
   await absurd.createQueue();
 
-  const bot = createBot(config.telegramToken, absurd);
-
-  // Persist defaultChatId via state store. On startup, read it.
-  // On first message, write it.
+  // Persist defaultChatId via state store
   let defaultChatId = (await getState(pool, "system", "defaultChatId")) ?? 0;
-  bot.on("message:text", async (ctx) => {
-    if (defaultChatId === 0) {
-      defaultChatId = ctx.chat.id;
-      await setState(pool, "system", "defaultChatId", defaultChatId);
-    }
+  const bot = createBot(config.telegramToken, absurd, {
+    onFirstMessage: defaultChatId === 0
+      ? async (chatId) => {
+          defaultChatId = chatId;
+          await setState(pool, "system", "defaultChatId", chatId);
+        }
+      : undefined,
   });
 
   const taskDeps = { anthropic, pool, bot, config, startedAt };
