@@ -5,8 +5,8 @@ import type { Message } from "./history.ts";
 describe("reconstructMessages", () => {
   it("converts plain user/assistant history to MessageParam[]", () => {
     const history: Message[] = [
-      { chatId: 1, role: "user", content: "hello" },
-      { chatId: 1, role: "assistant", content: "hi" },
+      { recipientId: "telegram:1", role: "user", content: "hello" },
+      { recipientId: "telegram:1", role: "assistant", content: "hi" },
     ];
     const result = reconstructMessages(history);
     expect(result).toEqual([
@@ -17,16 +17,16 @@ describe("reconstructMessages", () => {
 
   it("reconstructs assistant tool_use + tool_result pairs", () => {
     const history: Message[] = [
-      { chatId: 1, role: "user", content: "do it" },
+      { recipientId: "telegram:1", role: "user", content: "do it" },
       {
-        chatId: 1, role: "assistant", content: "(tool use only)",
+        recipientId: "telegram:1", role: "assistant", content: "(tool use only)",
         toolUse: [{ id: "tu-1", name: "read_file", input: { path: "a" } }],
       },
       {
-        chatId: 1, role: "tool", content: "[tu-1]: data",
+        recipientId: "telegram:1", role: "tool", content: "[tu-1]: data",
         toolUse: [{ tool_use_id: "tu-1", content: "data" }],
       },
-      { chatId: 1, role: "assistant", content: "done" },
+      { recipientId: "telegram:1", role: "assistant", content: "done" },
     ];
     const result = reconstructMessages(history);
     expect(result).toHaveLength(4);
@@ -38,19 +38,19 @@ describe("reconstructMessages", () => {
 
   it("sanitizes mismatched tool_use/tool_result IDs", () => {
     const history: Message[] = [
-      { chatId: 1, role: "user", content: "msg1" },
-      { chatId: 1, role: "assistant", content: "ok" },
-      { chatId: 1, role: "user", content: "msg2" },
+      { recipientId: "telegram:1", role: "user", content: "msg1" },
+      { recipientId: "telegram:1", role: "assistant", content: "ok" },
+      { recipientId: "telegram:1", role: "user", content: "msg2" },
       {
-        chatId: 1, role: "assistant", content: "(tool use only)",
+        recipientId: "telegram:1", role: "assistant", content: "(tool use only)",
         toolUse: [{ id: "tu-A", name: "read_file", input: {} }],
       },
       {
-        chatId: 1, role: "tool", content: "[tu-B]: wrong",
+        recipientId: "telegram:1", role: "tool", content: "[tu-B]: wrong",
         toolUse: [{ tool_use_id: "tu-B", content: "wrong" }],
       },
-      { chatId: 1, role: "user", content: "msg3" },
-      { chatId: 1, role: "assistant", content: "reply" },
+      { recipientId: "telegram:1", role: "user", content: "msg3" },
+      { recipientId: "telegram:1", role: "assistant", content: "reply" },
     ];
     const result = reconstructMessages(history);
     // Mismatched pair dropped, consecutive users merged
@@ -62,11 +62,11 @@ describe("reconstructMessages", () => {
   it("drops orphaned tool_result at start", () => {
     const history: Message[] = [
       {
-        chatId: 1, role: "tool", content: "[tu-1]: data",
+        recipientId: "telegram:1", role: "tool", content: "[tu-1]: data",
         toolUse: [{ tool_use_id: "tu-1", content: "data" }],
       },
-      { chatId: 1, role: "user", content: "hi" },
-      { chatId: 1, role: "assistant", content: "hello" },
+      { recipientId: "telegram:1", role: "user", content: "hi" },
+      { recipientId: "telegram:1", role: "assistant", content: "hello" },
     ];
     const result = reconstructMessages(history);
     expect(result).toHaveLength(2);
@@ -75,9 +75,9 @@ describe("reconstructMessages", () => {
 
   it("skips tool messages without toolUse (backwards compat)", () => {
     const history = [
-      { chatId: 1, role: "user", content: "q" },
-      { chatId: 1, role: "tool", content: "old format" },
-      { chatId: 1, role: "assistant", content: "a" },
+      { recipientId: "telegram:1", role: "user", content: "q" },
+      { recipientId: "telegram:1", role: "tool", content: "old format" },
+      { recipientId: "telegram:1", role: "assistant", content: "a" },
     ] as Message[];
     const result = reconstructMessages(history);
     expect(result).toHaveLength(2);
@@ -91,7 +91,7 @@ describe("deconstructMessages", () => {
     const messages = [
       { role: "assistant" as const, content: [{ type: "text" as const, text: "hello", citations: null }] },
     ];
-    const result = deconstructMessages(1, messages as any);
+    const result = deconstructMessages("telegram:1", messages as any);
     expect(result).toHaveLength(1);
     expect(result[0].role).toBe("assistant");
     expect(result[0].content).toBe("hello");
@@ -106,7 +106,7 @@ describe("deconstructMessages", () => {
         { type: "tool_result" as const, tool_use_id: "tu-1", content: "data" },
       ]},
     ];
-    const result = deconstructMessages(1, messages as any);
+    const result = deconstructMessages("telegram:1", messages as any);
     expect(result).toHaveLength(2);
     expect(result[0].role).toBe("assistant");
     expect((result[0] as any).toolUse).toEqual([{ id: "tu-1", name: "read_file", input: { path: "a" } }]);
@@ -120,7 +120,7 @@ describe("deconstructMessages", () => {
         { type: "tool_use" as const, id: "tu-1", name: "get_state", input: {} },
       ]},
     ];
-    const result = deconstructMessages(1, messages as any);
+    const result = deconstructMessages("telegram:1", messages as any);
     expect(result[0].content).toBe("(tool use only)");
   });
 });

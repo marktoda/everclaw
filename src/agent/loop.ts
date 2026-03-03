@@ -54,7 +54,7 @@ async function readAllNotes(notesDir: string): Promise<string> {
 
 export async function runAgentLoop(
   ctx: TaskContext,
-  chatId: number,
+  recipientId: string,
   userMessage: string,
   deps: AgentDeps,
 ): Promise<string> {
@@ -64,7 +64,7 @@ export async function runAgentLoop(
   const context = await ctx.step("load-context", async () => {
     const [notes, history, skills, tools] = await Promise.all([
       readAllNotes(deps.dirs.notes),
-      getRecentMessages(deps.pool, chatId, deps.maxHistory),
+      getRecentMessages(deps.pool, recipientId, deps.maxHistory),
       listSkills(deps.dirs.skills),
       listTools(deps.dirs.tools),
     ]);
@@ -157,9 +157,9 @@ export async function runAgentLoop(
   // the final assistant reply. This ensures the next turn's conversation
   // history includes what tools were used and their results.
   await ctx.step("persist", async () => {
-    await appendMessage(deps.pool, { chatId, role: "user", content: userMessage });
+    await appendMessage(deps.pool, { recipientId, role: "user", content: userMessage });
     const loopMessages = messages.slice(preLoopLength);
-    for (const msg of deconstructMessages(chatId, loopMessages)) {
+    for (const msg of deconstructMessages(recipientId, loopMessages)) {
       await appendMessage(deps.pool, msg);
     }
     return true;
