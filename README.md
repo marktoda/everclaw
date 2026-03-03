@@ -1,4 +1,4 @@
-# absurd-assistant
+# everclaw
 
 AI personal assistant that communicates via Telegram, reasons with Claude, and extends itself at runtime through markdown skill files and tool scripts. Built on [Absurd](https://github.com/marktoda/absurd), a Postgres-native durable task queue.
 
@@ -75,7 +75,7 @@ data/notes/             Agent-writable persistent notes
 
 ### Prerequisites
 
-- Node.js 22+ (uses `--experimental-strip-types`)
+- Node.js 22.18+ (native type stripping)
 - PostgreSQL 15+
 - A Telegram bot token ([BotFather](https://t.me/botfather))
 - An Anthropic API key
@@ -122,7 +122,7 @@ Non-secret config uses environment variables with defaults:
 ### Run
 
 ```bash
-node --experimental-strip-types src/index.ts
+node src/index.ts
 ```
 
 Or with Docker Compose (includes Postgres):
@@ -180,4 +180,4 @@ npx tsc --noEmit    # type-check
 pnpm test           # run tests
 ```
 
-There is no build step. TypeScript runs directly via `--experimental-strip-types`. The `tsc` script exists only for type-checking in CI. All import paths use `.js` extensions as required by Node's ESM module resolution.
+There is no build step. TypeScript runs directly via Node 22.18+ native type stripping. The `tsc` script exists only for type-checking in CI. All import paths use `.ts` extensions.

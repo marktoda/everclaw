@@ -828,6 +828,22 @@ describe("executor", () => {
       expect(deps.absurd.cancelTask).toHaveBeenCalledWith("task-xyz");
       expect(result).toBe("Task task-xyz cancelled.");
     });
+
+    it("returns friendly message when task is not found", async () => {
+      vi.mocked(deps.absurd.cancelTask).mockRejectedValue(
+        new Error('Task "task-gone" not found in queue "assistant"'),
+      );
+
+      const result = await exec("cancel_task", { task_id: "task-gone" });
+
+      expect(result).toBe("Task task-gone not found (may have already completed or been cancelled).");
+    });
+
+    it("rethrows unexpected errors", async () => {
+      vi.mocked(deps.absurd.cancelTask).mockRejectedValue(new Error("db connection failed"));
+
+      await expect(exec("cancel_task", { task_id: "task-x" })).rejects.toThrow("db connection failed");
+    });
   });
 
   // =========================================================================

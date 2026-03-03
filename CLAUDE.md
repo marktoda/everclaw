@@ -1,4 +1,4 @@
-# CLAUDE.md - absurd-assistant
+# CLAUDE.md - everclaw
 
 AI personal assistant built on the Absurd durable task queue. Communicates via Telegram, reasons with Claude (Anthropic), and extends itself through markdown skill files and tool scripts.
 
