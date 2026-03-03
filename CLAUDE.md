@@ -57,7 +57,7 @@ sql/
   002-assistant.sql     App schema: assistant.messages + assistant.state tables
   003-channel-abstraction.sql  Migration: chat_id integer→text with 'telegram:' prefix
 skills/                 Agent-writable skill .md files (YAML frontmatter with optional schedule)
-tools/                  Agent-writable executable scripts (.sh, .py, .js, .ts)
+scripts/                Agent-writable executable scripts (.sh, .py, .js, .ts)
 data/notes/             Agent-writable persistent notes
 docs/plans/             Design and implementation documents
 ```
@@ -70,13 +70,13 @@ docs/plans/             Design and implementation documents
 
 **Durable workflows.** The agent has orchestration tools (`sleep_for`, `sleep_until`, `wait_for_event`, `emit_event`, `spawn_task`, `cancel_task`, `list_tasks`) that suspend and resume durably through Absurd. Suspending tools must NOT be wrapped in `ctx.step()` — they throw `SuspendTask` which must propagate to the Absurd worker.
 
-**Path containment.** `resolvePath` in `agent/tools/files.ts` validates that all file tool paths resolve within one of three writable directories (`data/notes/`, `skills/`, `tools/`). Paths that escape are rejected.
+**Path containment.** `resolvePath` in `agent/tools/files.ts` validates that all file tool paths resolve within one of three writable directories (`data/notes/`, `skills/`, `scripts/`). Paths that escape are rejected.
 
 **Config: secrets vs env.** Secrets (`TELEGRAM_BOT_TOKEN`, `ANTHROPIC_API_KEY`) are read from `.env` file only and never set in `process.env`. Non-secret config (`DATABASE_URL`, `QUEUE_NAME`, `CLAUDE_MODEL`, etc.) comes from `process.env` with defaults. Channel tokens are stored in `config.channels[]`. Queue name is validated as a safe SQL identifier at load time.
 
 **Skill schedule sync.** Writing or deleting a skill file in `skills/` triggers `syncSchedules`, which reconciles YAML frontmatter `schedule` fields with Absurd's schedule registry. Schedules are prefixed `skill:`.
 
-**Tool scripts.** Files written to `tools/` are auto-`chmod +x`. Scripts receive JSON on stdin and return output on stdout, with a configurable timeout (default 30s).
+**Tool scripts.** Files written to `scripts/` are auto-`chmod +x`. Scripts receive JSON on stdin and return output on stdout, with a configurable timeout (default 30s).
 
 **Agent scratchpad.** The agent can use `<internal>...</internal>` tags for reasoning that gets stripped before sending to the user (see `output.ts`).
 

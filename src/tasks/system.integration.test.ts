@@ -46,7 +46,7 @@ beforeAll(async () => {
   tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "everclaw-system-test-"));
   notesDir = path.join(tmpDir, "notes");
   skillsDir = path.join(tmpDir, "skills");
-  toolsDir = path.join(tmpDir, "tools");
+  toolsDir = path.join(tmpDir, "scripts");
   await fs.mkdir(notesDir, { recursive: true });
   await fs.mkdir(skillsDir, { recursive: true });
   await fs.mkdir(toolsDir, { recursive: true });

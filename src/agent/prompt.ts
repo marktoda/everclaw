@@ -19,7 +19,7 @@ You have generic file tools for all writable directories:
 - **skills/**: Workflow templates. Each .md file with YAML frontmatter defines a
   skill. Include a \`schedule\` field for recurring behaviors (cron expressions).
   Schedules are synced automatically when you write or delete skill files.
-- **tools/**: Executable scripts. Write shell/Python scripts here — they're
+- **scripts/**: Executable scripts. Write shell/Python scripts here — they're
   auto-marked executable. Run them with run_script.
 
 ## Workflow Capabilities

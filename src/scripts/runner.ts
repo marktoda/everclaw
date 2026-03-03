@@ -35,24 +35,24 @@ export function runScript(
   });
 }
 
-export async function listTools(
-  toolsDir: string,
+export async function listScripts(
+  scriptsDir: string,
 ): Promise<Array<{ name: string; path: string }>> {
   let entries: string[];
   try {
-    entries = await fs.readdir(toolsDir);
+    entries = await fs.readdir(scriptsDir);
   } catch {
     return [];
   }
 
-  const tools: Array<{ name: string; path: string }> = [];
+  const scripts: Array<{ name: string; path: string }> = [];
   for (const entry of entries) {
     const ext = path.extname(entry);
     if (!SCRIPT_EXTENSIONS.has(ext)) continue;
-    tools.push({
+    scripts.push({
       name: entry.replace(/\.[^.]+$/, ""),
-      path: path.join(toolsDir, entry),
+      path: path.join(scriptsDir, entry),
     });
   }
-  return tools;
+  return scripts;
 }

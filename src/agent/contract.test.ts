@@ -20,7 +20,7 @@ vi.mock("../skills/manager.ts", () => ({
 }));
 
 vi.mock("../scripts/runner.ts", () => ({
-  listTools: vi.fn().mockResolvedValue([]),
+  listScripts: vi.fn().mockResolvedValue([]),
 }));
 
 vi.mock("./prompt.ts", () => ({

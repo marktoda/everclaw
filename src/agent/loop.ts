@@ -9,7 +9,7 @@ import { getRecentMessages, appendMessage } from "../memory/history.ts";
 import type { Message } from "../memory/history.ts";
 import { reconstructMessages, deconstructMessages } from "../memory/messages.ts";
 import { listSkills } from "../skills/manager.ts";
-import { listTools } from "../scripts/runner.ts";
+import { listScripts } from "../scripts/runner.ts";
 import { buildSystemPrompt } from "./prompt.ts";
 import { stripInternalTags } from "./output.ts";
 import * as fs from "fs/promises";
@@ -66,7 +66,7 @@ export async function runAgentLoop(
       readAllNotes(deps.dirs.notes),
       getRecentMessages(deps.pool, recipientId, deps.maxHistory),
       listSkills(deps.dirs.skills),
-      listTools(deps.dirs.tools),
+      listScripts(deps.dirs.tools),
     ]);
     return { notes, history, skills, tools };
   });
