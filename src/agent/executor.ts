@@ -21,27 +21,28 @@ export interface ExecutorDeps {
   startedAt: Date;
 }
 
+/** Check that a resolved path stays within a base directory. */
+function isContainedIn(child: string, parent: string): boolean {
+  return child === parent || child.startsWith(parent + path.sep);
+}
+
+const DIR_MAPPINGS: Array<{ prefix: string; dirKey: keyof Pick<ExecutorDeps, "notesDir" | "skillsDir" | "toolsDir">; dir: "notes" | "skills" | "tools" }> = [
+  { prefix: "data/notes/", dirKey: "notesDir", dir: "notes" },
+  { prefix: "skills/", dirKey: "skillsDir", dir: "skills" },
+  { prefix: "tools/", dirKey: "toolsDir", dir: "tools" },
+];
+
 /** Writable base directories the agent is allowed to access. */
 function resolvePath(input: string, deps: ExecutorDeps): { abs: string; dir: "notes" | "skills" | "tools" } | null {
   const clean = input.replace(/^\.?\//, "");
-  let abs: string;
-  let dir: "notes" | "skills" | "tools";
-  if (clean.startsWith("data/notes/")) {
-    abs = path.resolve(deps.notesDir, clean.slice("data/notes/".length));
-    dir = "notes";
-    if (!abs.startsWith(deps.notesDir + path.sep) && abs !== deps.notesDir) return null;
-  } else if (clean.startsWith("skills/")) {
-    abs = path.resolve(deps.skillsDir, clean.slice("skills/".length));
-    dir = "skills";
-    if (!abs.startsWith(deps.skillsDir + path.sep) && abs !== deps.skillsDir) return null;
-  } else if (clean.startsWith("tools/")) {
-    abs = path.resolve(deps.toolsDir, clean.slice("tools/".length));
-    dir = "tools";
-    if (!abs.startsWith(deps.toolsDir + path.sep) && abs !== deps.toolsDir) return null;
-  } else {
-    return null;
+  for (const { prefix, dirKey, dir } of DIR_MAPPINGS) {
+    if (clean.startsWith(prefix)) {
+      const abs = path.resolve(deps[dirKey], clean.slice(prefix.length));
+      if (!isContainedIn(abs, deps[dirKey])) return null;
+      return { abs, dir };
+    }
   }
-  return { abs, dir };
+  return null;
 }
 
 export function createExecutor(deps: ExecutorDeps) {
@@ -176,8 +177,7 @@ export function createExecutor(deps: ExecutorDeps) {
         return `Task ${input.task_id} cancelled.`;
 
       case "list_tasks": {
-        const qn = deps.queueName;
-        if (!/^[a-z_][a-z0-9_]*$/i.test(qn)) return "Error: invalid queue name";
+        const qn = deps.queueName; // validated at config load time
         const result = await deps.pool.query(
           `SELECT t.task_id, t.task_name, t.state, r.state as run_state, r.available_at
            FROM absurd.t_${qn} t

@@ -50,11 +50,16 @@ export function loadConfig(envPath: string = ".env"): Config {
     return val;
   }
 
+  const queueName = process.env.QUEUE_NAME ?? "assistant";
+  if (!/^[a-z_][a-z0-9_]*$/i.test(queueName)) {
+    throw new Error(`Invalid QUEUE_NAME "${queueName}": must be a valid SQL identifier`);
+  }
+
   return {
     telegramToken: requireSecret("TELEGRAM_BOT_TOKEN"),
     anthropicApiKey: requireSecret("ANTHROPIC_API_KEY"),
     databaseUrl: process.env.DATABASE_URL ?? "postgresql://localhost/absurd",
-    queueName: process.env.QUEUE_NAME ?? "assistant",
+    queueName,
     notesDir: path.resolve(process.env.NOTES_DIR ?? "data/notes"),
     skillsDir: path.resolve(process.env.SKILLS_DIR ?? "skills"),
     toolsDir: path.resolve(process.env.TOOLS_DIR ?? "tools"),
