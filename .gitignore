@@ -5,7 +5,7 @@ dist/
 !.claude/skills/
 
 # Runtime-writable directories (personal/instance-specific)
-# The agent creates and manages these — see examples/ for patterns.
+# The agent creates and manages these at runtime.
 data/
 skills/
 docs/plans/
