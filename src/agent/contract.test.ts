@@ -65,8 +65,11 @@ function baseDeps(fake: FakeAnthropic, overrides: Partial<AgentDeps> = {}): Agen
     skillsDir: "/tmp/skills",
     toolsDir: "/tmp/tools",
     maxHistory: 50,
-    tools: [],
-    executeTool: vi.fn().mockResolvedValue("tool-result"),
+    registry: {
+      definitions: [],
+      execute: vi.fn().mockResolvedValue("tool-result"),
+      isSuspending: () => false,
+    },
     ...overrides,
   };
 }

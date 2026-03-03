@@ -96,20 +96,27 @@ function createMockPool(): Pool {
   return { query: vi.fn().mockResolvedValue({ rows: [] }) } as any;
 }
 
-function baseDeps(overrides: Partial<AgentDeps> = {}): AgentDeps {
-  const pool = createMockPool();
+function baseDeps(
+  overrides: Partial<AgentDeps> & {
+    executeTool?: (name: string, input: Record<string, any>) => Promise<string>;
+    isSuspending?: (name: string) => boolean;
+  } = {},
+): AgentDeps {
+  const { executeTool, isSuspending, ...rest } = overrides;
   return {
     anthropic: createMockAnthropic([]),
-    pool,
+    pool: createMockPool(),
     model: "claude-sonnet-4-20250514",
     notesDir: "/tmp/notes",
     skillsDir: "/tmp/skills",
     toolsDir: "/tmp/tools",
     maxHistory: 50,
-    tools: [],
-    executeTool: vi.fn().mockResolvedValue("tool-result"),
-    isSuspending: () => false,
-    ...overrides,
+    registry: {
+      definitions: [],
+      execute: executeTool ?? vi.fn().mockResolvedValue("tool-result"),
+      isSuspending: isSuspending ?? (() => false),
+    },
+    ...rest,
   };
 }
 
@@ -869,8 +876,8 @@ describe("runAgentLoop", () => {
       const anthropic = createMockAnthropic([
         apiResponse([textBlock("hi")]),
       ]);
-      const tools = [{ name: "my_tool", description: "desc", input_schema: { type: "object" as const, properties: {} } }];
-      const deps = baseDeps({ anthropic, model: "claude-sonnet-4-20250514", tools });
+      const definitions = [{ name: "my_tool", description: "desc", input_schema: { type: "object" as const, properties: {} } }];
+      const deps = baseDeps({ anthropic, model: "claude-sonnet-4-20250514", registry: { definitions, execute: vi.fn(), isSuspending: () => false } });
       const ctx = createMockCtx();
 
       await runAgentLoop(ctx, 1, "hello", deps);
@@ -880,7 +887,7 @@ describe("runAgentLoop", () => {
       expect(callArgs.model).toBe("claude-sonnet-4-20250514");
       expect(callArgs.max_tokens).toBe(4096);
       expect(callArgs.system).toBe("custom-system-prompt");
-      expect(callArgs.tools).toEqual(tools);
+      expect(callArgs.tools).toEqual(definitions);
     });
   });
 
