@@ -48,6 +48,80 @@ async function readAllNotes(notesDir: string): Promise<string> {
   return parts.join("\n\n");
 }
 
+/**
+ * Sanitize reconstructed messages to ensure valid Anthropic API structure.
+ * Validates tool_use/tool_result pairing throughout the entire array:
+ * - Drops orphaned tool_result without a preceding matching tool_use
+ * - Drops assistant tool_use without a following tool_result with matching IDs
+ * - Merges consecutive same-role messages to maintain alternation
+ */
+export function sanitizeMessages(messages: Anthropic.MessageParam[]): Anthropic.MessageParam[] {
+  // Pass 1: validate tool_use/tool_result pairs, drop invalid ones
+  const cleaned: Anthropic.MessageParam[] = [];
+  let i = 0;
+
+  while (i < messages.length) {
+    const msg = messages[i];
+
+    // Skip orphaned tool_result (not preceded by a matching tool_use)
+    if (msg.role === "user" && Array.isArray(msg.content) &&
+        (msg.content as any[])[0]?.type === "tool_result") {
+      i++;
+      continue;
+    }
+
+    // Validate assistant message with tool_use blocks
+    if (msg.role === "assistant" && Array.isArray(msg.content) &&
+        (msg.content as any[]).some((b: any) => b.type === "tool_use")) {
+      const next = messages[i + 1];
+      if (next?.role === "user" && Array.isArray(next.content) &&
+          (next.content as any[])[0]?.type === "tool_result") {
+        const useIds = new Set(
+          (msg.content as any[])
+            .filter((b: any) => b.type === "tool_use")
+            .map((b: any) => b.id),
+        );
+        const resultIds = new Set(
+          (next.content as any[]).map((b: any) => b.tool_use_id),
+        );
+        // Valid pair: every use has a result and vice versa
+        if (useIds.size > 0 &&
+            [...resultIds].every(id => useIds.has(id)) &&
+            [...useIds].every(id => resultIds.has(id))) {
+          cleaned.push(msg, next);
+          i += 2;
+          continue;
+        }
+      }
+      // Invalid or missing tool_result — drop the assistant tool_use message
+      i++;
+      continue;
+    }
+
+    cleaned.push(msg);
+    i++;
+  }
+
+  // Pass 2: merge consecutive same-role messages to fix alternation
+  // (dropping tool pairs can leave adjacent user or assistant messages)
+  const result: Anthropic.MessageParam[] = [];
+  for (const msg of cleaned) {
+    if (result.length > 0 && result[result.length - 1].role === msg.role) {
+      const prev = result[result.length - 1];
+      const prevText = typeof prev.content === "string" ? prev.content : "";
+      const curText = typeof msg.content === "string" ? msg.content : "";
+      result[result.length - 1] = {
+        role: msg.role,
+        content: [prevText, curText].filter(Boolean).join("\n\n"),
+      };
+    } else {
+      result.push(msg);
+    }
+  }
+
+  return result;
+}
+
 export async function runAgentLoop(
   ctx: TaskContext,
   chatId: number,
@@ -104,35 +178,19 @@ export async function runAgentLoop(
     }
   }
 
-  // Trim orphaned messages from the start of the history window.
-  // The LIMIT-based query can clip mid-conversation, producing:
-  //  - tool_result without a preceding tool_use (API rejects this)
-  //  - assistant tool_use without a following tool_result (API rejects this)
-  // Drop messages until we reach a clean starting point.
-  while (messages.length > 0) {
-    const first = messages[0];
-    // Drop orphaned tool_result (user message with tool_result content)
-    if (first.role === "user" && Array.isArray(first.content) &&
-        (first.content as any[])[0]?.type === "tool_result") {
-      messages.shift();
-      continue;
-    }
-    // Drop orphaned assistant tool_use without a following tool_result
-    if (first.role === "assistant" && Array.isArray(first.content) &&
-        (first.content as any[]).some((b: any) => b.type === "tool_use")) {
-      // Check if next message is the matching tool_result
-      const next = messages[1];
-      if (!next || next.role !== "user" || !Array.isArray(next.content) ||
-          (next.content as any[])[0]?.type !== "tool_result") {
-        messages.shift();
-        continue;
-      }
-    }
-    break;
+  // Sanitize: validate tool_use/tool_result pairing throughout the array.
+  // The old cleanup only handled orphans at the start of the window.
+  // This handles mismatched IDs mid-array from concurrent persists,
+  // partial writes, and history window clipping.
+  {
+    const sanitized = sanitizeMessages(messages);
+    messages.length = 0;
+    messages.push(...sanitized);
   }
 
   messages.push({ role: "user", content: userMessage });
 
+  const preLoopLength = messages.length;
   let reply = "";
 
   for (let turn = 0; turn < MAX_TURNS; turn++) {
@@ -209,8 +267,8 @@ export async function runAgentLoop(
   await ctx.step("persist", async () => {
     await appendMessage(deps.pool, { chatId, role: "user", content: userMessage });
     // Walk the messages array to find assistant + tool_result pairs we added
-    // during the loop (skip the initial history and the user message we added).
-    const loopMessages = messages.slice((context.history as any[]).length + 1);
+    // during the loop (skip the sanitized history and the user message).
+    const loopMessages = messages.slice(preLoopLength);
     for (const msg of loopMessages) {
       if (msg.role === "assistant") {
         // Extract text and tool_use from content blocks

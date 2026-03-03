@@ -31,7 +31,7 @@ vi.mock("fs/promises", () => ({
 
 // ── Imports (after mocks are declared) ─────────────────────────────────
 
-import { runAgentLoop } from "./loop.ts";
+import { runAgentLoop, sanitizeMessages } from "./loop.ts";
 import { getRecentMessages, appendMessage } from "../memory/history.ts";
 import { buildSystemPrompt } from "./prompt.ts";
 
@@ -967,5 +967,224 @@ describe("runAgentLoop", () => {
       expect(messages).toHaveLength(1);
       expect(messages[0]).toEqual({ role: "user", content: "hello" });
     });
+  });
+
+  // ── 19. Mismatched tool_use/tool_result mid-history ────────────────
+
+  describe("mismatched tool pairs in history", () => {
+    it("drops mismatched tool_use/tool_result pair and still produces valid API call", async () => {
+      // Simulates concurrent persists that interleave messages from two agent loops:
+      // assistant tool_use [A] is followed by tool_result [B] — IDs don't match.
+      vi.mocked(getRecentMessages).mockResolvedValueOnce([
+        { chatId: 1, role: "user", content: "msg1" },
+        { chatId: 1, role: "assistant", content: "ok" },
+        { chatId: 1, role: "user", content: "msg2" },
+        {
+          chatId: 1,
+          role: "assistant",
+          content: "(tool use only)",
+          toolUse: [{ id: "tu-A", name: "read_file", input: { path: "a" } }],
+        },
+        {
+          chatId: 1,
+          role: "tool",
+          content: "[tu-B]: result",
+          toolUse: [{ tool_use_id: "tu-B", content: "result" }],
+        },
+        { chatId: 1, role: "user", content: "msg3" },
+        { chatId: 1, role: "assistant", content: "reply3" },
+      ] as any);
+
+      const anthropic = createMockAnthropic([
+        apiResponse([textBlock("answer")]),
+      ]);
+      const deps = baseDeps({ anthropic });
+      const ctx = createMockCtx();
+
+      await runAgentLoop(ctx, 1, "hello", deps);
+
+      // The mismatched pair should be dropped; the API call should succeed.
+      const messages = anthropic.snapshots[0].messages;
+      // msg1, ok, msg2+msg3 (merged consecutive users), reply3, hello
+      expect(messages).toHaveLength(5);
+      expect(messages[0]).toEqual({ role: "user", content: "msg1" });
+      expect(messages[1]).toEqual({ role: "assistant", content: "ok" });
+      expect(messages[2]).toEqual({ role: "user", content: "msg2\n\nmsg3" });
+      expect(messages[3]).toEqual({ role: "assistant", content: "reply3" });
+      expect(messages[4]).toEqual({ role: "user", content: "hello" });
+    });
+  });
+});
+
+// ── sanitizeMessages unit tests ───────────────────────────────────────
+
+describe("sanitizeMessages", () => {
+  it("passes through a clean conversation", () => {
+    const messages = [
+      { role: "user" as const, content: "hi" },
+      { role: "assistant" as const, content: "hello" },
+      { role: "user" as const, content: "bye" },
+      { role: "assistant" as const, content: "goodbye" },
+    ];
+    expect(sanitizeMessages(messages)).toEqual(messages);
+  });
+
+  it("passes through valid tool_use/tool_result pairs", () => {
+    const messages = [
+      { role: "user" as const, content: "do it" },
+      { role: "assistant" as const, content: [
+        { type: "tool_use", id: "tu-1", name: "read_file", input: {} },
+      ]},
+      { role: "user" as const, content: [
+        { type: "tool_result", tool_use_id: "tu-1", content: "file data" },
+      ]},
+      { role: "assistant" as const, content: "done" },
+    ];
+    expect(sanitizeMessages(messages as any)).toEqual(messages);
+  });
+
+  it("drops orphaned tool_result at the start", () => {
+    const messages = [
+      { role: "user" as const, content: [
+        { type: "tool_result", tool_use_id: "tu-1", content: "data" },
+      ]},
+      { role: "user" as const, content: "hi" },
+      { role: "assistant" as const, content: "hello" },
+    ];
+    expect(sanitizeMessages(messages as any)).toEqual([
+      { role: "user", content: "hi" },
+      { role: "assistant", content: "hello" },
+    ]);
+  });
+
+  it("drops orphaned tool_result in the middle", () => {
+    const messages = [
+      { role: "user" as const, content: "hi" },
+      { role: "assistant" as const, content: "hello" },
+      { role: "user" as const, content: [
+        { type: "tool_result", tool_use_id: "tu-orphan", content: "data" },
+      ]},
+      { role: "user" as const, content: "next" },
+      { role: "assistant" as const, content: "reply" },
+    ];
+    expect(sanitizeMessages(messages as any)).toEqual([
+      { role: "user", content: "hi" },
+      { role: "assistant", content: "hello" },
+      { role: "user", content: "next" },
+      { role: "assistant", content: "reply" },
+    ]);
+  });
+
+  it("drops assistant tool_use without following tool_result", () => {
+    const messages = [
+      { role: "assistant" as const, content: [
+        { type: "tool_use", id: "tu-1", name: "read_file", input: {} },
+      ]},
+      { role: "user" as const, content: "hi" },
+      { role: "assistant" as const, content: "hello" },
+    ];
+    expect(sanitizeMessages(messages as any)).toEqual([
+      { role: "user", content: "hi" },
+      { role: "assistant", content: "hello" },
+    ]);
+  });
+
+  it("drops pair where tool_result has wrong IDs", () => {
+    const messages = [
+      { role: "user" as const, content: "hi" },
+      { role: "assistant" as const, content: [
+        { type: "tool_use", id: "tu-A", name: "read_file", input: {} },
+      ]},
+      { role: "user" as const, content: [
+        { type: "tool_result", tool_use_id: "tu-B", content: "data" },
+      ]},
+      { role: "assistant" as const, content: "reply" },
+    ];
+    const result = sanitizeMessages(messages as any);
+    expect(result).toEqual([
+      { role: "user", content: "hi" },
+      { role: "assistant", content: "reply" },
+    ]);
+  });
+
+  it("drops pair where tool_result has extra IDs (parallel mismatch)", () => {
+    const messages = [
+      { role: "user" as const, content: "hi" },
+      { role: "assistant" as const, content: [
+        { type: "tool_use", id: "tu-A", name: "read_file", input: {} },
+      ]},
+      { role: "user" as const, content: [
+        { type: "tool_result", tool_use_id: "tu-A", content: "data" },
+        { type: "tool_result", tool_use_id: "tu-B", content: "extra" },
+      ]},
+      { role: "assistant" as const, content: "reply" },
+    ];
+    const result = sanitizeMessages(messages as any);
+    expect(result).toEqual([
+      { role: "user", content: "hi" },
+      { role: "assistant", content: "reply" },
+    ]);
+  });
+
+  it("drops pair where tool_result is missing one ID", () => {
+    const messages = [
+      { role: "user" as const, content: "hi" },
+      { role: "assistant" as const, content: [
+        { type: "tool_use", id: "tu-A", name: "read_file", input: {} },
+        { type: "tool_use", id: "tu-B", name: "get_state", input: {} },
+      ]},
+      { role: "user" as const, content: [
+        { type: "tool_result", tool_use_id: "tu-A", content: "data" },
+      ]},
+      { role: "assistant" as const, content: "reply" },
+    ];
+    const result = sanitizeMessages(messages as any);
+    expect(result).toEqual([
+      { role: "user", content: "hi" },
+      { role: "assistant", content: "reply" },
+    ]);
+  });
+
+  it("merges consecutive same-role messages after dropping tool pair", () => {
+    const messages = [
+      { role: "user" as const, content: "msg1" },
+      { role: "assistant" as const, content: "ok" },
+      { role: "user" as const, content: "msg2" },
+      { role: "assistant" as const, content: [
+        { type: "tool_use", id: "tu-X", name: "read_file", input: {} },
+      ]},
+      { role: "user" as const, content: [
+        { type: "tool_result", tool_use_id: "tu-Y", content: "wrong" },
+      ]},
+      { role: "user" as const, content: "msg3" },
+      { role: "assistant" as const, content: "final" },
+    ];
+    const result = sanitizeMessages(messages as any);
+    expect(result).toEqual([
+      { role: "user", content: "msg1" },
+      { role: "assistant", content: "ok" },
+      { role: "user", content: "msg2\n\nmsg3" },
+      { role: "assistant", content: "final" },
+    ]);
+  });
+
+  it("handles empty messages array", () => {
+    expect(sanitizeMessages([])).toEqual([]);
+  });
+
+  it("keeps valid parallel tool calls with matching IDs", () => {
+    const messages = [
+      { role: "user" as const, content: "do both" },
+      { role: "assistant" as const, content: [
+        { type: "tool_use", id: "tu-1", name: "read_file", input: {} },
+        { type: "tool_use", id: "tu-2", name: "get_state", input: {} },
+      ]},
+      { role: "user" as const, content: [
+        { type: "tool_result", tool_use_id: "tu-1", content: "file" },
+        { type: "tool_result", tool_use_id: "tu-2", content: "state" },
+      ]},
+      { role: "assistant" as const, content: "done" },
+    ];
+    expect(sanitizeMessages(messages as any)).toEqual(messages);
   });
 });
