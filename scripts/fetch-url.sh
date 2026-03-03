@@ -19,10 +19,11 @@ fi
 if [ "$RAW" = "true" ]; then
   curl -sL --max-time 15 --max-filesize 1048576 "$URL"
 else
+  # Pipe through sed and head. SIGPIPE (141) from head closing early is normal.
   curl -sL --max-time 15 --max-filesize 1048576 "$URL" \
     | sed 's/<script[^>]*>.*<\/script>//g' \
     | sed 's/<style[^>]*>.*<\/style>//g' \
     | sed 's/<[^>]*>//g' \
     | sed '/^[[:space:]]*$/d' \
-    | head -500
+    | head -500 || true
 fi

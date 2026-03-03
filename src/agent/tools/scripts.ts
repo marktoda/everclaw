@@ -19,12 +19,16 @@ export const scriptTools: ToolHandler[] = [
       const script = scripts.find((s) => s.name === name);
       if (!script)
         return `Tool "${name}" not found. Available: ${scripts.map((s) => s.name).join(", ")}`;
-      return await runScript(
-        script.path,
-        JSON.stringify(scriptInput ?? {}),
-        deps.scriptTimeout,
-        deps.scriptEnv,
-      );
+      try {
+        return await runScript(
+          script.path,
+          JSON.stringify(scriptInput ?? {}),
+          deps.scriptTimeout,
+          deps.scriptEnv,
+        );
+      } catch (err) {
+        return `Script error: ${err instanceof Error ? err.message : String(err)}`;
+      }
     },
   },
 ];
