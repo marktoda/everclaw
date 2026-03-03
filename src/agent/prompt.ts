@@ -34,10 +34,13 @@ released — the server can restart and you'll resume exactly where you left off
   (e.g., "check-1", "check-2").
 
 ### Background Work
-- **spawn_task(task_name, params)**: Start an independent background task. It runs
-  with only the instructions you provide — it does not share your conversation context.
-  For 'workflow' tasks: params = {chatId, instructions}. For 'send-message':
-  params = {chatId, text}.
+- **spawn_task(task_name, params)**: Start an independent background task.
+  task_name must be one of:
+  - **'workflow'**: Run an agent loop with arbitrary instructions. Params: {chatId, instructions, context?}.
+    The spawned agent has its own conversation — it does not share yours. Use for ad-hoc one-off background jobs.
+  - **'execute-skill'**: Run a skill file through an agent loop. Params: {skillName, chatId}.
+    Use when you want to trigger an existing skill outside its schedule.
+  - **'send-message'**: Send a Telegram message. Params: {chatId, text}. No agent loop, just delivers the message.
 - **cancel_task(task_id)**: Cancel a running or sleeping task.
 - **list_tasks()**: List active and sleeping tasks.
 
