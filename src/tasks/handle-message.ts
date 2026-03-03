@@ -30,6 +30,7 @@ export function registerHandleMessage(absurd: Absurd, deps: TaskDeps): void {
         toolsDir: deps.config.toolsDir,
         scriptTimeout: deps.config.scriptTimeout,
         startedAt: deps.startedAt,
+        searchApiKey: deps.config.braveSearchApiKey,
       });
 
       const reply = await runAgentLoop(ctx, params.chatId, params.text, {

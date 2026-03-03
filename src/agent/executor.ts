@@ -19,6 +19,7 @@ export interface ExecutorDeps {
   toolsDir: string;
   scriptTimeout: number;
   startedAt: Date;
+  searchApiKey?: string;
 }
 
 /** Check that a resolved path stays within a base directory. */
@@ -190,6 +191,29 @@ export function createExecutor(deps: ExecutorDeps) {
           `- ${r.task_name} (${r.task_id.slice(0, 8)}...) state=${r.run_state}` +
           (r.available_at ? ` wakes=${new Date(r.available_at).toISOString()}` : "")
         ).join("\n");
+      }
+
+      // --- Web Tools ---
+      case "web_search": {
+        if (!deps.searchApiKey) return "Error: web search not configured (BRAVE_SEARCH_API_KEY not set)";
+        const q = (input.query as string).trim();
+        if (!q) return "Error: query is required";
+        const count = Math.min(input.count ?? 5, 20);
+        const url = `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(q)}&count=${count}`;
+        const resp = await fetch(url, {
+          headers: {
+            "Accept": "application/json",
+            "X-Subscription-Token": deps.searchApiKey,
+          },
+          signal: AbortSignal.timeout(15000),
+        });
+        if (!resp.ok) return `Error: search API returned ${resp.status}`;
+        const data = await resp.json() as any;
+        const results = data.web?.results ?? [];
+        if (results.length === 0) return "No results found.";
+        return results.map((r: any) =>
+          `**${r.title}**\n${r.url}\n${r.description ?? ""}`
+        ).join("\n\n");
       }
 
       default:

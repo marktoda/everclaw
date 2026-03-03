@@ -19,6 +19,7 @@ export function registerWorkflow(absurd: Absurd, deps: TaskDeps): void {
         toolsDir: deps.config.toolsDir,
         scriptTimeout: deps.config.scriptTimeout,
         startedAt: deps.startedAt,
+        searchApiKey: deps.config.braveSearchApiKey,
       });
 
       const contextPrefix = params.context
