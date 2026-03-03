@@ -335,6 +335,83 @@ describe("sanitizeMessages", () => {
     expect(result[1].content).toBe("part one\n\npart two");
   });
 
+  it("drops tool_use at the very end with no following message", () => {
+    const messages = [
+      { role: "user" as const, content: "hi" },
+      {
+        role: "assistant" as const,
+        content: [{ type: "tool_use", id: "tu-1", name: "read_file", input: {} }],
+      },
+    ];
+    const result = sanitizeMessages(messages as any);
+    // tool_use dropped, only user message remains
+    expect(result).toEqual([{ role: "user", content: "hi" }]);
+  });
+
+  it("merges three consecutive same-role messages after multiple drops", () => {
+    const messages = [
+      { role: "user" as const, content: "msg1" },
+      {
+        role: "assistant" as const,
+        content: [{ type: "tool_use", id: "tu-A", name: "read_file", input: {} }],
+      },
+      {
+        role: "user" as const,
+        content: [{ type: "tool_result", tool_use_id: "tu-X", content: "wrong" }],
+      },
+      { role: "user" as const, content: "msg2" },
+      {
+        role: "assistant" as const,
+        content: [{ type: "tool_use", id: "tu-B", name: "get_state", input: {} }],
+      },
+      {
+        role: "user" as const,
+        content: [{ type: "tool_result", tool_use_id: "tu-Y", content: "wrong" }],
+      },
+      { role: "user" as const, content: "msg3" },
+      { role: "assistant" as const, content: "final" },
+    ];
+    const result = sanitizeMessages(messages as any);
+    expect(result).toEqual([
+      { role: "user", content: "msg1\n\nmsg2\n\nmsg3" },
+      { role: "assistant", content: "final" },
+    ]);
+  });
+
+  it("drops assistant text+tool_use when tool_result is missing", () => {
+    // Assistant message has both text and tool_use, but no valid tool_result follows.
+    // The entire assistant message (including text) gets dropped.
+    const messages = [
+      { role: "user" as const, content: "hi" },
+      {
+        role: "assistant" as const,
+        content: [
+          { type: "text", text: "Let me check..." },
+          { type: "tool_use", id: "tu-1", name: "get_state", input: {} },
+        ],
+      },
+      { role: "user" as const, content: "never mind" },
+      { role: "assistant" as const, content: "ok" },
+    ];
+    const result = sanitizeMessages(messages as any);
+    expect(result).toEqual([
+      { role: "user", content: "hi\n\nnever mind" },
+      { role: "assistant", content: "ok" },
+    ]);
+  });
+
+  it("returns single message when everything else is dropped", () => {
+    const messages = [
+      {
+        role: "user" as const,
+        content: [{ type: "tool_result", tool_use_id: "tu-orphan", content: "stale" }],
+      },
+      { role: "user" as const, content: "only survivor" },
+    ];
+    const result = sanitizeMessages(messages as any);
+    expect(result).toEqual([{ role: "user", content: "only survivor" }]);
+  });
+
   it("handles empty messages array", () => {
     expect(sanitizeMessages([])).toEqual([]);
   });
