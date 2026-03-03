@@ -1,9 +1,14 @@
 {
   "name": "everclaw",
   "version": "0.0.1",
+  "description": "AI personal assistant built on durable task queues. Communicates via Telegram, reasons with Claude, and extends itself through skills and tool scripts.",
   "type": "module",
-  "private": true,
+  "license": "MIT",
+  "author": "Mark Toda",
   "packageManager": "pnpm@10.6.2",
+  "engines": {
+    "node": ">=22.18.0"
+  },
   "scripts": {
     "build": "tsc --noEmit",
     "dev": "node src/index.ts | pino-pretty",
