@@ -186,7 +186,7 @@ describe("handle-message", () => {
       dirs: {
         notes: deps.config.notesDir,
         skills: deps.config.skillsDir,
-        tools: deps.config.toolsDir,
+        scripts: deps.config.toolsDir,
       },
       maxHistory: deps.config.maxHistoryMessages,
       registry: mockRegistry,

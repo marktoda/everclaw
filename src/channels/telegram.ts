@@ -22,7 +22,7 @@ export class TelegramAdapter implements ChannelAdapter {
   }
 
   async sendMessage(recipientId: string, text: string): Promise<void> {
-    const chatId = Number(recipientId.replace("telegram:", ""));
+    const chatId = Number(recipientId.slice(this.name.length + 1));
     for (const chunk of splitMessage(text, this.maxMessageLength)) {
       await this.bot.api.sendMessage(chatId, chunk);
     }

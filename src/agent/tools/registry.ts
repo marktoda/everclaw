@@ -19,22 +19,19 @@ const allHandlers: ToolHandler[] = [
   ...searchTools,
 ];
 
-export function createToolRegistry(deps: ExecutorDeps): ToolRegistry {
-  const map = new Map<string, ToolHandler>();
-  for (const handler of allHandlers) {
-    map.set(handler.def.name, handler);
-  }
+const handlerMap = new Map(allHandlers.map((h) => [h.def.name, h]));
+const definitions: ToolDef[] = allHandlers.map((h) => h.def);
 
+export function createToolRegistry(deps: ExecutorDeps): ToolRegistry {
   return {
-    definitions: allHandlers.map((h) => h.def),
+    definitions,
     async execute(name: string, input: Record<string, any>): Promise<string> {
-      const handler = map.get(name);
+      const handler = handlerMap.get(name);
       if (!handler) return `Unknown tool: ${name}`;
       return handler.execute(input, deps);
     },
     isSuspending(name: string): boolean {
-      const handler = map.get(name);
-      return handler?.suspends ?? false;
+      return handlerMap.get(name)?.suspends ?? false;
     },
   };
 }

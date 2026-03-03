@@ -9,6 +9,9 @@ import type { ChannelRegistry } from "../channels/index.ts";
 import type { Config } from "../config.ts";
 import type { Logger } from "../logger.ts";
 
+/** Shorter history window for background tasks (skills, workflows). */
+export const BACKGROUND_MAX_HISTORY = 10;
+
 export interface TaskDeps {
   anthropic: Anthropic;
   pool: Pool;
@@ -50,7 +53,7 @@ export function buildAgentDeps(
     dirs: {
       notes: deps.config.notesDir,
       skills: deps.config.skillsDir,
-      tools: deps.config.toolsDir,
+      scripts: deps.config.toolsDir,
     },
     maxHistory: opts?.maxHistory ?? deps.config.maxHistoryMessages,
     registry,
@@ -58,7 +61,9 @@ export function buildAgentDeps(
     onText: opts?.silent
       ? undefined
       : (text) => {
-          deps.channels.sendMessage(recipientId, text).catch(() => {});
+          deps.channels.sendMessage(recipientId, text).catch((err) => {
+            log?.warn({ err, recipientId }, "failed to send message");
+          });
         },
   };
 }

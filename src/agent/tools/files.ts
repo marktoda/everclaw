@@ -100,12 +100,10 @@ export const fileTools: ToolHandler[] = [
     ),
     async execute(input, deps) {
       const { directory } = input as { directory: string };
-      const dir = directory.replace(/^\.?\//, "");
-      let absDir: string;
-      if (dir === "data/notes" || dir === "data/notes/") absDir = deps.notesDir;
-      else if (dir === "skills" || dir === "skills/") absDir = deps.skillsDir;
-      else if (dir === "scripts" || dir === "scripts/") absDir = deps.toolsDir;
-      else return `Error: directory must be data/notes, skills, or scripts`;
+      const dir = directory.replace(/^\.?\//, "").replace(/\/$/, "");
+      const mapping = DIR_MAPPINGS.find((m) => m.prefix.replace(/\/$/, "") === dir);
+      if (!mapping) return `Error: directory must be data/notes, skills, or scripts`;
+      const absDir = deps[mapping.dirKey];
       try {
         const entries = await fs.readdir(absDir);
         if (entries.length === 0) return "(empty directory)";

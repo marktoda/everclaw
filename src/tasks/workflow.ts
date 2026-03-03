@@ -1,5 +1,6 @@
 import type { Absurd, TaskContext } from "absurd-sdk";
 import { runAgentLoop } from "../agent/loop.ts";
+import { BACKGROUND_MAX_HISTORY } from "./shared.ts";
 import type { TaskDeps } from "./shared.ts";
 import { buildAgentDeps } from "./shared.ts";
 
@@ -13,7 +14,7 @@ export function registerWorkflow(absurd: Absurd, deps: TaskDeps): void {
       const contextPrefix = params.context ? `Context: ${JSON.stringify(params.context)}\n\n` : "";
 
       const agentDeps = buildAgentDeps(deps, absurd, ctx, params.recipientId, {
-        maxHistory: 10,
+        maxHistory: BACKGROUND_MAX_HISTORY,
         taskName: "workflow",
       });
 

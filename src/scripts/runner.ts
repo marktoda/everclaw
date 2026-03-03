@@ -35,9 +35,12 @@ export function runScript(
   });
 }
 
-export async function listScripts(
-  scriptsDir: string,
-): Promise<Array<{ name: string; path: string }>> {
+export interface ScriptEntry {
+  name: string;
+  path: string;
+}
+
+export async function listScripts(scriptsDir: string): Promise<ScriptEntry[]> {
   let entries: string[];
   try {
     entries = await fs.readdir(scriptsDir);
@@ -45,7 +48,7 @@ export async function listScripts(
     return [];
   }
 
-  const scripts: Array<{ name: string; path: string }> = [];
+  const scripts: ScriptEntry[] = [];
   for (const entry of entries) {
     const ext = path.extname(entry);
     if (!SCRIPT_EXTENSIONS.has(ext)) continue;
