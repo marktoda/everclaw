@@ -150,20 +150,20 @@ describe("contract tests — API-valid message arrays", () => {
   // 7. Reconstructed history with tool_use/tool_result is API-valid
   it("reconstructed history with tool_use/tool_result is API-valid", async () => {
     vi.mocked(getRecentMessages).mockResolvedValueOnce([
-      { chatId: 1, role: "user", content: "remind me" },
+      { recipientId: "telegram:1", role: "user", content: "remind me" },
       {
-        chatId: 1,
+        recipientId: "telegram:1",
         role: "assistant",
         content: "(tool use only)",
         toolUse: [{ id: "tu-hist-1", name: "set_state", input: { namespace: "n", key: "k", value: "v" } }],
       },
       {
-        chatId: 1,
+        recipientId: "telegram:1",
         role: "tool",
         content: "[tu-hist-1]: OK",
         toolUse: [{ tool_use_id: "tu-hist-1", content: "OK" }],
       },
-      { chatId: 1, role: "assistant", content: "Done setting state." },
+      { recipientId: "telegram:1", role: "assistant", content: "Done setting state." },
     ] as any);
 
     const fake = new FakeAnthropic(SIMPLE_TEXT_REPLY);
@@ -182,13 +182,13 @@ describe("contract tests — API-valid message arrays", () => {
     // begins with a user message so the API contract is satisfied.
     vi.mocked(getRecentMessages).mockResolvedValueOnce([
       {
-        chatId: 1,
+        recipientId: "telegram:1",
         role: "tool",
         content: "[tu-orphan]: some result",
         toolUse: [{ tool_use_id: "tu-orphan", content: "some result" }],
       },
-      { chatId: 1, role: "user", content: "thanks" },
-      { chatId: 1, role: "assistant", content: "You're welcome!" },
+      { recipientId: "telegram:1", role: "user", content: "thanks" },
+      { recipientId: "telegram:1", role: "assistant", content: "You're welcome!" },
     ] as any);
 
     const fake = new FakeAnthropic(SIMPLE_TEXT_REPLY);
@@ -207,23 +207,23 @@ describe("contract tests — API-valid message arrays", () => {
     // Simulates concurrent persists interleaving messages — tool_result
     // references an ID not in the preceding assistant tool_use.
     vi.mocked(getRecentMessages).mockResolvedValueOnce([
-      { chatId: 1, role: "user", content: "first" },
-      { chatId: 1, role: "assistant", content: "ack" },
-      { chatId: 1, role: "user", content: "second" },
+      { recipientId: "telegram:1", role: "user", content: "first" },
+      { recipientId: "telegram:1", role: "assistant", content: "ack" },
+      { recipientId: "telegram:1", role: "user", content: "second" },
       {
-        chatId: 1,
+        recipientId: "telegram:1",
         role: "assistant",
         content: "(tool use only)",
         toolUse: [{ id: "tu-A", name: "read_file", input: { path: "x" } }],
       },
       {
-        chatId: 1,
+        recipientId: "telegram:1",
         role: "tool",
         content: "[tu-B]: wrong-result",
         toolUse: [{ tool_use_id: "tu-B", content: "wrong-result" }],
       },
-      { chatId: 1, role: "user", content: "third" },
-      { chatId: 1, role: "assistant", content: "final" },
+      { recipientId: "telegram:1", role: "user", content: "third" },
+      { recipientId: "telegram:1", role: "assistant", content: "final" },
     ] as any);
 
     const fake = new FakeAnthropic(SIMPLE_TEXT_REPLY);
