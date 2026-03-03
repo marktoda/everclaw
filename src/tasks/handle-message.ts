@@ -8,15 +8,15 @@ export function registerHandleMessage(absurd: Absurd, deps: TaskDeps): void {
   absurd.registerTask(
     { name: "handle-message" },
     async (params: { chatId: number; text: string }, ctx: TaskContext) => {
-      const log = deps.log?.child({ task: "handle-message", chatId: params.chatId });
-      log?.info({ textLength: params.text.length }, "message received");
+      const agentDeps = buildAgentDeps(deps, absurd, ctx, params.chatId, {
+        taskName: "handle-message",
+      });
 
-      const agentDeps = buildAgentDeps(deps, absurd, ctx, params.chatId);
-      agentDeps.log = log;
+      agentDeps.log?.info({ textLength: params.text.length }, "message received");
 
       const reply = await runAgentLoop(ctx, params.chatId, params.text, agentDeps);
 
-      log?.info({ replyLength: reply.length }, "message complete");
+      agentDeps.log?.info({ replyLength: reply.length }, "message complete");
       return { reply };
     },
   );
