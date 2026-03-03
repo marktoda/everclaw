@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildSystemPrompt } from "./prompt.js";
+import { buildSystemPrompt } from "./prompt.ts";
 
 describe("buildSystemPrompt", () => {
   it("includes base instructions", () => {

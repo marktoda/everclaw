@@ -2,15 +2,15 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // ---- Mocks ----
 
-vi.mock("../agent/loop.js", () => ({
+vi.mock("../agent/loop.ts", () => ({
   runAgentLoop: vi.fn().mockResolvedValue("agent-reply"),
 }));
 
-vi.mock("../agent/executor.js", () => ({
+vi.mock("../agent/executor.ts", () => ({
   createExecutor: vi.fn().mockReturnValue(vi.fn()),
 }));
 
-vi.mock("../agent/tools.js", () => ({
+vi.mock("../agent/tools.ts", () => ({
   getTools: vi.fn().mockReturnValue([{ name: "mock_tool" }]),
 }));
 
@@ -18,14 +18,14 @@ vi.mock("fs/promises", () => ({
   readFile: vi.fn().mockResolvedValue("skill file content"),
 }));
 
-import { runAgentLoop } from "../agent/loop.js";
-import { createExecutor } from "../agent/executor.js";
-import { getTools } from "../agent/tools.js";
+import { runAgentLoop } from "../agent/loop.ts";
+import { createExecutor } from "../agent/executor.ts";
+import { getTools } from "../agent/tools.ts";
 import { readFile } from "fs/promises";
-import { registerSendMessage } from "./send-message.js";
-import { registerHandleMessage } from "./handle-message.js";
-import { registerExecuteSkill } from "./execute-skill.js";
-import { registerWorkflow } from "./workflow.js";
+import { registerSendMessage } from "./send-message.ts";
+import { registerHandleMessage } from "./handle-message.ts";
+import { registerExecuteSkill } from "./execute-skill.ts";
+import { registerWorkflow } from "./workflow.ts";
 
 // ---- Helpers ----
 

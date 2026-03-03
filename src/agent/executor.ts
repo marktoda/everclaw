@@ -2,9 +2,9 @@
 import type { Absurd, TaskContext } from "absurd-sdk";
 import { TimeoutError } from "absurd-sdk";
 import type { Pool } from "pg";
-import { getState, setState } from "../memory/state.js";
-import { listSkills, syncSchedules } from "../skills/manager.js";
-import { runScript, listTools } from "../scripts/runner.js";
+import { getState, setState } from "../memory/state.ts";
+import { listSkills, syncSchedules } from "../skills/manager.ts";
+import { runScript, listTools } from "../scripts/runner.ts";
 import * as fs from "fs/promises";
 import * as path from "path";
 

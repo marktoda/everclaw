@@ -1,6 +1,6 @@
 // src/agent/output.test.ts
 import { describe, it, expect } from "vitest";
-import { stripInternalTags } from "./output.js";
+import { stripInternalTags } from "./output.ts";
 
 describe("stripInternalTags", () => {
   it("removes internal tags", () => {

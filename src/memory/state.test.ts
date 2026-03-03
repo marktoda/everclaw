@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { getState, setState, deleteState, listState } from "./state.js";
+import { getState, setState, deleteState, listState } from "./state.ts";
 import type { Pool } from "pg";
 
 function createMockPool(rows: any[] = []) {

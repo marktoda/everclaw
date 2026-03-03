@@ -2,10 +2,10 @@ import type { Absurd, TaskContext } from "absurd-sdk";
 import type Anthropic from "@anthropic-ai/sdk";
 import type { Pool } from "pg";
 import type { Bot } from "grammy";
-import { runAgentLoop } from "../agent/loop.js";
-import { getTools } from "../agent/tools.js";
-import { createExecutor } from "../agent/executor.js";
-import type { Config } from "../config.js";
+import { runAgentLoop } from "../agent/loop.ts";
+import { getTools } from "../agent/tools.ts";
+import { createExecutor } from "../agent/executor.ts";
+import type { Config } from "../config.ts";
 
 export interface TaskDeps {
   anthropic: Anthropic;

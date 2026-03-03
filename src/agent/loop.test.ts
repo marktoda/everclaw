@@ -3,24 +3,24 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { TaskContext } from "absurd-sdk";
 import type { Pool } from "pg";
 import type Anthropic from "@anthropic-ai/sdk";
-import type { AgentDeps } from "./loop.js";
+import type { AgentDeps } from "./loop.ts";
 
 // ── Mocks ──────────────────────────────────────────────────────────────
 
-vi.mock("../memory/history.js", () => ({
+vi.mock("../memory/history.ts", () => ({
   getRecentMessages: vi.fn().mockResolvedValue([]),
   appendMessage: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock("../skills/manager.js", () => ({
+vi.mock("../skills/manager.ts", () => ({
   listSkills: vi.fn().mockResolvedValue([]),
 }));
 
-vi.mock("../scripts/runner.js", () => ({
+vi.mock("../scripts/runner.ts", () => ({
   listTools: vi.fn().mockResolvedValue([]),
 }));
 
-vi.mock("./prompt.js", () => ({
+vi.mock("./prompt.ts", () => ({
   buildSystemPrompt: vi.fn().mockReturnValue("system-prompt"),
 }));
 
@@ -31,15 +31,15 @@ vi.mock("fs/promises", () => ({
 
 // ── Imports (after mocks are declared) ─────────────────────────────────
 
-import { runAgentLoop } from "./loop.js";
-import { getRecentMessages, appendMessage } from "../memory/history.js";
-import { buildSystemPrompt } from "./prompt.js";
+import { runAgentLoop } from "./loop.ts";
+import { getRecentMessages, appendMessage } from "../memory/history.ts";
+import { buildSystemPrompt } from "./prompt.ts";
 
 // ── Helpers ────────────────────────────────────────────────────────────
 
 /** Create a text content block matching the Anthropic API shape. */
 function textBlock(text: string): Anthropic.TextBlock {
-  return { type: "text", text };
+  return { type: "text", text, citations: null };
 }
 
 /** Create a tool_use content block matching the Anthropic API shape. */

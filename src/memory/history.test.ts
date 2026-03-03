@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { appendMessage, getRecentMessages } from "./history.js";
+import { appendMessage, getRecentMessages } from "./history.ts";
 import type { Pool } from "pg";
 
 function createMockPool(rows: any[] = []) {

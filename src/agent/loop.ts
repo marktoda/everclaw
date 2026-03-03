@@ -1,13 +1,13 @@
 // src/agent/loop.ts
-import Anthropic from "@anthropic-ai/sdk";
+import type Anthropic from "@anthropic-ai/sdk";
 import type { TaskContext } from "absurd-sdk";
 import type { Pool } from "pg";
-import type { ToolDef } from "./tools.js";
-import { getRecentMessages, appendMessage } from "../memory/history.js";
-import { listSkills } from "../skills/manager.js";
-import { listTools } from "../scripts/runner.js";
-import { buildSystemPrompt } from "./prompt.js";
-import { stripInternalTags } from "./output.js";
+import type { ToolDef } from "./tools.ts";
+import { getRecentMessages, appendMessage } from "../memory/history.ts";
+import { listSkills } from "../skills/manager.ts";
+import { listTools } from "../scripts/runner.ts";
+import { buildSystemPrompt } from "./prompt.ts";
+import { stripInternalTags } from "./output.ts";
 import * as fs from "fs/promises";
 import * as path from "path";
 

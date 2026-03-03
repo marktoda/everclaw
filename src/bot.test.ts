@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Absurd } from "absurd-sdk";
-import { createBot } from "./bot.js";
+import { createBot } from "./bot.ts";
 
 // ---------------------------------------------------------------------------
 // Mock grammy so we never hit the Telegram API.  We capture the handler

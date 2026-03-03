@@ -1,8 +1,8 @@
 import type { Absurd, TaskContext } from "absurd-sdk";
-import { runAgentLoop } from "../agent/loop.js";
-import { getTools } from "../agent/tools.js";
-import { createExecutor } from "../agent/executor.js";
-import type { TaskDeps } from "./handle-message.js";
+import { runAgentLoop } from "../agent/loop.ts";
+import { getTools } from "../agent/tools.ts";
+import { createExecutor } from "../agent/executor.ts";
+import type { TaskDeps } from "./handle-message.ts";
 import * as fs from "fs/promises";
 import * as path from "path";
 

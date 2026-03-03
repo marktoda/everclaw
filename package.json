@@ -5,8 +5,8 @@
   "private": true,
   "packageManager": "pnpm@10.6.2",
   "scripts": {
-    "build": "tsc",
-    "dev": "node --experimental-strip-types src/index.ts",
+    "build": "tsc --noEmit",
+    "dev": "node src/index.ts",
     "test": "vitest --run"
   },
   "dependencies": {
