@@ -1,10 +1,9 @@
 import type { Absurd, TaskContext } from "absurd-sdk";
 import { runAgentLoop } from "../agent/loop.ts";
-import { createToolRegistry } from "../agent/tools/index.ts";
-import type { TaskDeps } from "./handle-message.ts";
+import { buildAgentDeps } from "./shared.ts";
+import type { TaskDeps } from "./shared.ts";
 import * as fs from "fs/promises";
 import * as path from "path";
-
 
 export function registerExecuteSkill(absurd: Absurd, deps: TaskDeps): void {
   absurd.registerTask(
@@ -21,38 +20,13 @@ export function registerExecuteSkill(absurd: Absurd, deps: TaskDeps): void {
         return await fs.readFile(abs, "utf-8");
       });
 
-      const registry = createToolRegistry({
-        absurd,
-        pool: deps.pool,
-        ctx,
-        queueName: deps.config.queueName,
-        chatId: params.chatId,
-        notesDir: deps.config.notesDir,
-        skillsDir: deps.config.skillsDir,
-        toolsDir: deps.config.toolsDir,
-        scriptTimeout: deps.config.scriptTimeout,
-        startedAt: deps.startedAt,
-        searchApiKey: deps.config.braveSearchApiKey,
-      });
+      const agentDeps = buildAgentDeps(deps, absurd, ctx, params.chatId, { maxHistory: 10 });
+      agentDeps.log = log;
 
       const reply = await runAgentLoop(
-        ctx,
-        params.chatId,
+        ctx, params.chatId,
         `Execute the following skill instructions:\n\n${skillContent}`,
-        {
-          anthropic: deps.anthropic,
-          pool: deps.pool,
-          model: deps.config.model,
-          notesDir: deps.config.notesDir,
-          skillsDir: deps.config.skillsDir,
-          toolsDir: deps.config.toolsDir,
-          maxHistory: 10,
-          registry,
-          log,
-          onText: (text) => {
-            deps.bot.api.sendMessage(params.chatId, text).catch(() => {});
-          },
-        },
+        agentDeps,
       );
 
       log?.info("skill execution complete");
