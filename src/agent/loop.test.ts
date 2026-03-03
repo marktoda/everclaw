@@ -335,8 +335,8 @@ describe("runAgentLoop", () => {
 
         await runAgentLoop(ctx, 1, "suspend", deps);
 
-        // ctx.step should have been called for load-context, agent-turn-0,
-        // agent-turn-1, and persist. But NOT for a tool-* step for suspending tools.
+        // ctx.step should have been called for load-context, agent-turn-*,
+        // send-text-*, and persist. But NOT for a tool-* step for suspending tools.
         const stepNames = ctx.step.mock.calls.map((c: any[]) => c[0] as string);
         const toolSteps = stepNames.filter((n: string) => n.startsWith("tool-"));
         expect(toolSteps).toHaveLength(0);
@@ -499,6 +499,30 @@ describe("runAgentLoop", () => {
       expect(onText).toHaveBeenCalledTimes(2);
       expect(onText).toHaveBeenNthCalledWith(1, "first");
       expect(onText).toHaveBeenNthCalledWith(2, "second");
+    });
+
+    it("wraps onText in ctx.step to prevent re-sends on resume after suspend", async () => {
+      const onText = vi.fn();
+      const tb = toolUseBlock("sleep_for", { step_name: "s1", seconds: 5 }, "sus-1");
+      const anthropic = createMockAnthropic([
+        apiResponse([textBlock("Starting countdown..."), tb], "tool_use"),
+        apiResponse([textBlock("Done!")]),
+      ]);
+      const executeTool = vi.fn().mockResolvedValue("resumed");
+      const deps = baseDeps({ anthropic, onText, executeTool });
+      const ctx = createMockCtx();
+
+      await runAgentLoop(ctx, 1, "count", deps);
+
+      // onText should be wrapped in send-text-* steps
+      const stepNames = ctx.step.mock.calls.map((c: any[]) => c[0] as string);
+      expect(stepNames).toContain("send-text-0");
+      expect(stepNames).toContain("send-text-1");
+
+      // onText should still be called (the step executes on first run)
+      expect(onText).toHaveBeenCalledTimes(2);
+      expect(onText).toHaveBeenNthCalledWith(1, "Starting countdown...");
+      expect(onText).toHaveBeenNthCalledWith(2, "Done!");
     });
 
     it("does not error if onText is not provided", async () => {
