@@ -18,8 +18,7 @@ import {
 import type { Scenario } from "../test/fake-anthropic.ts";
 import { runAgentLoop } from "./loop.ts";
 import type { AgentDeps } from "./loop.ts";
-import { createExecutor } from "./executor.ts";
-import { getTools } from "./tools.ts";
+import { createToolRegistry } from "./tools/index.ts";
 import { getRecentMessages } from "../memory/history.ts";
 
 let db: TestDb;
@@ -67,7 +66,7 @@ function makeCtx(): any {
 /** Build real AgentDeps wired to real Postgres, real executor, and FakeAnthropic. */
 function buildDeps(fake: FakeAnthropic, chatId: number): AgentDeps {
   const ctx = makeCtx();
-  const executor = createExecutor({
+  const registry = createToolRegistry({
     absurd: db.absurd,
     pool: db.pool,
     ctx,
@@ -88,8 +87,9 @@ function buildDeps(fake: FakeAnthropic, chatId: number): AgentDeps {
     skillsDir,
     toolsDir,
     maxHistory: 50,
-    tools: getTools(),
-    executeTool: executor,
+    tools: registry.definitions,
+    executeTool: registry.execute,
+    isSuspending: registry.isSuspending,
   };
 }
 

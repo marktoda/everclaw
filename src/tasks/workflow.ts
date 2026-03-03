@@ -1,7 +1,6 @@
 import type { Absurd, TaskContext } from "absurd-sdk";
 import { runAgentLoop } from "../agent/loop.ts";
-import { getTools } from "../agent/tools.ts";
-import { createExecutor } from "../agent/executor.ts";
+import { createToolRegistry } from "../agent/tools/index.ts";
 import type { TaskDeps } from "./handle-message.ts";
 
 
@@ -12,7 +11,7 @@ export function registerWorkflow(absurd: Absurd, deps: TaskDeps): void {
       const log = deps.log?.child({ task: "workflow", chatId: params.chatId });
       log?.info("workflow started");
 
-      const executeTool = createExecutor({
+      const registry = createToolRegistry({
         absurd,
         pool: deps.pool,
         ctx,
@@ -42,8 +41,9 @@ export function registerWorkflow(absurd: Absurd, deps: TaskDeps): void {
           skillsDir: deps.config.skillsDir,
           toolsDir: deps.config.toolsDir,
           maxHistory: 10,
-          tools: getTools(),
-          executeTool,
+          tools: registry.definitions,
+          executeTool: registry.execute,
+          isSuspending: registry.isSuspending,
           log,
           onText: (text) => {
             deps.bot.api.sendMessage(params.chatId, text).catch(() => {});

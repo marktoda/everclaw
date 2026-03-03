@@ -3,8 +3,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 import type { Pool } from "pg";
 import type { Bot } from "grammy";
 import { runAgentLoop } from "../agent/loop.ts";
-import { getTools } from "../agent/tools.ts";
-import { createExecutor } from "../agent/executor.ts";
+import { createToolRegistry } from "../agent/tools/index.ts";
 import type { Config } from "../config.ts";
 import type { Logger } from "../logger.ts";
 
@@ -24,7 +23,7 @@ export function registerHandleMessage(absurd: Absurd, deps: TaskDeps): void {
       const log = deps.log?.child({ task: "handle-message", chatId: params.chatId });
       log?.info({ textLength: params.text.length }, "message received");
 
-      const executeTool = createExecutor({
+      const registry = createToolRegistry({
         absurd,
         pool: deps.pool,
         ctx,
@@ -46,8 +45,9 @@ export function registerHandleMessage(absurd: Absurd, deps: TaskDeps): void {
         skillsDir: deps.config.skillsDir,
         toolsDir: deps.config.toolsDir,
         maxHistory: deps.config.maxHistoryMessages,
-        tools: getTools(),
-        executeTool,
+        tools: registry.definitions,
+        executeTool: registry.execute,
+        isSuspending: registry.isSuspending,
         log,
         onText: (text) => {
           deps.bot.api.sendMessage(params.chatId, text).catch(() => {});

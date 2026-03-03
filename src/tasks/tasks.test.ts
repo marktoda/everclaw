@@ -6,12 +6,17 @@ vi.mock("../agent/loop.ts", () => ({
   runAgentLoop: vi.fn().mockResolvedValue("agent-reply"),
 }));
 
-vi.mock("../agent/executor.ts", () => ({
-  createExecutor: vi.fn().mockReturnValue(vi.fn()),
-}));
+const { mockRegistry } = vi.hoisted(() => {
+  const mockRegistry = {
+    definitions: [{ name: "mock_tool" }],
+    execute: vi.fn(),
+    isSuspending: vi.fn().mockReturnValue(false),
+  };
+  return { mockRegistry };
+});
 
-vi.mock("../agent/tools.ts", () => ({
-  getTools: vi.fn().mockReturnValue([{ name: "mock_tool" }]),
+vi.mock("../agent/tools/index.ts", () => ({
+  createToolRegistry: vi.fn().mockReturnValue(mockRegistry),
 }));
 
 vi.mock("fs/promises", () => ({
@@ -19,8 +24,7 @@ vi.mock("fs/promises", () => ({
 }));
 
 import { runAgentLoop } from "../agent/loop.ts";
-import { createExecutor } from "../agent/executor.ts";
-import { getTools } from "../agent/tools.ts";
+import { createToolRegistry } from "../agent/tools/index.ts";
 import { readFile } from "fs/promises";
 import { registerSendMessage } from "./send-message.ts";
 import { registerHandleMessage } from "./handle-message.ts";
@@ -124,8 +128,7 @@ describe("send-message", () => {
 describe("handle-message", () => {
   beforeEach(() => {
     vi.mocked(runAgentLoop).mockReset().mockResolvedValue("agent-reply");
-    vi.mocked(createExecutor).mockReset().mockReturnValue(vi.fn());
-    vi.mocked(getTools).mockReset().mockReturnValue([{ name: "mock_tool" } as any]);
+    vi.mocked(createToolRegistry).mockReset().mockReturnValue(mockRegistry as any);
   });
 
   it("registers a task named 'handle-message'", () => {
@@ -134,7 +137,7 @@ describe("handle-message", () => {
     expect(absurd.handlers.has("handle-message")).toBe(true);
   });
 
-  it("creates executor with correct deps", async () => {
+  it("creates registry with correct deps", async () => {
     const absurd = makeAbsurd();
     const deps = makeDeps();
     const ctx = makeCtx();
@@ -143,8 +146,8 @@ describe("handle-message", () => {
     const handler = absurd.handlers.get("handle-message")!;
     await handler({ chatId: 99, text: "hi" }, ctx);
 
-    expect(createExecutor).toHaveBeenCalledOnce();
-    expect(createExecutor).toHaveBeenCalledWith(
+    expect(createToolRegistry).toHaveBeenCalledOnce();
+    expect(createToolRegistry).toHaveBeenCalledWith(
       expect.objectContaining({
         absurd,
         pool: deps.pool,
@@ -164,8 +167,6 @@ describe("handle-message", () => {
     const absurd = makeAbsurd();
     const deps = makeDeps();
     const ctx = makeCtx();
-    const executeFn = vi.fn();
-    vi.mocked(createExecutor).mockReturnValue(executeFn);
     registerHandleMessage(absurd as any, deps);
 
     const handler = absurd.handlers.get("handle-message")!;
@@ -180,9 +181,11 @@ describe("handle-message", () => {
       skillsDir: deps.config.skillsDir,
       toolsDir: deps.config.toolsDir,
       maxHistory: deps.config.maxHistoryMessages,
-      tools: [{ name: "mock_tool" }],
-      executeTool: executeFn,
+      tools: mockRegistry.definitions,
+      executeTool: mockRegistry.execute,
+      isSuspending: mockRegistry.isSuspending,
       onText: expect.any(Function),
+      log: undefined,
     });
   });
 
@@ -229,8 +232,7 @@ describe("handle-message", () => {
 describe("execute-skill", () => {
   beforeEach(() => {
     vi.mocked(runAgentLoop).mockReset().mockResolvedValue("skill-reply");
-    vi.mocked(createExecutor).mockReset().mockReturnValue(vi.fn());
-    vi.mocked(getTools).mockReset().mockReturnValue([{ name: "mock_tool" } as any]);
+    vi.mocked(createToolRegistry).mockReset().mockReturnValue(mockRegistry as any);
     vi.mocked(readFile).mockReset().mockResolvedValue("skill file content" as any);
   });
 
@@ -278,7 +280,7 @@ describe("execute-skill", () => {
     );
   });
 
-  it("creates executor with chatId from params", async () => {
+  it("creates registry with chatId from params", async () => {
     const absurd = makeAbsurd();
     const deps = makeDeps();
     const ctx = makeCtx();
@@ -287,7 +289,7 @@ describe("execute-skill", () => {
     const handler = absurd.handlers.get("execute-skill")!;
     await handler({ skillName: "foo", chatId: 55 }, ctx);
 
-    expect(createExecutor).toHaveBeenCalledWith(
+    expect(createToolRegistry).toHaveBeenCalledWith(
       expect.objectContaining({
         chatId: 55,
         ctx,
@@ -338,8 +340,7 @@ describe("execute-skill", () => {
 describe("workflow", () => {
   beforeEach(() => {
     vi.mocked(runAgentLoop).mockReset().mockResolvedValue("workflow-reply");
-    vi.mocked(createExecutor).mockReset().mockReturnValue(vi.fn());
-    vi.mocked(getTools).mockReset().mockReturnValue([{ name: "mock_tool" } as any]);
+    vi.mocked(createToolRegistry).mockReset().mockReturnValue(mockRegistry as any);
   });
 
   it("registers a task named 'workflow'", () => {
@@ -413,7 +414,7 @@ describe("workflow", () => {
     expect(message).toBe("go");
   });
 
-  it("creates executor with correct deps", async () => {
+  it("creates registry with correct deps", async () => {
     const absurd = makeAbsurd();
     const deps = makeDeps();
     const ctx = makeCtx();
@@ -422,8 +423,8 @@ describe("workflow", () => {
     const handler = absurd.handlers.get("workflow")!;
     await handler({ chatId: 33, instructions: "x" }, ctx);
 
-    expect(createExecutor).toHaveBeenCalledOnce();
-    expect(createExecutor).toHaveBeenCalledWith(
+    expect(createToolRegistry).toHaveBeenCalledOnce();
+    expect(createToolRegistry).toHaveBeenCalledWith(
       expect.objectContaining({
         absurd,
         pool: deps.pool,
