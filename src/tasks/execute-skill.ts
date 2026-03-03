@@ -11,10 +11,11 @@ export function registerExecuteSkill(absurd: Absurd, deps: TaskDeps): void {
     { name: "execute-skill" },
     async (params: { skillName: string; chatId: number }, ctx: TaskContext) => {
       const skillContent = await ctx.step("read-skill", async () => {
-        return await fs.readFile(
-          path.join(deps.config.skillsDir, `${params.skillName}.md`),
-          "utf-8",
-        );
+        const abs = path.resolve(deps.config.skillsDir, `${params.skillName}.md`);
+        if (!abs.startsWith(deps.config.skillsDir + path.sep)) {
+          throw new Error(`Invalid skill name: ${params.skillName}`);
+        }
+        return await fs.readFile(abs, "utf-8");
       });
 
       const executeTool = createExecutor({
