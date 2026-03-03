@@ -75,7 +75,9 @@ docs/plans/             Design and implementation documents
 
 ## Testing
 
-Tests use vitest. 6 test files co-located with source files (`*.test.ts`). Tests are pure unit tests — no database or network required. Run with `pnpm test`.
+Tests use vitest. Run everything with `pnpm test` (unit + integration, ~4s). Integration tests use Testcontainers to spin up real Postgres.
+
+Three layers: unit tests (mocked, fast), contract tests (FakeAnthropic validates Anthropic API message contracts), integration tests (real Postgres + real Absurd worker). Test infrastructure lives in `src/test/` — `fake-anthropic.ts`, `scenarios.ts`, `harness.ts`.
 
 ## Gotchas
 

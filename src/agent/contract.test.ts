@@ -200,4 +200,40 @@ describe("contract tests — API-valid message arrays", () => {
 
     fake.assertAllTurnsConsumed();
   });
+
+  // 9. Mismatched tool_use/tool_result IDs mid-history are sanitized
+  it("mismatched tool_use/tool_result IDs mid-history are sanitized", async () => {
+    // Simulates concurrent persists interleaving messages — tool_result
+    // references an ID not in the preceding assistant tool_use.
+    vi.mocked(getRecentMessages).mockResolvedValueOnce([
+      { chatId: 1, role: "user", content: "first" },
+      { chatId: 1, role: "assistant", content: "ack" },
+      { chatId: 1, role: "user", content: "second" },
+      {
+        chatId: 1,
+        role: "assistant",
+        content: "(tool use only)",
+        toolUse: [{ id: "tu-A", name: "read_file", input: { path: "x" } }],
+      },
+      {
+        chatId: 1,
+        role: "tool",
+        content: "[tu-B]: wrong-result",
+        toolUse: [{ tool_use_id: "tu-B", content: "wrong-result" }],
+      },
+      { chatId: 1, role: "user", content: "third" },
+      { chatId: 1, role: "assistant", content: "final" },
+    ] as any);
+
+    const fake = new FakeAnthropic(SIMPLE_TEXT_REPLY);
+    const deps = baseDeps(fake);
+    const ctx = createMockCtx();
+
+    // FakeAnthropic validates the contract — if the mismatched IDs
+    // leaked through, it would throw. The sanitizer should drop the
+    // invalid pair and produce a clean messages array.
+    await runAgentLoop(ctx, 1, "follow up", deps);
+
+    fake.assertAllTurnsConsumed();
+  });
 });
