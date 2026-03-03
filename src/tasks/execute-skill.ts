@@ -8,8 +8,8 @@ import * as path from "path";
 export function registerExecuteSkill(absurd: Absurd, deps: TaskDeps): void {
   absurd.registerTask(
     { name: "execute-skill" },
-    async (params: { skillName: string; chatId: number }, ctx: TaskContext) => {
-      const agentDeps = buildAgentDeps(deps, absurd, ctx, params.chatId, {
+    async (params: { skillName: string; recipientId: string }, ctx: TaskContext) => {
+      const agentDeps = buildAgentDeps(deps, absurd, ctx, params.recipientId, {
         maxHistory: 10,
         taskName: "execute-skill",
       });
@@ -25,7 +25,7 @@ export function registerExecuteSkill(absurd: Absurd, deps: TaskDeps): void {
       });
 
       const reply = await runAgentLoop(
-        ctx, params.chatId,
+        ctx, params.recipientId,
         `Execute the following skill instructions:\n\n${skillContent}`,
         agentDeps,
       );
