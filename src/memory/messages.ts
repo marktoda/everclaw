@@ -2,6 +2,21 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import type { Message, AssistantMessage, ToolResultMessage } from "./history.ts";
 
+type ContentBlock = Anthropic.ContentBlockParam;
+
+/** Narrow MessageParam.content to its array form. Returns null if string. */
+function contentBlocks(msg: Anthropic.MessageParam): ContentBlock[] | null {
+  return Array.isArray(msg.content) ? msg.content : null;
+}
+
+function isToolUse(b: ContentBlock): b is Anthropic.ToolUseBlockParam {
+  return b.type === "tool_use";
+}
+
+function isToolResult(b: ContentBlock): b is Anthropic.ToolResultBlockParam {
+  return b.type === "tool_result";
+}
+
 /**
  * Convert DB Message[] → Anthropic MessageParam[] (ready for API).
  * Reconstructs tool_use/tool_result content blocks from stored history,
@@ -95,27 +110,24 @@ export function sanitizeMessages(messages: Anthropic.MessageParam[]): Anthropic.
 
   while (i < messages.length) {
     const msg = messages[i];
+    const blocks = contentBlocks(msg);
 
     // Skip orphaned tool_result (not preceded by a matching tool_use)
-    if (msg.role === "user" && Array.isArray(msg.content) &&
-        (msg.content as any[])[0]?.type === "tool_result") {
+    if (msg.role === "user" && blocks && isToolResult(blocks[0])) {
       i++;
       continue;
     }
 
     // Validate assistant message with tool_use blocks
-    if (msg.role === "assistant" && Array.isArray(msg.content) &&
-        (msg.content as any[]).some((b: any) => b.type === "tool_use")) {
+    if (msg.role === "assistant" && blocks?.some(isToolUse)) {
       const next = messages[i + 1];
-      if (next?.role === "user" && Array.isArray(next.content) &&
-          (next.content as any[])[0]?.type === "tool_result") {
+      const nextBlocks = next ? contentBlocks(next) : null;
+      if (next?.role === "user" && nextBlocks && isToolResult(nextBlocks[0])) {
         const useIds = new Set(
-          (msg.content as any[])
-            .filter((b: any) => b.type === "tool_use")
-            .map((b: any) => b.id),
+          blocks.filter(isToolUse).map(b => b.id),
         );
         const resultIds = new Set(
-          (next.content as any[]).map((b: any) => b.tool_use_id),
+          nextBlocks.filter(isToolResult).map(b => b.tool_use_id),
         );
         // Valid pair: every use has a result and vice versa
         if (useIds.size > 0 &&
