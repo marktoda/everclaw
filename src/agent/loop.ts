@@ -11,6 +11,7 @@ import { appendMessage, getRecentMessages } from "../memory/history.ts";
 import { deconstructMessages, reconstructMessages } from "../memory/messages.ts";
 import type { ScriptEntry } from "../scripts/runner.ts";
 import { listScripts } from "../scripts/runner.ts";
+import type { ExtraDir } from "../config.ts";
 import type { ServerSummary } from "../servers/manager.ts";
 import type { SkillSummary } from "../skills/manager.ts";
 import { listSkills } from "../skills/manager.ts";
@@ -35,6 +36,7 @@ export interface AgentDeps {
   registry: ToolRegistry;
   log?: Logger;
   mcpSummaries?: ServerSummary[];
+  extraDirs?: ExtraDir[];
   /** Called with filtered text as it becomes available. */
   onText?: (text: string) => void;
 }
@@ -90,6 +92,7 @@ export async function runAgentLoop(
       description: t.description,
     })),
     mcpServers: deps.mcpSummaries,
+    extraDirs: deps.extraDirs,
   });
 
   const messages = reconstructMessages(context.history as Message[]);

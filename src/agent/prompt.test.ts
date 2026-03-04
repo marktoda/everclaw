@@ -74,4 +74,25 @@ describe("buildSystemPrompt", () => {
     const p = buildSystemPrompt({ notes: "", skills: [], tools: [], mcpServers: [] });
     expect(p).not.toContain("MCP Servers");
   });
+
+  it("includes extra directories with mode indicators", () => {
+    const p = buildSystemPrompt({
+      notes: "",
+      skills: [],
+      tools: [],
+      extraDirs: [
+        { name: "vaults", mode: "ro", absPath: "/mnt/vaults" },
+        { name: "projects", mode: "rw", absPath: "/mnt/projects" },
+      ],
+    });
+    expect(p).toContain("vaults/");
+    expect(p).toContain("read-only");
+    expect(p).toContain("projects/");
+    expect(p).toContain("read-write");
+  });
+
+  it("omits extra directories section when none configured", () => {
+    const p = buildSystemPrompt({ notes: "", skills: [], tools: [], extraDirs: [] });
+    expect(p).not.toContain("Extra Directories");
+  });
 });

@@ -196,6 +196,7 @@ describe("handle-message", () => {
       onText: expect.any(Function),
       log: undefined,
       mcpSummaries: undefined,
+      extraDirs: [],
     });
   });
 

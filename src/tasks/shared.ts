@@ -67,6 +67,7 @@ export function buildAgentDeps(
     registry,
     log,
     mcpSummaries: deps.mcp?.serverSummaries(),
+    extraDirs: deps.config.extraDirs,
     onText: opts?.silent
       ? undefined
       : (text) => {
