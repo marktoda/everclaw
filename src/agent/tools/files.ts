@@ -11,19 +11,20 @@ function isContainedIn(child: string, parent: string): boolean {
 
 const DIR_MAPPINGS: Array<{
   prefix: string;
-  dirKey: keyof Pick<ExecutorDeps, "notesDir" | "skillsDir" | "scriptsDir">;
-  dir: "notes" | "skills" | "scripts";
+  dirKey: keyof Pick<ExecutorDeps, "notesDir" | "skillsDir" | "scriptsDir" | "serversDir">;
+  dir: "notes" | "skills" | "scripts" | "servers";
 }> = [
   { prefix: "data/notes/", dirKey: "notesDir", dir: "notes" },
   { prefix: "skills/", dirKey: "skillsDir", dir: "skills" },
   { prefix: "scripts/", dirKey: "scriptsDir", dir: "scripts" },
+  { prefix: "servers/", dirKey: "serversDir", dir: "servers" },
 ];
 
 /** Writable base directories the agent is allowed to access. */
 function resolvePath(
   input: string,
   deps: ExecutorDeps,
-): { abs: string; dir: "notes" | "skills" | "scripts"; baseDir: string } | null {
+): { abs: string; dir: "notes" | "skills" | "scripts" | "servers"; baseDir: string } | null {
   const clean = input.replace(/^\.?\//, "");
   for (const { prefix, dirKey, dir } of DIR_MAPPINGS) {
     if (clean.startsWith(prefix)) {
@@ -63,12 +64,12 @@ export const fileTools: ToolHandler[] = [
   {
     def: defineTool(
       "read_file",
-      "Read a file from a writable directory (data/notes/, skills/, scripts/).",
+      "Read a file from a writable directory (data/notes/, skills/, scripts/, servers/).",
       {
         path: {
           type: "string",
           description:
-            "Relative path within a writable directory (e.g. 'data/notes/profile.md', 'skills/morning-check.md')",
+            "Relative path within a writable directory (e.g. 'data/notes/profile.md', 'skills/morning-check.md', 'servers/github.json')",
         },
       },
       ["path"],
@@ -76,7 +77,7 @@ export const fileTools: ToolHandler[] = [
     async execute(input, deps) {
       const { path: filePath } = input as { path: string };
       const resolved = resolvePath(filePath, deps);
-      if (!resolved) return `Error: path must start with data/notes/, skills/, or scripts/`;
+      if (!resolved) return `Error: path must start with data/notes/, skills/, scripts/, or servers/`;
       const escape = await validateRealPath(resolved.abs, resolved.baseDir);
       if (escape) return escape;
       try {
@@ -90,7 +91,7 @@ export const fileTools: ToolHandler[] = [
   {
     def: defineTool(
       "write_file",
-      "Write or overwrite a file. Side effects: writes to skills/ trigger schedule sync, writes to scripts/ auto chmod +x.",
+      "Write or overwrite a file. Side effects: writes to skills/ trigger schedule sync, writes to scripts/ auto chmod +x. Note: writes to servers/ require a restart to take effect.",
       {
         path: { type: "string", description: "Relative path within a writable directory" },
         content: { type: "string", description: "Full file content" },
@@ -100,7 +101,7 @@ export const fileTools: ToolHandler[] = [
     async execute(input, deps) {
       const { path: filePath, content } = input as { path: string; content: string };
       const resolved = resolvePath(filePath, deps);
-      if (!resolved) return `Error: path must start with data/notes/, skills/, or scripts/`;
+      if (!resolved) return `Error: path must start with data/notes/, skills/, scripts/, or servers/`;
       await fs.mkdir(path.dirname(resolved.abs), { recursive: true });
       const escape = await validateRealPath(resolved.abs, resolved.baseDir);
       if (escape) return escape;
@@ -121,7 +122,7 @@ export const fileTools: ToolHandler[] = [
       {
         directory: {
           type: "string",
-          description: "Directory to list: 'data/notes', 'skills', or 'scripts'",
+          description: "Directory to list: 'data/notes', 'skills', 'scripts', or 'servers'",
         },
       },
       ["directory"],
@@ -130,7 +131,7 @@ export const fileTools: ToolHandler[] = [
       const { directory } = input as { directory: string };
       const dir = directory.replace(/^\.?\//, "").replace(/\/$/, "");
       const mapping = DIR_MAPPINGS.find((m) => m.prefix.replace(/\/$/, "") === dir);
-      if (!mapping) return `Error: directory must be data/notes, skills, or scripts`;
+      if (!mapping) return `Error: directory must be data/notes, skills, scripts, or servers`;
       const absDir = deps[mapping.dirKey];
       try {
         const entries = await fs.readdir(absDir);
@@ -153,7 +154,7 @@ export const fileTools: ToolHandler[] = [
     async execute(input, deps) {
       const { path: filePath } = input as { path: string };
       const resolved = resolvePath(filePath, deps);
-      if (!resolved) return `Error: path must start with data/notes/, skills/, or scripts/`;
+      if (!resolved) return `Error: path must start with data/notes/, skills/, scripts/, or servers/`;
       const escape = await validateRealPath(resolved.abs, resolved.baseDir);
       if (escape) return escape;
       try {

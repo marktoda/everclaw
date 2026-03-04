@@ -75,6 +75,7 @@ function buildDeps(fake: FakeAnthropic, recipientId: string): AgentDeps {
     notesDir,
     skillsDir,
     scriptsDir,
+    serversDir: scriptsDir, // reuse temp dir; servers/ not exercised here
     scriptTimeout: 10,
     scriptEnv: {},
     startedAt: new Date(),
