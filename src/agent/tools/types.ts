@@ -32,7 +32,7 @@ export interface ToolHandler {
 export function defineTool(
   name: string,
   description: string,
-  properties: Record<string, { type?: string; description?: string }> = {},
+  properties: Record<string, { type?: string; description?: string; enum?: string[] }> = {},
   required: string[] = [],
 ): ToolDef {
   return {

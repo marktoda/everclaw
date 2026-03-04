@@ -452,21 +452,24 @@ describe("registry", () => {
   });
 
   // =========================================================================
+  // Shared helper for glob_files / grep_files tests
+  // =========================================================================
+  function mockRg(stdout: string, exitCode = 0, stderr = "") {
+    vi.mocked(execFile as any).mockImplementation(
+      (_cmd: string, _args: string[], _opts: any, cb: Function) => {
+        if (exitCode === 0) cb(null, stdout, "");
+        else {
+          const err = Object.assign(new Error(`exit code ${exitCode}`), { status: exitCode });
+          cb(err, stdout, stderr);
+        }
+      },
+    );
+  }
+
+  // =========================================================================
   // glob_files
   // =========================================================================
   describe("glob_files", () => {
-    function mockRg(stdout: string, exitCode = 0) {
-      vi.mocked(execFile as any).mockImplementation(
-        (_cmd: string, _args: string[], _opts: any, cb: Function) => {
-          if (exitCode === 0) cb(null, stdout, "");
-          else {
-            const err = Object.assign(new Error(`exit code ${exitCode}`), { status: exitCode });
-            cb(err, stdout, "");
-          }
-        },
-      );
-    }
-
     it("returns transformed paths from rg output", async () => {
       mockRg("/data/notes/foo.md\n/data/notes/sub/bar.md\n");
       const result = await exec("glob_files", { pattern: "*.md" });
@@ -521,18 +524,6 @@ describe("registry", () => {
   // grep_files
   // =========================================================================
   describe("grep_files", () => {
-    function mockRg(stdout: string, exitCode = 0) {
-      vi.mocked(execFile as any).mockImplementation(
-        (_cmd: string, _args: string[], _opts: any, cb: Function) => {
-          if (exitCode === 0) cb(null, stdout, "");
-          else {
-            const err = Object.assign(new Error(`exit code ${exitCode}`), { status: exitCode });
-            cb(err, stdout, exitCode === 1 ? "" : "rg error detail");
-          }
-        },
-      );
-    }
-
     it("returns content with transformed paths and line numbers", async () => {
       mockRg("/data/notes/foo.md:3:hello world\n/data/notes/foo.md:7:hello again\n");
       const result = await exec("grep_files", { pattern: "hello" });
@@ -595,7 +586,7 @@ describe("registry", () => {
     });
 
     it("returns error message on rg error (exit code 2)", async () => {
-      mockRg("", 2);
+      mockRg("", 2, "rg error detail");
       const result = await exec("grep_files", { pattern: "[invalid" });
       expect(result).toMatch(/Error running rg/);
     });
