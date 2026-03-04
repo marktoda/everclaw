@@ -150,6 +150,45 @@ describe("TelegramAdapter", () => {
       });
     });
 
+    it("delivers fallback when file_path is undefined", async () => {
+      const adapter = new TelegramAdapter("token", { openaiApiKey: "sk-key" });
+      const onMessage = vi.fn().mockResolvedValue(undefined);
+
+      await adapter.start(onMessage);
+      const handler = capturedHandlers.get("message:voice");
+
+      const ctx = {
+        chat: { id: 42 },
+        message: { voice: { file_id: "abc123" } },
+        api: { getFile: vi.fn().mockResolvedValue({ file_path: undefined }) },
+      };
+      await handler?.(ctx);
+
+      expect(onMessage).toHaveBeenCalledWith({
+        recipientId: "telegram:42",
+        text: "[Voice Message - transcription unavailable]",
+      });
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it("delivers fallback when file download fails", async () => {
+      mockFetch.mockResolvedValueOnce({ ok: false, status: 500 });
+
+      const adapter = new TelegramAdapter("token", { openaiApiKey: "sk-key" });
+      const onMessage = vi.fn().mockResolvedValue(undefined);
+
+      await adapter.start(onMessage);
+      const handler = capturedHandlers.get("message:voice");
+
+      await handler?.(makeVoiceCtx(42, "abc123"));
+
+      expect(onMessage).toHaveBeenCalledWith({
+        recipientId: "telegram:42",
+        text: "[Voice Message - transcription unavailable]",
+      });
+      expect(transcribeAudio).not.toHaveBeenCalled();
+    });
+
     it("does not register voice handler when no openaiApiKey", async () => {
       const adapter = new TelegramAdapter("token");
       const onMessage = vi.fn().mockResolvedValue(undefined);
