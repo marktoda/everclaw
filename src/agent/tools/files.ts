@@ -236,7 +236,8 @@ export const fileTools: ToolHandler[] = [
       const dirs = directory ? resolveSearchDir(directory, deps) : getAllowedDirs(deps);
       if (typeof dirs === "string") return dirs; // error message
 
-      const args = ["--files", "--glob", pattern, "--no-ignore", ...dirs.map((d) => d.absPath)];
+      // --no-ignore: agent-managed dirs typically lack .gitignore; extra dirs need full traversal
+      const args = ["--files", "--glob", pattern, "--no-ignore", "--", ...dirs.map((d) => d.absPath)];
       const { stdout, error } = await runRg(args);
       if (error) return error;
       if (!stdout.trim()) return "(no matches found)";
@@ -281,6 +282,7 @@ export const fileTools: ToolHandler[] = [
         },
         output_mode: {
           type: "string",
+          enum: ["content", "files_with_matches", "count"],
           description:
             "Output format: 'content' (matching lines, default), 'files_with_matches' (file paths only), 'count' (match counts per file)",
         },
@@ -318,11 +320,12 @@ export const fileTools: ToolHandler[] = [
       if (outputMode === "files_with_matches") args.push("-l");
       else if (outputMode === "count") args.push("-c");
       else args.push("-n");
+      // --no-ignore: agent-managed dirs typically lack .gitignore; extra dirs need full traversal
       args.push("--no-heading", "--color", "never", "--no-ignore");
       if (ignoreCase) args.push("-i");
       if (contextLines && contextLines > 0) args.push("-C", String(contextLines));
       if (fileGlob) args.push("--glob", fileGlob);
-      args.push(pattern, ...dirs.map((d) => d.absPath));
+      args.push("--", pattern, ...dirs.map((d) => d.absPath));
 
       const { stdout, error } = await runRg(args);
       if (error) return error;
