@@ -56,14 +56,14 @@ describe("syncSchedules", () => {
     );
     const absurd = makeAbsurd();
 
-    await syncSchedules(absurd, tmpDir, "telegram:42");
+    await syncSchedules(absurd, tmpDir);
 
     expect(absurd.createSchedule).toHaveBeenCalledOnce();
     expect(absurd.createSchedule).toHaveBeenCalledWith(
       "skill:morning",
       "execute-skill",
       "0 9 * * *",
-      { params: { skillName: "morning", recipientId: "telegram:42" } },
+      { params: { skillName: "morning" } },
     );
     expect(absurd.deleteSchedule).not.toHaveBeenCalled();
   });
@@ -75,7 +75,7 @@ describe("syncSchedules", () => {
     );
     const absurd = makeAbsurd();
 
-    await syncSchedules(absurd, tmpDir, "telegram:1");
+    await syncSchedules(absurd, tmpDir);
 
     expect(absurd.createSchedule).not.toHaveBeenCalled();
     expect(absurd.deleteSchedule).not.toHaveBeenCalled();
@@ -87,7 +87,7 @@ describe("syncSchedules", () => {
       { scheduleName: "skill:deleted-skill", scheduleExpr: "0 9 * * *" },
     ]);
 
-    await syncSchedules(absurd, tmpDir, "telegram:1");
+    await syncSchedules(absurd, tmpDir);
 
     expect(absurd.deleteSchedule).toHaveBeenCalledOnce();
     expect(absurd.deleteSchedule).toHaveBeenCalledWith("skill:deleted-skill");
@@ -99,7 +99,7 @@ describe("syncSchedules", () => {
       { scheduleName: "other:custom", scheduleExpr: "* * * * *" },
     ]);
 
-    await syncSchedules(absurd, tmpDir, "telegram:1");
+    await syncSchedules(absurd, tmpDir);
 
     // "other:custom" should not be touched — it's not prefixed with "skill:"
     expect(absurd.deleteSchedule).not.toHaveBeenCalled();
@@ -114,7 +114,7 @@ describe("syncSchedules", () => {
       { scheduleName: "skill:daily", scheduleExpr: "0 9 * * *" },
     ]);
 
-    await syncSchedules(absurd, tmpDir, "telegram:42");
+    await syncSchedules(absurd, tmpDir);
 
     // Should delete the old one, then create with new expression
     expect(absurd.deleteSchedule).toHaveBeenCalledWith("skill:daily");
@@ -122,7 +122,7 @@ describe("syncSchedules", () => {
       "skill:daily",
       "execute-skill",
       "0 10 * * *",
-      { params: { skillName: "daily", recipientId: "telegram:42" } },
+      { params: { skillName: "daily" } },
     );
   });
 
@@ -135,7 +135,7 @@ describe("syncSchedules", () => {
       { scheduleName: "skill:stable", scheduleExpr: "0 9 * * *" },
     ]);
 
-    await syncSchedules(absurd, tmpDir, "telegram:1");
+    await syncSchedules(absurd, tmpDir);
 
     expect(absurd.createSchedule).not.toHaveBeenCalled();
     expect(absurd.deleteSchedule).not.toHaveBeenCalled();
@@ -150,13 +150,13 @@ describe("syncSchedules", () => {
       { scheduleName: "skill:old-skill", scheduleExpr: "0 9 * * *" },
     ]);
 
-    await syncSchedules(absurd, tmpDir, "telegram:42");
+    await syncSchedules(absurd, tmpDir);
 
     expect(absurd.createSchedule).toHaveBeenCalledWith(
       "skill:new-skill",
       "execute-skill",
       "0 8 * * *",
-      { params: { skillName: "new-skill", recipientId: "telegram:42" } },
+      { params: { skillName: "new-skill" } },
     );
     expect(absurd.deleteSchedule).toHaveBeenCalledWith("skill:old-skill");
   });
@@ -164,7 +164,7 @@ describe("syncSchedules", () => {
   it("handles empty skills directory gracefully", async () => {
     const absurd = makeAbsurd();
 
-    await syncSchedules(absurd, tmpDir, "telegram:1");
+    await syncSchedules(absurd, tmpDir);
 
     expect(absurd.createSchedule).not.toHaveBeenCalled();
     expect(absurd.deleteSchedule).not.toHaveBeenCalled();

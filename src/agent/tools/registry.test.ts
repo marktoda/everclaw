@@ -408,7 +408,7 @@ describe("registry", () => {
         content: "---\nschedule: 0 9 * * *\n---\nDo the report.",
       });
 
-      expect(syncSchedules).toHaveBeenCalledWith(deps.absurd, "/data/skills", "telegram:42");
+      expect(syncSchedules).toHaveBeenCalledWith(deps.absurd, "/data/skills");
     });
 
     it("does NOT call syncSchedules when writing to scripts/", async () => {
@@ -653,7 +653,7 @@ describe("registry", () => {
 
       await exec("delete_file", { path: "skills/old-skill.md" });
 
-      expect(syncSchedules).toHaveBeenCalledWith(deps.absurd, "/data/skills", "telegram:42");
+      expect(syncSchedules).toHaveBeenCalledWith(deps.absurd, "/data/skills");
     });
 
     it("does NOT call syncSchedules when deleting from notes/", async () => {
