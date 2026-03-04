@@ -33,11 +33,11 @@ src/
     tools/              Tool definitions co-located with handlers in domain modules
       index.ts          createToolRegistry — assembles all tool definitions + executor
       types.ts          ToolRegistry interface, ToolDeps type
-      files.ts          File tools (read_file, write_file, list_files, delete_file)
+      files.ts          File tools (read_file, write_file, glob_files, grep_files, delete_file)
       state.ts          State tools (get_state, set_state, get_status)
       scripts.ts        Script tools (run_script)
       search.ts         Search tools (web_search)
-      orchestration.ts  Orchestration tools (sleep_for, sleep_until, spawn_task, …)
+      orchestration.ts  Orchestration tools (sleep_for, sleep_until, spawn_workflow, spawn_skill, send_message, …)
     prompt.ts           System prompt assembly (injects notes, skills, tool list)
     output.ts           Strips <internal>...</internal> scratchpad tags from agent output
   memory/
@@ -54,7 +54,7 @@ src/
     shared.ts           TaskDeps interface + buildAgentDeps helper (shared by all agent tasks)
     handle-message.ts   Task: wires agent loop for a user message
     execute-skill.ts    Task: reads a skill .md file and runs it through the agent loop
-    send-message.ts     Task: sends a message via ChannelRegistry (used by spawn_task)
+    send-message.ts     Task: sends a message via ChannelRegistry (used by send_message tool)
     workflow.ts         Task: runs agent loop with arbitrary instructions (background work)
 sql/
   001-absurd.sql        Absurd task queue schema (absurd schema)
