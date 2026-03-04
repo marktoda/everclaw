@@ -51,7 +51,7 @@ async function readAllNotes(notesDir: string): Promise<string> {
   }
   const mdEntries = entries.filter((e) => e.endsWith(".md")).sort();
   const contents = await Promise.all(
-    mdEntries.map((entry) => fs.readFile(path.join(notesDir, entry), "utf-8")),
+    mdEntries.map((entry) => fs.readFile(path.join(notesDir, entry), "utf-8").catch(() => "")),
   );
   return contents
     .map((content, i) => (content.trim() ? `### ${mdEntries[i]}\n\n${content}` : ""))

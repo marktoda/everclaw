@@ -191,9 +191,9 @@ export const fileTools: ToolHandler[] = [
       const resolved = resolvePath(filePath, deps);
       if (!resolved) return `Error: path must start with ${allDirPrefixes(deps)}`;
       if (resolved.mode === "ro") return `Error: ${resolved.dir}/ is read-only`;
-      await fs.mkdir(path.dirname(resolved.abs), { recursive: true });
       const escape = await validateRealPath(resolved.abs, resolved.baseDir);
       if (escape) return escape;
+      await fs.mkdir(path.dirname(resolved.abs), { recursive: true });
       await fs.writeFile(resolved.abs, content, "utf-8");
       if (resolved.dir === "scripts") {
         await fs.chmod(resolved.abs, 0o755);

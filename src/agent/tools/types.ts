@@ -21,6 +21,7 @@ export interface ExecutorDeps {
   searchApiKey?: string;
   reloadMcp?: () => Promise<void>;
   extraDirs: ExtraDir[];
+  allowedChatIds: Set<string>;
 }
 
 export interface ToolHandler {
