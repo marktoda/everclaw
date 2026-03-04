@@ -80,6 +80,7 @@ function buildDeps(fake: FakeAnthropic, recipientId: string): AgentDeps {
     scriptEnv: {},
     startedAt: new Date(),
     extraDirs: [],
+    allowedChatIds: new Set([recipientId]),
   });
 
   return {

@@ -75,6 +75,7 @@ function makeDeps(overrides: Partial<ExecutorDeps> = {}): ExecutorDeps {
     scriptEnv: {},
     startedAt: new Date("2025-01-01T00:00:00Z"),
     extraDirs: [],
+    allowedChatIds: new Set(["telegram:42"]),
     ...overrides,
   };
 }
@@ -991,13 +992,15 @@ describe("registry", () => {
       });
     });
 
-    it("preserves an explicit recipientId", async () => {
+    it("preserves an explicit recipientId when allowed", async () => {
       vi.mocked(deps.absurd.spawn).mockResolvedValue({
         taskID: "ghi-789",
         runID: "run-3",
         attempt: 1,
         created: true,
       });
+
+      deps.allowedChatIds = new Set(["telegram:42", "telegram:99"]);
 
       await exec("spawn_task", {
         task_name: "workflow",
@@ -1007,6 +1010,37 @@ describe("registry", () => {
       expect(deps.absurd.spawn).toHaveBeenCalledWith("workflow", {
         recipientId: "telegram:99",
         instructions: "other",
+      });
+    });
+
+    it("rejects an explicit recipientId not in the allowlist", async () => {
+      const result = await exec("spawn_task", {
+        task_name: "workflow",
+        params: { recipientId: "telegram:999", instructions: "other" },
+      });
+
+      expect(result).toContain("not in the allowed list");
+      expect(deps.absurd.spawn).not.toHaveBeenCalled();
+    });
+
+    it("allows any recipientId when allowlist is empty", async () => {
+      vi.mocked(deps.absurd.spawn).mockResolvedValue({
+        taskID: "jkl-012",
+        runID: "run-4",
+        attempt: 1,
+        created: true,
+      });
+
+      deps.allowedChatIds = new Set();
+
+      await exec("spawn_task", {
+        task_name: "send-message",
+        params: { recipientId: "telegram:999", text: "hi" },
+      });
+
+      expect(deps.absurd.spawn).toHaveBeenCalledWith("send-message", {
+        recipientId: "telegram:999",
+        text: "hi",
       });
     });
   });
