@@ -950,10 +950,10 @@ describe("registry", () => {
   });
 
   // =========================================================================
-  // spawn_task
+  // spawn_workflow
   // =========================================================================
-  describe("spawn_task", () => {
-    it("spawns a task and returns its ID", async () => {
+  describe("spawn_workflow", () => {
+    it("spawns a workflow and returns its ID", async () => {
       vi.mocked(deps.absurd.spawn).mockResolvedValue({
         taskID: "abc-123",
         runID: "run-1",
@@ -961,19 +961,38 @@ describe("registry", () => {
         created: true,
       });
 
-      const result = await exec("spawn_task", {
-        task_name: "my-task",
-        params: { key: "val" },
+      const result = await exec("spawn_workflow", {
+        instructions: "do stuff",
       });
 
-      expect(deps.absurd.spawn).toHaveBeenCalledWith("my-task", {
-        key: "val",
+      expect(deps.absurd.spawn).toHaveBeenCalledWith("workflow", {
         recipientId: "telegram:42",
+        instructions: "do stuff",
       });
-      expect(result).toBe("Task spawned: my-task (ID: abc-123)");
+      expect(result).toBe("Workflow spawned (ID: abc-123)");
     });
 
-    it("resolves recipientId 'current' to the executor's recipientId", async () => {
+    it("includes context when provided", async () => {
+      vi.mocked(deps.absurd.spawn).mockResolvedValue({
+        taskID: "abc-123",
+        runID: "run-1",
+        attempt: 1,
+        created: true,
+      });
+
+      await exec("spawn_workflow", {
+        instructions: "do stuff",
+        context: "extra info",
+      });
+
+      expect(deps.absurd.spawn).toHaveBeenCalledWith("workflow", {
+        recipientId: "telegram:42",
+        instructions: "do stuff",
+        context: "extra info",
+      });
+    });
+
+    it("resolves recipient 'current' to the executor's recipientId", async () => {
       vi.mocked(deps.absurd.spawn).mockResolvedValue({
         taskID: "def-456",
         runID: "run-2",
@@ -981,9 +1000,9 @@ describe("registry", () => {
         created: true,
       });
 
-      await exec("spawn_task", {
-        task_name: "workflow",
-        params: { recipientId: "current", instructions: "do stuff" },
+      await exec("spawn_workflow", {
+        instructions: "do stuff",
+        recipient: "current",
       });
 
       expect(deps.absurd.spawn).toHaveBeenCalledWith("workflow", {
@@ -992,7 +1011,7 @@ describe("registry", () => {
       });
     });
 
-    it("preserves an explicit recipientId when allowed", async () => {
+    it("preserves an explicit recipient when allowed", async () => {
       vi.mocked(deps.absurd.spawn).mockResolvedValue({
         taskID: "ghi-789",
         runID: "run-3",
@@ -1002,9 +1021,9 @@ describe("registry", () => {
 
       deps.allowedChatIds = new Set(["telegram:42", "telegram:99"]);
 
-      await exec("spawn_task", {
-        task_name: "workflow",
-        params: { recipientId: "telegram:99", instructions: "other" },
+      await exec("spawn_workflow", {
+        instructions: "other",
+        recipient: "telegram:99",
       });
 
       expect(deps.absurd.spawn).toHaveBeenCalledWith("workflow", {
@@ -1013,35 +1032,89 @@ describe("registry", () => {
       });
     });
 
-    it("rejects an explicit recipientId not in the allowlist", async () => {
-      const result = await exec("spawn_task", {
-        task_name: "workflow",
-        params: { recipientId: "telegram:999", instructions: "other" },
+    it("rejects a recipient not in the allowlist", async () => {
+      const result = await exec("spawn_workflow", {
+        instructions: "other",
+        recipient: "telegram:999",
       });
 
       expect(result).toContain("not in the allowed list");
       expect(deps.absurd.spawn).not.toHaveBeenCalled();
     });
+  });
 
-    it("allows any recipientId when allowlist is empty", async () => {
+  // =========================================================================
+  // spawn_skill
+  // =========================================================================
+  describe("spawn_skill", () => {
+    it("spawns a skill and returns its ID", async () => {
       vi.mocked(deps.absurd.spawn).mockResolvedValue({
-        taskID: "jkl-012",
-        runID: "run-4",
+        taskID: "skill-123",
+        runID: "run-1",
+        attempt: 1,
+        created: true,
+      });
+
+      const result = await exec("spawn_skill", { skill_name: "daily-report" });
+
+      expect(deps.absurd.spawn).toHaveBeenCalledWith("execute-skill", {
+        skillName: "daily-report",
+        recipientId: "telegram:42",
+      });
+      expect(result).toBe('Skill "daily-report" spawned (ID: skill-123)');
+    });
+  });
+
+  // =========================================================================
+  // send_message
+  // =========================================================================
+  describe("send_message", () => {
+    it("queues a message and returns its ID", async () => {
+      vi.mocked(deps.absurd.spawn).mockResolvedValue({
+        taskID: "msg-123",
+        runID: "run-1",
+        attempt: 1,
+        created: true,
+      });
+
+      const result = await exec("send_message", { text: "hello" });
+
+      expect(deps.absurd.spawn).toHaveBeenCalledWith("send-message", {
+        recipientId: "telegram:42",
+        text: "hello",
+      });
+      expect(result).toBe("Message queued (ID: msg-123)");
+    });
+
+    it("allows recipient override when allowlist is empty", async () => {
+      vi.mocked(deps.absurd.spawn).mockResolvedValue({
+        taskID: "msg-456",
+        runID: "run-2",
         attempt: 1,
         created: true,
       });
 
       deps.allowedChatIds = new Set();
 
-      await exec("spawn_task", {
-        task_name: "send-message",
-        params: { recipientId: "telegram:999", text: "hi" },
+      await exec("send_message", {
+        text: "hi",
+        recipient: "telegram:999",
       });
 
       expect(deps.absurd.spawn).toHaveBeenCalledWith("send-message", {
         recipientId: "telegram:999",
         text: "hi",
       });
+    });
+
+    it("rejects a recipient not in the allowlist", async () => {
+      const result = await exec("send_message", {
+        text: "hi",
+        recipient: "telegram:999",
+      });
+
+      expect(result).toContain("not in the allowed list");
+      expect(deps.absurd.spawn).not.toHaveBeenCalled();
     });
   });
 
@@ -1435,7 +1508,9 @@ describe("registry", () => {
       const registry = createToolRegistry(deps);
       expect(registry.isSuspending("read_file")).toBe(false);
       expect(registry.isSuspending("write_file")).toBe(false);
-      expect(registry.isSuspending("spawn_task")).toBe(false);
+      expect(registry.isSuspending("spawn_workflow")).toBe(false);
+      expect(registry.isSuspending("spawn_skill")).toBe(false);
+      expect(registry.isSuspending("send_message")).toBe(false);
     });
 
     it("returns false for unknown tools", () => {
@@ -1448,9 +1523,9 @@ describe("registry", () => {
   // definitions
   // =========================================================================
   describe("definitions", () => {
-    it("returns all 18 tool definitions", () => {
+    it("returns all 20 tool definitions", () => {
       const registry = createToolRegistry(deps);
-      expect(registry.definitions.length).toBe(18);
+      expect(registry.definitions.length).toBe(20);
     });
 
     it("includes expected tool names", () => {
@@ -1467,7 +1542,9 @@ describe("registry", () => {
       expect(names).toContain("run_script");
       expect(names).toContain("sleep_for");
       expect(names).toContain("sleep_until");
-      expect(names).toContain("spawn_task");
+      expect(names).toContain("spawn_workflow");
+      expect(names).toContain("spawn_skill");
+      expect(names).toContain("send_message");
       expect(names).toContain("cancel_task");
       expect(names).toContain("list_tasks");
       expect(names).toContain("wait_for_event");
@@ -1655,7 +1732,7 @@ describe("registry", () => {
       const names = registry.definitions.map((d) => d.name);
       expect(names).toContain("read_file");
       expect(names).toContain("mcp_github_list_repos");
-      expect(registry.definitions.length).toBe(19);
+      expect(registry.definitions.length).toBe(21);
     });
 
     it("routes MCP tool calls to the MCP source execute", async () => {

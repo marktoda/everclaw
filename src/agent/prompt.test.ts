@@ -31,7 +31,9 @@ describe("buildSystemPrompt", () => {
     const p = buildSystemPrompt({ notes: "", skills: [], tools: [] });
     expect(p).toContain("Workflow Capabilities");
     expect(p).toContain("sleep_for");
-    expect(p).toContain("spawn_task");
+    expect(p).toContain("spawn_workflow");
+    expect(p).toContain("spawn_skill");
+    expect(p).toContain("send_message");
     expect(p).toContain("pending-action");
   });
 
