@@ -3,6 +3,7 @@ export interface PromptContext {
   skills: Array<{ name: string; description: string; schedule?: string }>;
   tools: Array<{ name: string; description?: string }>;
   mcpServers?: Array<{ name: string; description?: string }>;
+  extraDirs?: Array<{ name: string; mode: "ro" | "rw"; absPath: string }>;
 }
 
 export function buildSystemPrompt(ctx: PromptContext): string {
@@ -81,6 +82,16 @@ sending. Use this for planning, thinking through tool sequences, or notes
 to yourself.
 
 Current date and time: ${new Date().toISOString()}`);
+
+  if (ctx.extraDirs && ctx.extraDirs.length > 0) {
+    const extraList = ctx.extraDirs
+      .map(
+        (d) =>
+          `- **${d.name}/**: User-mounted directory (${d.mode === "ro" ? "read-only" : "read-write"})`,
+      )
+      .join("\n");
+    parts[0] += `\n\n### Extra Directories\n\n${extraList}`;
+  }
 
   if (ctx.notes.trim()) {
     parts.push(`## Your Notes\n\n${ctx.notes}`);
