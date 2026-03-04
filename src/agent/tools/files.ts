@@ -55,7 +55,7 @@ function resolvePath(input: string, deps: ExecutorDeps): ResolvedPath | null {
 }
 
 function allDirPrefixes(deps: ExecutorDeps): string {
-  const builtins = ["data/notes/", "skills/", "scripts/", "servers/"];
+  const builtins = DIR_MAPPINGS.map((m) => m.prefix);
   const extras = deps.extraDirs.map((d) => `${d.name}/`);
   return [...builtins, ...extras].join(", ");
 }
@@ -111,7 +111,7 @@ function resolveSearchDir(name: string, deps: ExecutorDeps): SearchDir[] | strin
   if (mapping) return [{ prefix: mapping.prefix, absPath: deps[mapping.dirKey] }];
   const extra = deps.extraDirs.find((d) => d.name === clean);
   if (extra) return [{ prefix: extra.name + "/", absPath: extra.absPath }];
-  const valid = ["data/notes", "skills", "scripts", "servers", ...deps.extraDirs.map((d) => d.name)];
+  const valid = [...DIR_MAPPINGS.map((m) => m.prefix.replace(/\/$/, "")), ...deps.extraDirs.map((d) => d.name)];
   return `Error: directory must be ${valid.join(", ")}`;
 }
 

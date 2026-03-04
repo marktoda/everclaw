@@ -114,22 +114,14 @@ export async function listServerConfigs(
       continue;
     }
 
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(raw);
-    } catch {
+    const validation = validateServerConfig(raw);
+    if (!validation.ok) {
+      logger.warn({ file: entry, error: validation.error }, "Skipping invalid MCP server config");
       continue;
     }
 
-    if (
-      typeof parsed !== "object" ||
-      parsed === null ||
-      typeof (parsed as Record<string, unknown>).command !== "string"
-    ) {
-      continue;
-    }
-
-    const obj = parsed as Record<string, unknown>;
+    // Safe to parse — validateServerConfig already confirmed structure
+    const obj = JSON.parse(raw) as Record<string, unknown>;
     const name = path.basename(entry, ".json");
 
     configs.push({

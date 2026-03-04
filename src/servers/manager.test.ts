@@ -88,7 +88,7 @@ describe("listServerConfigs", () => {
 
   it("skips non-.json files", async () => {
     mockReaddir.mockResolvedValue(["readme.md", "notes.txt", "good.json"]);
-    mockReadFile.mockResolvedValue(JSON.stringify({ command: "echo" }));
+    mockReadFile.mockResolvedValue(JSON.stringify({ command: "node" }));
 
     const configs = await listServerConfigs("/servers");
 
@@ -110,7 +110,7 @@ describe("listServerConfigs", () => {
     mockReaddir.mockResolvedValue(["bad.json", "good.json"]);
     mockReadFile
       .mockResolvedValueOnce("not json {{{")
-      .mockResolvedValueOnce(JSON.stringify({ command: "echo" }));
+      .mockResolvedValueOnce(JSON.stringify({ command: "node" }));
 
     const configs = await listServerConfigs("/servers");
 
@@ -122,7 +122,7 @@ describe("listServerConfigs", () => {
     mockReaddir.mockResolvedValue(["nocommand.json", "hascommand.json"]);
     mockReadFile
       .mockResolvedValueOnce(JSON.stringify({ description: "no command here" }))
-      .mockResolvedValueOnce(JSON.stringify({ command: "ls" }));
+      .mockResolvedValueOnce(JSON.stringify({ command: "npx" }));
 
     const configs = await listServerConfigs("/servers");
 
@@ -142,28 +142,40 @@ describe("listServerConfigs", () => {
     expect(configs[0].env).toEqual({ GITHUB_TOKEN: "abc" });
   });
 
-  it("skips env if not a plain object", async () => {
-    mockReaddir.mockResolvedValue(["bad-env.json"]);
-    mockReadFile.mockResolvedValue(
-      JSON.stringify({ command: "npx", env: "not-an-object" }),
-    );
+  it("skips configs with invalid env (not a plain object)", async () => {
+    mockReaddir.mockResolvedValue(["bad-env.json", "good.json"]);
+    mockReadFile
+      .mockResolvedValueOnce(JSON.stringify({ command: "npx", env: "not-an-object" }))
+      .mockResolvedValueOnce(JSON.stringify({ command: "npx" }));
 
     const configs = await listServerConfigs("/servers");
 
     expect(configs).toHaveLength(1);
-    expect(configs[0].env).toBeUndefined();
+    expect(configs[0].name).toBe("good");
   });
 
-  it("skips env if values are not strings", async () => {
-    mockReaddir.mockResolvedValue(["bad-env.json"]);
-    mockReadFile.mockResolvedValue(
-      JSON.stringify({ command: "npx", env: { key: 123 } }),
-    );
+  it("skips configs with invalid env (non-string values)", async () => {
+    mockReaddir.mockResolvedValue(["bad-env.json", "good.json"]);
+    mockReadFile
+      .mockResolvedValueOnce(JSON.stringify({ command: "npx", env: { key: 123 } }))
+      .mockResolvedValueOnce(JSON.stringify({ command: "npx" }));
 
     const configs = await listServerConfigs("/servers");
 
     expect(configs).toHaveLength(1);
-    expect(configs[0].env).toBeUndefined();
+    expect(configs[0].name).toBe("good");
+  });
+
+  it("skips configs with disallowed command", async () => {
+    mockReaddir.mockResolvedValue(["bad.json", "good.json"]);
+    mockReadFile
+      .mockResolvedValueOnce(JSON.stringify({ command: "bash" }))
+      .mockResolvedValueOnce(JSON.stringify({ command: "npx" }));
+
+    const configs = await listServerConfigs("/servers");
+
+    expect(configs).toHaveLength(1);
+    expect(configs[0].name).toBe("good");
   });
 });
 
@@ -414,8 +426,8 @@ describe("createMcpManager", () => {
   it("skips servers that fail to connect", async () => {
     mockReaddir.mockResolvedValue(["broken.json", "good.json"]);
     mockReadFile
-      .mockResolvedValueOnce(JSON.stringify({ command: "broken-cmd" }))
-      .mockResolvedValueOnce(JSON.stringify({ command: "good-cmd" }));
+      .mockResolvedValueOnce(JSON.stringify({ command: "node", args: ["broken.js"] }))
+      .mockResolvedValueOnce(JSON.stringify({ command: "npx", args: ["good-server"] }));
 
     // First server connect fails, second succeeds
     mockConnect
@@ -453,7 +465,7 @@ describe("createMcpManager", () => {
 
   it("returns server summaries without description when not set", async () => {
     mockReaddir.mockResolvedValue(["plain.json"]);
-    mockReadFile.mockResolvedValue(JSON.stringify({ command: "echo" }));
+    mockReadFile.mockResolvedValue(JSON.stringify({ command: "node" }));
     mockConnect.mockResolvedValue(undefined);
     mockListTools.mockResolvedValue({ tools: [] });
 
