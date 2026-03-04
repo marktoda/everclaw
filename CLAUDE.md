@@ -77,7 +77,7 @@ docs/plans/             Design and implementation documents
 
 **Stateless message handling.** Every inbound message spawns a fresh `handle-message` task. There is no "wait for reply" — the agent saves state via `set_state`, completes, and picks up context on the next message from conversation history.
 
-**Durable workflows.** The agent has orchestration tools (`sleep_for`, `sleep_until`, `wait_for_event`, `emit_event`, `spawn_task`, `cancel_task`, `list_tasks`) that suspend and resume durably through Absurd. Suspending tools must NOT be wrapped in `ctx.step()` — they throw `SuspendTask` which must propagate to the Absurd worker.
+**Durable workflows.** The agent has orchestration tools (`sleep_for`, `sleep_until`, `wait_for_event`, `emit_event`, `spawn_workflow`, `spawn_skill`, `send_message`, `cancel_task`, `list_tasks`) that suspend and resume durably through Absurd. Suspending tools must NOT be wrapped in `ctx.step()` — they throw `SuspendTask` which must propagate to the Absurd worker.
 
 **Path containment.** `resolvePath` in `agent/tools/files.ts` validates that all file tool paths resolve within allowed directories: four built-in (`data/notes/`, `skills/`, `scripts/`, `servers/`) plus any user-configured extra directories. Paths that escape are rejected.
 
@@ -95,7 +95,7 @@ docs/plans/             Design and implementation documents
 
 **Agent scratchpad.** The agent can use `<internal>...</internal>` tags for reasoning that gets stripped before sending to the user (see `output.ts`).
 
-## Tools (18 built-in + dynamic MCP tools)
+## Tools (20 built-in + dynamic MCP tools)
 
 | Category | Tools |
 |---|---|
@@ -103,7 +103,7 @@ docs/plans/             Design and implementation documents
 | State (3) | `get_state`, `set_state`, `get_status` |
 | Scripts (1) | `run_script` |
 | Search (2) | `web_search`, `search_servers` |
-| Orchestration (7) | `sleep_for`, `sleep_until`, `spawn_task`, `cancel_task`, `list_tasks`, `wait_for_event`, `emit_event` |
+| Orchestration (9) | `sleep_for`, `sleep_until`, `spawn_workflow`, `spawn_skill`, `send_message`, `cancel_task`, `list_tasks`, `wait_for_event`, `emit_event` |
 | MCP (dynamic) | `mcp_<server>_<tool>` — discovered at startup from `servers/*.json` configs |
 
 ## Testing

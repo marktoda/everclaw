@@ -35,14 +35,12 @@ export class TelegramAdapter implements ChannelAdapter {
         try {
           const file = await ctx.api.getFile(ctx.message.voice.file_id);
           if (!file.file_path) throw new Error("Telegram returned no file_path for voice message");
-          {
-            const url = `https://api.telegram.org/file/bot${this.bot.token}/${file.file_path}`;
-            const resp = await fetch(url);
-            if (!resp.ok) throw new Error(`File download failed: ${resp.status}`);
-            const buf = Buffer.from(await resp.arrayBuffer());
-            const transcript = await transcribeAudio(buf, apiKey);
-            text = `[Voice: ${transcript}]`;
-          }
+          const url = `https://api.telegram.org/file/bot${this.bot.token}/${file.file_path}`;
+          const resp = await fetch(url);
+          if (!resp.ok) throw new Error(`File download failed: ${resp.status}`);
+          const buf = Buffer.from(await resp.arrayBuffer());
+          const transcript = await transcribeAudio(buf, apiKey);
+          text = `[Voice: ${transcript}]`;
         } catch (err) {
           logger.warn({ err, recipientId }, "voice transcription failed");
         }

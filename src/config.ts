@@ -105,7 +105,15 @@ function parseExtraDirs(raw: string | undefined): ExtraDir[] {
 
 function parseAllowedChatIds(raw: string | undefined): Set<string> {
   if (!raw?.trim()) return new Set();
-  return new Set(raw.split(",").map((s) => s.trim()).filter(Boolean));
+  const ids = raw.split(",").map((s) => s.trim()).filter(Boolean);
+  const bare = ids.filter((id) => /^\d+$/.test(id));
+  if (bare.length > 0) {
+    console.warn(
+      `[config] ALLOWED_CHAT_IDS contains bare numeric IDs (${bare.join(", ")}). ` +
+      `Use fully prefixed IDs like "telegram:${bare[0]}" instead.`,
+    );
+  }
+  return new Set(ids);
 }
 
 function parseChannels(secrets: Record<string, string>): ChannelConfig[] {
