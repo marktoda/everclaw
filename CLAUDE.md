@@ -73,7 +73,9 @@ docs/plans/             Design and implementation documents
 
 **Durable workflows.** The agent has orchestration tools (`sleep_for`, `sleep_until`, `wait_for_event`, `emit_event`, `spawn_task`, `cancel_task`, `list_tasks`) that suspend and resume durably through Absurd. Suspending tools must NOT be wrapped in `ctx.step()` — they throw `SuspendTask` which must propagate to the Absurd worker.
 
-**Path containment.** `resolvePath` in `agent/tools/files.ts` validates that all file tool paths resolve within one of four writable directories (`data/notes/`, `skills/`, `scripts/`, `servers/`). Paths that escape are rejected.
+**Path containment.** `resolvePath` in `agent/tools/files.ts` validates that all file tool paths resolve within allowed directories: four built-in (`data/notes/`, `skills/`, `scripts/`, `servers/`) plus any user-configured extra directories. Paths that escape are rejected.
+
+**Extra directories.** Users can mount additional directories via the `EXTRA_DIRS` env var (`name:mode:path` comma-separated, e.g. `vaults:ro:/mnt/vaults`). Each gets read-only or read-write access through the same file tools, with the same path containment and symlink protection as built-in dirs. No side-effects (no schedule sync, chmod, etc.).
 
 **Config: secrets vs env.** Secrets (`TELEGRAM_BOT_TOKEN`, `ANTHROPIC_API_KEY`) are read from `.env` file only and never set in `process.env`. Non-secret config (`DATABASE_URL`, `QUEUE_NAME`, `CLAUDE_MODEL`, etc.) comes from `process.env` with defaults. Channel tokens are stored in `config.channels[]`. Queue name is validated as a safe SQL identifier at load time.
 
