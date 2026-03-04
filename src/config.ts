@@ -32,6 +32,7 @@ export interface Config {
   claimTimeout: number;
   scriptTimeout: number;
   scriptEnv: Record<string, string>;
+  serversDir: string;
 }
 
 /** Read key=value pairs from a .env file WITHOUT setting process.env */
@@ -85,5 +86,6 @@ export function loadConfig(envPath: string = ".env"): Config {
     claimTimeout: parseInt(process.env.CLAIM_TIMEOUT ?? "300", 10),
     scriptTimeout: parseInt(process.env.SCRIPT_TIMEOUT ?? "30", 10),
     scriptEnv: Object.fromEntries(Object.entries(secrets).filter(([k]) => k.startsWith("TOOL_"))),
+    serversDir: path.resolve(process.env.SERVERS_DIR ?? "servers"),
   };
 }

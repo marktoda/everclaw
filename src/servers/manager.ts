@@ -59,7 +59,7 @@ export async function listServerConfigs(
     }
 
     const obj = parsed as Record<string, unknown>;
-    const name = entry.replace(/\.json$/, "");
+    const name = path.basename(entry, ".json");
 
     configs.push({
       name,
@@ -94,7 +94,6 @@ export interface McpManager {
 interface ConnectedServer {
   config: ServerConfig;
   client: Client;
-  transport: StdioClientTransport;
 }
 
 /**
@@ -144,7 +143,7 @@ export function createMcpManager(): McpManager {
 
         const { tools } = await client.listTools();
 
-        const connected: ConnectedServer = { config, client, transport };
+        const connected: ConnectedServer = { config, client };
         servers.set(config.name, connected);
 
         for (const tool of tools) {
