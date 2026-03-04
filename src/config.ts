@@ -26,6 +26,7 @@ export interface ExtraDir {
 export interface Config {
   channels: ChannelConfig[];
   anthropicApiKey: string;
+  openaiApiKey?: string;
   braveSearchApiKey?: string;
   databaseUrl: string;
   queueName: string;
@@ -104,8 +105,17 @@ function parseExtraDirs(raw: string | undefined): ExtraDir[] {
 
 function parseAllowedChatIds(raw: string | undefined): Set<string> {
   if (!raw?.trim()) return new Set();
-  const ids = raw.split(",").map((s) => s.trim()).filter(Boolean);
-  return new Set(ids.map((id) => `telegram:${id}`));
+  return new Set(raw.split(",").map((s) => s.trim()).filter(Boolean));
+}
+
+function parseChannels(secrets: Record<string, string>): ChannelConfig[] {
+  const suffix = "_BOT_TOKEN";
+  return Object.entries(secrets)
+    .filter(([key]) => key.endsWith(suffix))
+    .map(([key, token]) => ({
+      type: key.slice(0, -suffix.length).toLowerCase(),
+      token,
+    }));
 }
 
 export function loadConfig(envPath: string = ".env"): Config {
@@ -123,8 +133,9 @@ export function loadConfig(envPath: string = ".env"): Config {
   }
 
   return {
-    channels: [{ type: "telegram", token: requireSecret("TELEGRAM_BOT_TOKEN") }],
+    channels: parseChannels(secrets),
     anthropicApiKey: requireSecret("ANTHROPIC_API_KEY"),
+    openaiApiKey: secrets.OPENAI_API_KEY || undefined,
     braveSearchApiKey: secrets.BRAVE_SEARCH_API_KEY || undefined,
     databaseUrl: process.env.DATABASE_URL ?? "postgresql://localhost/absurd",
     queueName,
