@@ -79,6 +79,7 @@ function buildDeps(fake: FakeAnthropic, recipientId: string): AgentDeps {
     scriptTimeout: 10,
     scriptEnv: {},
     startedAt: new Date(),
+    extraDirs: [],
   });
 
   return {

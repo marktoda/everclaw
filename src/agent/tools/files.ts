@@ -20,12 +20,17 @@ const DIR_MAPPINGS: Array<{
   { prefix: "servers/", dirKey: "serversDir", dir: "servers" },
 ];
 
+interface ResolvedPath {
+  abs: string;
+  dir: string;
+  baseDir: string;
+  mode?: "ro" | "rw";
+}
+
 /** Writable base directories the agent is allowed to access. */
-function resolvePath(
-  input: string,
-  deps: ExecutorDeps,
-): { abs: string; dir: "notes" | "skills" | "scripts" | "servers"; baseDir: string } | null {
+function resolvePath(input: string, deps: ExecutorDeps): ResolvedPath | null {
   const clean = input.replace(/^\.?\//, "");
+  // Check built-in dirs first
   for (const { prefix, dirKey, dir } of DIR_MAPPINGS) {
     if (clean.startsWith(prefix)) {
       const baseDir = deps[dirKey];
@@ -34,7 +39,22 @@ function resolvePath(
       return { abs, dir, baseDir };
     }
   }
+  // Check extra dirs
+  for (const extra of deps.extraDirs) {
+    const prefix = extra.name + "/";
+    if (clean.startsWith(prefix)) {
+      const abs = path.resolve(extra.absPath, clean.slice(prefix.length));
+      if (!isContainedIn(abs, extra.absPath)) return null;
+      return { abs, dir: extra.name, baseDir: extra.absPath, mode: extra.mode };
+    }
+  }
   return null;
+}
+
+function allDirPrefixes(deps: ExecutorDeps): string {
+  const builtins = ["data/notes/", "skills/", "scripts/", "servers/"];
+  const extras = deps.extraDirs.map((d) => `${d.name}/`);
+  return [...builtins, ...extras].join(", ");
 }
 
 /** Verify that the real (symlink-resolved) path stays within the base directory. */
@@ -77,7 +97,7 @@ export const fileTools: ToolHandler[] = [
     async execute(input, deps) {
       const { path: filePath } = input as { path: string };
       const resolved = resolvePath(filePath, deps);
-      if (!resolved) return `Error: path must start with data/notes/, skills/, scripts/, or servers/`;
+      if (!resolved) return `Error: path must start with ${allDirPrefixes(deps)}`;
       const escape = await validateRealPath(resolved.abs, resolved.baseDir);
       if (escape) return escape;
       try {
@@ -101,7 +121,8 @@ export const fileTools: ToolHandler[] = [
     async execute(input, deps) {
       const { path: filePath, content } = input as { path: string; content: string };
       const resolved = resolvePath(filePath, deps);
-      if (!resolved) return `Error: path must start with data/notes/, skills/, scripts/, or servers/`;
+      if (!resolved) return `Error: path must start with ${allDirPrefixes(deps)}`;
+      if (resolved.mode === "ro") return `Error: ${resolved.dir}/ is read-only`;
       await fs.mkdir(path.dirname(resolved.abs), { recursive: true });
       const escape = await validateRealPath(resolved.abs, resolved.baseDir);
       if (escape) return escape;
@@ -134,15 +155,28 @@ export const fileTools: ToolHandler[] = [
       const { directory } = input as { directory: string };
       const dir = directory.replace(/^\.?\//, "").replace(/\/$/, "");
       const mapping = DIR_MAPPINGS.find((m) => m.prefix.replace(/\/$/, "") === dir);
-      if (!mapping) return `Error: directory must be data/notes, skills, scripts, or servers`;
-      const absDir = deps[mapping.dirKey];
-      try {
-        const entries = await fs.readdir(absDir);
-        if (entries.length === 0) return "(empty directory)";
-        return entries.join("\n");
-      } catch {
-        return "(directory does not exist)";
+      if (mapping) {
+        const absDir = deps[mapping.dirKey];
+        try {
+          const entries = await fs.readdir(absDir);
+          if (entries.length === 0) return "(empty directory)";
+          return entries.join("\n");
+        } catch {
+          return "(directory does not exist)";
+        }
       }
+      const extra = deps.extraDirs.find((d) => d.name === dir);
+      if (extra) {
+        try {
+          const entries = await fs.readdir(extra.absPath);
+          if (entries.length === 0) return "(empty directory)";
+          return entries.join("\n");
+        } catch {
+          return "(directory does not exist)";
+        }
+      }
+      const validDirs = ["data/notes", "skills", "scripts", "servers", ...deps.extraDirs.map((d) => d.name)];
+      return `Error: directory must be ${validDirs.join(", ")}`;
     },
   },
   {
@@ -157,7 +191,8 @@ export const fileTools: ToolHandler[] = [
     async execute(input, deps) {
       const { path: filePath } = input as { path: string };
       const resolved = resolvePath(filePath, deps);
-      if (!resolved) return `Error: path must start with data/notes/, skills/, scripts/, or servers/`;
+      if (!resolved) return `Error: path must start with ${allDirPrefixes(deps)}`;
+      if (resolved.mode === "ro") return `Error: ${resolved.dir}/ is read-only`;
       const escape = await validateRealPath(resolved.abs, resolved.baseDir);
       if (escape) return escape;
       try {
