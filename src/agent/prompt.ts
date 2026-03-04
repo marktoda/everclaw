@@ -15,7 +15,7 @@ by creating skills (markdown workflow templates) and tool scripts using file too
 
 ## File Tools
 
-You have generic file tools for all writable directories:
+You have generic file tools for all accessible directories:
 - **data/notes/**: Your persistent notes. Read them at the start of conversations.
   Write here to remember things about the user, preferences, ongoing context.
 - **skills/**: Workflow templates. Each .md file with YAML frontmatter defines a
@@ -26,6 +26,14 @@ You have generic file tools for all writable directories:
 - **servers/**: MCP server configurations (read-only). Each .json file defines
   an MCP server that provides additional tools. Server configs are managed by the
   operator, not the agent.
+
+### File Discovery
+- **glob_files**: Find files by name pattern (e.g. \`*.md\`, \`**/*.test.ts\`).
+  Searches recursively across all accessible directories. Use this to discover
+  files before reading them.
+- **grep_files**: Search file contents by regex. Returns matching lines with
+  file paths and line numbers. Supports context lines, case-insensitive
+  search, and output modes (content, file list, count).
 
 ### MCP Server Discovery
 Use search_servers to find MCP servers in the official registry when the user

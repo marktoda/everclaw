@@ -87,11 +87,11 @@ docs/plans/             Design and implementation documents
 
 **Agent scratchpad.** The agent can use `<internal>...</internal>` tags for reasoning that gets stripped before sending to the user (see `output.ts`).
 
-## Tools (17 built-in + dynamic MCP tools)
+## Tools (18 built-in + dynamic MCP tools)
 
 | Category | Tools |
 |---|---|
-| Files (4) | `read_file`, `write_file`, `list_files`, `delete_file` |
+| Files (5) | `read_file`, `write_file`, `glob_files`, `grep_files`, `delete_file` |
 | State (3) | `get_state`, `set_state`, `get_status` |
 | Scripts (1) | `run_script` |
 | Search (2) | `web_search`, `search_servers` |
