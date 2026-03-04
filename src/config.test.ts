@@ -125,4 +125,22 @@ describe("loadConfig", () => {
     process.env.EXTRA_DIRS = "vaults:ro";
     expect(() => loadConfig(envPath)).toThrow("expected name:mode:path");
   });
+
+  it("returns empty allowedChatIds when ALLOWED_CHAT_IDS is not set", () => {
+    fs.writeFileSync(envPath, "TELEGRAM_BOT_TOKEN=tg\nANTHROPIC_API_KEY=sk\n");
+    const c = loadConfig(envPath);
+    expect(c.allowedChatIds).toEqual(new Set());
+  });
+
+  it("parses ALLOWED_CHAT_IDS into prefixed Set", () => {
+    fs.writeFileSync(envPath, "TELEGRAM_BOT_TOKEN=tg\nANTHROPIC_API_KEY=sk\nALLOWED_CHAT_IDS=123,456\n");
+    const c = loadConfig(envPath);
+    expect(c.allowedChatIds).toEqual(new Set(["telegram:123", "telegram:456"]));
+  });
+
+  it("trims whitespace in ALLOWED_CHAT_IDS", () => {
+    fs.writeFileSync(envPath, "TELEGRAM_BOT_TOKEN=tg\nANTHROPIC_API_KEY=sk\nALLOWED_CHAT_IDS= 123 , 456 \n");
+    const c = loadConfig(envPath);
+    expect(c.allowedChatIds).toEqual(new Set(["telegram:123", "telegram:456"]));
+  });
 });

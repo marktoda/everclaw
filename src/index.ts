@@ -53,6 +53,22 @@ async function main() {
   logger.info({ queue: config.queueName }, "everclaw started");
 
   await channelRegistry.startAll(async (msg) => {
+    // Allowlist check
+    if (config.allowedChatIds.size === 0) {
+      // Discovery mode: reply with chat ID instructions, don't run agent
+      const rawId = msg.recipientId.split(":").slice(1).join(":");
+      logger.info({ recipientId: msg.recipientId }, "discovery mode — replying with chat ID");
+      await channelRegistry.sendMessage(
+        msg.recipientId,
+        `Your chat ID is: ${rawId}\n\nAdd this to your .env file:\nALLOWED_CHAT_IDS=${rawId}\n\nThen restart the bot.`,
+      );
+      return;
+    }
+    if (!config.allowedChatIds.has(msg.recipientId)) {
+      logger.warn({ recipientId: msg.recipientId }, "unauthorized message — ignored");
+      return;
+    }
+
     if (!defaultRecipientId) {
       defaultRecipientId = msg.recipientId;
       await setState(pool, "system", "defaultRecipientId", msg.recipientId);
