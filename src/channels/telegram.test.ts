@@ -1,20 +1,37 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+// Mock transcription module
+vi.mock("../transcription.ts", () => ({
+  transcribeAudio: vi.fn().mockResolvedValue("hello from voice"),
+}));
+
+import { transcribeAudio } from "../transcription.ts";
+
+// Mock fetch
+const mockFetch = vi.fn().mockResolvedValue({
+  ok: true,
+  arrayBuffer: () => Promise.resolve(new ArrayBuffer(100)),
+});
+vi.stubGlobal("fetch", mockFetch);
+
 // Mock grammy
 type Handler = (ctx: any) => Promise<void>;
-let capturedHandler: Handler | undefined;
+const capturedHandlers = new Map<string, Handler>();
 const mockSendMessage = vi.fn().mockResolvedValue(undefined);
 const mockStop = vi.fn();
 
 vi.mock("grammy", () => {
   class Bot {
     token: string;
-    api = { sendMessage: mockSendMessage };
+    api = {
+      sendMessage: mockSendMessage,
+      getFile: vi.fn().mockResolvedValue({ file_path: "voice/file_0.oga" }),
+    };
     constructor(token: string) {
       this.token = token;
     }
-    on(_filter: string, handler: Handler) {
-      capturedHandler = handler;
+    on(filter: string, handler: Handler) {
+      capturedHandlers.set(filter, handler);
     }
     start(_opts?: any) { return Promise.resolve(); }
     stop() {
@@ -31,11 +48,22 @@ function makeGrammyCtx(chatId: number, text: string) {
   return { chat: { id: chatId }, message: { text } };
 }
 
+function makeVoiceCtx(chatId: number, fileId: string) {
+  return {
+    chat: { id: chatId },
+    message: { voice: { file_id: fileId } },
+    api: { getFile: vi.fn().mockResolvedValue({ file_path: "voice/file_0.oga" }) },
+  };
+}
+
 describe("TelegramAdapter", () => {
   beforeEach(() => {
-    capturedHandler = undefined;
+    capturedHandlers.clear();
     mockSendMessage.mockClear();
     mockStop.mockClear();
+    mockFetch.mockClear();
+    vi.mocked(transcribeAudio).mockClear();
+    vi.mocked(transcribeAudio).mockResolvedValue("hello from voice");
   });
 
   it("has name 'telegram'", () => {
@@ -48,9 +76,10 @@ describe("TelegramAdapter", () => {
     const onMessage = vi.fn().mockResolvedValue(undefined);
 
     await adapter.start(onMessage);
-    expect(capturedHandler).toBeDefined();
+    const handler = capturedHandlers.get("message:text");
+    expect(handler).toBeDefined();
 
-    await capturedHandler?.(makeGrammyCtx(123456789, "hello"));
+    await handler?.(makeGrammyCtx(123456789, "hello"));
 
     expect(onMessage).toHaveBeenCalledOnce();
     expect(onMessage).toHaveBeenCalledWith({
@@ -81,5 +110,51 @@ describe("TelegramAdapter", () => {
     const adapter = new TelegramAdapter("token");
     await adapter.stop();
     expect(mockStop).toHaveBeenCalledOnce();
+  });
+
+  describe("voice messages", () => {
+    it("transcribes voice and delivers as [Voice: ...]", async () => {
+      const adapter = new TelegramAdapter("token", { openaiApiKey: "sk-key" });
+      const onMessage = vi.fn().mockResolvedValue(undefined);
+
+      await adapter.start(onMessage);
+      const handler = capturedHandlers.get("message:voice");
+      expect(handler).toBeDefined();
+
+      await handler?.(makeVoiceCtx(42, "abc123"));
+
+      expect(onMessage).toHaveBeenCalledOnce();
+      expect(onMessage).toHaveBeenCalledWith({
+        recipientId: "telegram:42",
+        text: "[Voice: hello from voice]",
+      });
+    });
+
+    it("delivers fallback when transcription fails", async () => {
+      vi.mocked(transcribeAudio).mockRejectedValueOnce(new Error("API error"));
+
+      const adapter = new TelegramAdapter("token", { openaiApiKey: "sk-key" });
+      const onMessage = vi.fn().mockResolvedValue(undefined);
+
+      await adapter.start(onMessage);
+      const handler = capturedHandlers.get("message:voice");
+      expect(handler).toBeDefined();
+
+      await handler?.(makeVoiceCtx(42, "abc123"));
+
+      expect(onMessage).toHaveBeenCalledOnce();
+      expect(onMessage).toHaveBeenCalledWith({
+        recipientId: "telegram:42",
+        text: "[Voice Message - transcription unavailable]",
+      });
+    });
+
+    it("does not register voice handler when no openaiApiKey", async () => {
+      const adapter = new TelegramAdapter("token");
+      const onMessage = vi.fn().mockResolvedValue(undefined);
+
+      await adapter.start(onMessage);
+      expect(capturedHandlers.has("message:voice")).toBe(false);
+    });
   });
 });
