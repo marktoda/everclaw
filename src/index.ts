@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { Absurd } from "absurd-sdk";
 import * as pg from "pg";
-import { ChannelRegistry, TelegramAdapter } from "./channels/index.ts";
+import { ChannelRegistry, createAdapter } from "./channels/index.ts";
 import { loadConfig } from "./config.ts";
 import { logger } from "./logger.ts";
 import { createMcpManager } from "./servers/manager.ts";
@@ -27,9 +27,7 @@ async function main() {
 
   const channelRegistry = new ChannelRegistry();
   for (const ch of config.channels) {
-    if (ch.type === "telegram") {
-      channelRegistry.register(new TelegramAdapter(ch.token));
-    }
+    channelRegistry.register(createAdapter(ch.type, ch.token));
   }
 
   // Persist defaultRecipientId via state store
