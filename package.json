@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
+    "@modelcontextprotocol/sdk": "^1.27.1",
     "absurd-sdk": "github:marktoda/absurd#schedules&path:sdks/typescript",
     "grammy": "^1.35.0",
     "pg": "^8.13.0",

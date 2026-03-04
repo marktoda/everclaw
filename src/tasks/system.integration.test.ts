@@ -65,6 +65,7 @@ beforeAll(async () => {
     claimTimeout: 30,
     scriptTimeout: 10,
     scriptEnv: {},
+    serversDir: path.join(tmpDir, "servers"),
   };
 
   taskDeps = {
