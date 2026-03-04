@@ -355,7 +355,9 @@ describe("runAgentLoop", () => {
       "get_state",
       "set_state",
       "run_script",
-      "spawn_task",
+      "spawn_workflow",
+      "spawn_skill",
+      "send_message",
     ])("wraps %s in ctx.step()", async (toolName) => {
       const executeTool = vi.fn().mockResolvedValue("ok");
       const tb = toolUseBlock(toolName, {}, "ns-1");
@@ -627,7 +629,7 @@ describe("runAgentLoop", () => {
           recipientId: "telegram:1",
           role: "assistant",
           content: "(tool use only)",
-          toolUse: [{ id: "tu-1", name: "spawn_task", input: { task_name: "workflow" } }],
+          toolUse: [{ id: "tu-1", name: "spawn_workflow", input: { instructions: "do stuff" } }],
         },
         {
           recipientId: "telegram:1",
@@ -653,7 +655,7 @@ describe("runAgentLoop", () => {
       // 2. Assistant with tool_use block (no text block for "(tool use only)")
       expect(messages[1].role).toBe("assistant");
       expect(messages[1].content).toEqual([
-        { type: "tool_use", id: "tu-1", name: "spawn_task", input: { task_name: "workflow" } },
+        { type: "tool_use", id: "tu-1", name: "spawn_workflow", input: { instructions: "do stuff" } },
       ]);
 
       // 3. Tool result as user message

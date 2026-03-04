@@ -1,7 +1,18 @@
 import type { JsonValue } from "absurd-sdk";
 import { TimeoutError } from "absurd-sdk";
-import type { ToolHandler } from "./types.ts";
+import type { ExecutorDeps, ToolHandler } from "./types.ts";
 import { defineTool } from "./types.ts";
+
+function resolveRecipient(
+  recipient: string | undefined,
+  deps: ExecutorDeps,
+): string | { error: string } {
+  const resolved = !recipient || recipient === "current" ? deps.recipientId : recipient;
+  if (deps.allowedChatIds.size > 0 && !deps.allowedChatIds.has(resolved)) {
+    return { error: `Error: recipient "${resolved}" is not in the allowed list` };
+  }
+  return resolved;
+}
 
 export const orchestrationTools: ToolHandler[] = [
   {
@@ -48,39 +59,86 @@ export const orchestrationTools: ToolHandler[] = [
   },
   {
     def: defineTool(
-      "spawn_task",
-      "Spawn an independent sub-task that runs in the background. The spawned task has NO access to your current conversation — only the instructions you provide.",
+      "spawn_workflow",
+      "Start an independent background workflow. The spawned agent has its own conversation — it does NOT share yours. Use for ad-hoc one-off background jobs.",
       {
-        task_name: {
+        instructions: {
           type: "string",
-          description: "Task type: 'execute-skill', 'send-message', or 'workflow'",
+          description: "Instructions for the background agent to follow",
         },
-        params: {
-          type: "object",
+        context: {
+          type: "string",
+          description: "Optional additional context for the agent",
+        },
+        recipient: {
+          type: "string",
           description:
-            "Task parameters (for 'workflow': {instructions}, for 'send-message': {text}, for 'execute-skill': {skillName}). recipientId is auto-injected.",
+            "Recipient ID override (default: current conversation). Use 'current' or omit for the current recipient.",
         },
       },
-      ["task_name", "params"],
+      ["instructions"],
     ),
     async execute(input, deps) {
-      const { task_name, params: rawParams } = input as {
-        task_name: string;
-        params: Record<string, unknown>;
+      const { instructions, context, recipient } = input as {
+        instructions: string;
+        context?: string;
+        recipient?: string;
       };
-      const params = { ...rawParams };
-      if (params.recipientId === "current" || params.recipientId == null) {
-        params.recipientId = deps.recipientId;
-      }
-      if (
-        deps.allowedChatIds.size > 0 &&
-        typeof params.recipientId === "string" &&
-        !deps.allowedChatIds.has(params.recipientId)
-      ) {
-        return `Error: recipientId "${params.recipientId}" is not in the allowed list`;
-      }
-      const result = await deps.absurd.spawn(task_name, params);
-      return `Task spawned: ${task_name} (ID: ${result.taskID})`;
+      const resolved = resolveRecipient(recipient, deps);
+      if (typeof resolved === "object") return resolved.error;
+      const params: Record<string, unknown> = { recipientId: resolved, instructions };
+      if (context) params.context = context;
+      const result = await deps.absurd.spawn("workflow", params);
+      return `Workflow spawned (ID: ${result.taskID})`;
+    },
+  },
+  {
+    def: defineTool(
+      "spawn_skill",
+      "Run a skill file through an agent loop in the background. Use when you want to trigger an existing skill outside its schedule.",
+      {
+        skill_name: {
+          type: "string",
+          description: "Name of the skill file to execute (without .md extension)",
+        },
+      },
+      ["skill_name"],
+    ),
+    async execute(input, deps) {
+      const { skill_name } = input as { skill_name: string };
+      const result = await deps.absurd.spawn("execute-skill", {
+        skillName: skill_name,
+        recipientId: deps.recipientId,
+      });
+      return `Skill "${skill_name}" spawned (ID: ${result.taskID})`;
+    },
+  },
+  {
+    def: defineTool(
+      "send_message",
+      "Send a message to a recipient. No agent loop — just delivers the message directly.",
+      {
+        text: {
+          type: "string",
+          description: "Message text to send",
+        },
+        recipient: {
+          type: "string",
+          description:
+            "Recipient ID override (default: current conversation). Use 'current' or omit for the current recipient.",
+        },
+      },
+      ["text"],
+    ),
+    async execute(input, deps) {
+      const { text, recipient } = input as { text: string; recipient?: string };
+      const resolved = resolveRecipient(recipient, deps);
+      if (typeof resolved === "object") return resolved.error;
+      const result = await deps.absurd.spawn("send-message", {
+        recipientId: resolved,
+        text,
+      });
+      return `Message queued (ID: ${result.taskID})`;
     },
   },
   {
