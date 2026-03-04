@@ -91,7 +91,7 @@ export const fileTools: ToolHandler[] = [
   {
     def: defineTool(
       "write_file",
-      "Write or overwrite a file. Side effects: writes to skills/ trigger schedule sync, writes to scripts/ auto chmod +x. Note: writes to servers/ require a restart to take effect.",
+      "Write or overwrite a file. Side effects: writes to skills/ trigger schedule sync, writes to scripts/ auto chmod +x, writes to servers/ trigger MCP server reload.",
       {
         path: { type: "string", description: "Relative path within a writable directory" },
         content: { type: "string", description: "Full file content" },
@@ -111,6 +111,9 @@ export const fileTools: ToolHandler[] = [
       }
       if (resolved.dir === "skills") {
         await syncSchedules(deps.absurd, deps.skillsDir, deps.recipientId);
+      }
+      if (resolved.dir === "servers") {
+        await deps.reloadMcp?.();
       }
       return `File written: ${input.path}`;
     },
@@ -145,7 +148,7 @@ export const fileTools: ToolHandler[] = [
   {
     def: defineTool(
       "delete_file",
-      "Delete a file. Side effects: deletes in skills/ trigger schedule sync.",
+      "Delete a file. Side effects: deletes in skills/ trigger schedule sync, deletes in servers/ trigger MCP server reload.",
       {
         path: { type: "string", description: "Relative path within a writable directory" },
       },
@@ -165,6 +168,9 @@ export const fileTools: ToolHandler[] = [
       }
       if (resolved.dir === "skills") {
         await syncSchedules(deps.absurd, deps.skillsDir, deps.recipientId);
+      }
+      if (resolved.dir === "servers") {
+        await deps.reloadMcp?.();
       }
       return `File deleted: ${filePath}`;
     },

@@ -310,6 +310,38 @@ describe("createMcpManager", () => {
     expect(mgr.serverSummaries()).toEqual([]);
   });
 
+  it("reload re-discovers tools using stored args", async () => {
+    setupOneServer();
+    mockClose.mockResolvedValue(undefined);
+
+    const mgr = createMcpManager();
+    await mgr.start("/servers", { KEY: "val" });
+    expect(mgr.definitions()).toHaveLength(2);
+
+    // Change what listTools returns to verify reload actually re-runs start
+    mockListTools.mockResolvedValue({
+      tools: [
+        {
+          name: "new_tool",
+          description: "A new tool",
+          inputSchema: { type: "object" as const, properties: {} },
+        },
+      ],
+    });
+
+    await mgr.reload();
+
+    const defs = mgr.definitions();
+    expect(defs).toHaveLength(1);
+    expect(defs[0].name).toBe("mcp_weather_new_tool");
+    expect(mockClose).toHaveBeenCalled();
+  });
+
+  it("reload throws if called before start", async () => {
+    const mgr = createMcpManager();
+    await expect(mgr.reload()).rejects.toThrow("before start()");
+  });
+
   it("start is idempotent — clears previous state", async () => {
     setupOneServer();
     mockClose.mockResolvedValue(undefined);

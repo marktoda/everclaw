@@ -81,7 +81,7 @@ docs/plans/             Design and implementation documents
 
 **Tool scripts.** Files written to `scripts/` are auto-`chmod +x`. Scripts receive JSON on stdin and return output on stdout, with a configurable timeout (default 30s).
 
-**MCP server integration.** MCP (Model Context Protocol) servers are configured via JSON files in `servers/`, one per server. On startup, `McpManager` spawns each server as a stdio child process, discovers its tools via `tools/list`, and exposes them through the ToolRegistry with `mcp_<server>_<tool>` namespacing. Secrets from `TOOL_*` env vars are passed to server processes. Changes to `servers/` require a restart.
+**MCP server integration.** MCP (Model Context Protocol) servers are configured via JSON files in `servers/`, one per server. On startup, `McpManager` spawns each server as a stdio child process, discovers its tools via `tools/list`, and exposes them through the ToolRegistry with `mcp_<server>_<tool>` namespacing. Secrets from `TOOL_*` env vars are passed to server processes. Changes to `servers/` trigger automatic MCP reload (new tools are available on the next message).
 
 **Agent scratchpad.** The agent can use `<internal>...</internal>` tags for reasoning that gets stripped before sending to the user (see `output.ts`).
 
@@ -109,4 +109,4 @@ Three layers: unit tests (mocked, fast), contract tests (FakeAnthropic validates
 - **Suspending tools vs `ctx.step()`**: `sleep_for`, `sleep_until`, and `wait_for_event` throw `SuspendTask` and must NOT be wrapped in `ctx.step()`. Other tool calls should be wrapped in `ctx.step()` for checkpointing.
 - **SQL injection surface**: `list_tasks` in `agent/tools/orchestration.ts` interpolates `queueName` directly into SQL. This is safe because `loadConfig` validates it as `/^[a-z_][a-z0-9_]*$/i` — do not bypass this validation.
 - **Secret isolation**: Secrets are read from `.env` file, not `process.env`. Do not use `dotenv` or similar libraries that set `process.env`.
-- **MCP server restart**: Writing to `servers/` does not auto-restart MCP servers. Changes require a full process restart. Live reload is a planned future enhancement.
+- **MCP reload timing**: Writing/deleting in `servers/` triggers `McpManager.reload()`, but the current task's tool registry is already frozen. New MCP tools are available starting with the next message/task.

@@ -85,6 +85,7 @@ export interface ServerSummary {
 
 export interface McpManager {
   start(serversDir: string, env: Record<string, string>): Promise<void>;
+  reload(): Promise<void>;
   definitions(): ToolDef[];
   execute(toolName: string, input: Record<string, unknown>): Promise<string>;
   serverSummaries(): ServerSummary[];
@@ -110,6 +111,9 @@ export function createMcpManager(): McpManager {
   let toolRoute = new Map<string, { serverName: string; toolName: string }>();
   /** All discovered tool definitions (Anthropic format) */
   let toolDefs: ToolDef[] = [];
+  /** Stored args from last start() call, used by reload() */
+  let storedServersDir: string | undefined;
+  let storedEnv: Record<string, string> | undefined;
 
   function clearState(): void {
     servers = new Map();
@@ -121,6 +125,9 @@ export function createMcpManager(): McpManager {
     serversDir: string,
     env: Record<string, string>,
   ): Promise<void> {
+    storedServersDir = serversDir;
+    storedEnv = env;
+
     // Idempotent: stop existing connections first (stop() calls clearState())
     await stop();
 
@@ -170,6 +177,13 @@ export function createMcpManager(): McpManager {
         );
       }
     }
+  }
+
+  async function reload(): Promise<void> {
+    if (!storedServersDir || !storedEnv) {
+      throw new Error("McpManager.reload() called before start()");
+    }
+    await start(storedServersDir, storedEnv);
   }
 
   function definitions(): ToolDef[] {
@@ -236,5 +250,5 @@ export function createMcpManager(): McpManager {
     clearState();
   }
 
-  return { start, definitions, execute, serverSummaries, stop };
+  return { start, reload, definitions, execute, serverSummaries, stop };
 }
