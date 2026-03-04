@@ -5,6 +5,10 @@
   "type": "module",
   "license": "MIT",
   "author": "Mark Toda",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/marktoda/everclaw.git"
+  },
   "packageManager": "pnpm@10.6.2",
   "engines": {
     "node": ">=22.18.0"
