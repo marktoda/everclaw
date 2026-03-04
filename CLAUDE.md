@@ -46,6 +46,8 @@ src/
     manager.ts          Skill file parser (YAML frontmatter) and schedule sync with Absurd
   scripts/
     runner.ts           External script runner (execFile with timeout, stdin JSON)
+  servers/
+    manager.ts          McpManager: MCP server lifecycle, tool discovery, and routing
   tasks/
     shared.ts           TaskDeps interface + buildAgentDeps helper (shared by all agent tasks)
     handle-message.ts   Task: wires agent loop for a user message
@@ -58,6 +60,7 @@ sql/
   003-channel-abstraction.sql  Migration: chat_id integer→text with 'telegram:' prefix
 skills/                 Agent-writable skill .md files (YAML frontmatter with optional schedule)
 scripts/                Agent-writable executable scripts (.sh, .py, .js, .ts)
+servers/                MCP server configs (JSON, one file per server)
 data/notes/             Agent-writable persistent notes
 docs/plans/             Design and implementation documents
 ```
@@ -70,7 +73,7 @@ docs/plans/             Design and implementation documents
 
 **Durable workflows.** The agent has orchestration tools (`sleep_for`, `sleep_until`, `wait_for_event`, `emit_event`, `spawn_task`, `cancel_task`, `list_tasks`) that suspend and resume durably through Absurd. Suspending tools must NOT be wrapped in `ctx.step()` — they throw `SuspendTask` which must propagate to the Absurd worker.
 
-**Path containment.** `resolvePath` in `agent/tools/files.ts` validates that all file tool paths resolve within one of three writable directories (`data/notes/`, `skills/`, `scripts/`). Paths that escape are rejected.
+**Path containment.** `resolvePath` in `agent/tools/files.ts` validates that all file tool paths resolve within one of four writable directories (`data/notes/`, `skills/`, `scripts/`, `servers/`). Paths that escape are rejected.
 
 **Config: secrets vs env.** Secrets (`TELEGRAM_BOT_TOKEN`, `ANTHROPIC_API_KEY`) are read from `.env` file only and never set in `process.env`. Non-secret config (`DATABASE_URL`, `QUEUE_NAME`, `CLAUDE_MODEL`, etc.) comes from `process.env` with defaults. Channel tokens are stored in `config.channels[]`. Queue name is validated as a safe SQL identifier at load time.
 
@@ -78,9 +81,11 @@ docs/plans/             Design and implementation documents
 
 **Tool scripts.** Files written to `scripts/` are auto-`chmod +x`. Scripts receive JSON on stdin and return output on stdout, with a configurable timeout (default 30s).
 
+**MCP server integration.** MCP (Model Context Protocol) servers are configured via JSON files in `servers/`, one per server. On startup, `McpManager` spawns each server as a stdio child process, discovers its tools via `tools/list`, and exposes them through the ToolRegistry with `mcp_<server>_<tool>` namespacing. Secrets from `TOOL_*` env vars are passed to server processes. Changes to `servers/` require a restart.
+
 **Agent scratchpad.** The agent can use `<internal>...</internal>` tags for reasoning that gets stripped before sending to the user (see `output.ts`).
 
-## Tools (16 total)
+## Tools (16 built-in + dynamic MCP tools)
 
 | Category | Tools |
 |---|---|
@@ -89,6 +94,7 @@ docs/plans/             Design and implementation documents
 | Scripts (1) | `run_script` |
 | Search (1) | `web_search` |
 | Orchestration (7) | `sleep_for`, `sleep_until`, `spawn_task`, `cancel_task`, `list_tasks`, `wait_for_event`, `emit_event` |
+| MCP (dynamic) | `mcp_<server>_<tool>` — discovered at startup from `servers/*.json` configs |
 
 ## Testing
 
@@ -103,3 +109,4 @@ Three layers: unit tests (mocked, fast), contract tests (FakeAnthropic validates
 - **Suspending tools vs `ctx.step()`**: `sleep_for`, `sleep_until`, and `wait_for_event` throw `SuspendTask` and must NOT be wrapped in `ctx.step()`. Other tool calls should be wrapped in `ctx.step()` for checkpointing.
 - **SQL injection surface**: `list_tasks` in `agent/tools/orchestration.ts` interpolates `queueName` directly into SQL. This is safe because `loadConfig` validates it as `/^[a-z_][a-z0-9_]*$/i` — do not bypass this validation.
 - **Secret isolation**: Secrets are read from `.env` file, not `process.env`. Do not use `dotenv` or similar libraries that set `process.env`.
+- **MCP server restart**: Writing to `servers/` does not auto-restart MCP servers. Changes require a full process restart. Live reload is a planned future enhancement.
