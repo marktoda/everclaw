@@ -1235,6 +1235,118 @@ describe("registry", () => {
   });
 
   // =========================================================================
+  // extra directories
+  // =========================================================================
+  describe("extra directories", () => {
+    let depsWithExtra: ExecutorDeps;
+    let execExtra: (name: string, input: Record<string, any>) => Promise<string>;
+
+    beforeEach(() => {
+      vi.resetAllMocks();
+      vi.mocked(fs.realpath as (p: string) => Promise<string>).mockImplementation(
+        async (p) => p,
+      );
+      depsWithExtra = makeDeps({
+        extraDirs: [
+          { name: "vaults", mode: "ro", absPath: "/mnt/vaults" },
+          { name: "projects", mode: "rw", absPath: "/mnt/projects" },
+        ],
+      });
+      const registry = createToolRegistry(depsWithExtra);
+      execExtra = registry.execute;
+    });
+
+    it("read_file resolves paths in an extra dir", async () => {
+      vi.mocked(fs.readFile).mockResolvedValue("vault content");
+      const result = await execExtra("read_file", { path: "vaults/note.md" });
+      expect(fs.readFile).toHaveBeenCalledWith(
+        path.resolve("/mnt/vaults", "note.md"),
+        "utf-8",
+      );
+      expect(result).toBe("vault content");
+    });
+
+    it("read_file works in rw extra dir", async () => {
+      vi.mocked(fs.readFile).mockResolvedValue("project file");
+      const result = await execExtra("read_file", { path: "projects/readme.md" });
+      expect(fs.readFile).toHaveBeenCalledWith(
+        path.resolve("/mnt/projects", "readme.md"),
+        "utf-8",
+      );
+      expect(result).toBe("project file");
+    });
+
+    it("write_file rejects writes to read-only extra dir", async () => {
+      const result = await execExtra("write_file", {
+        path: "vaults/new.md",
+        content: "test",
+      });
+      expect(result).toMatch(/read.only/i);
+      expect(fs.writeFile).not.toHaveBeenCalled();
+    });
+
+    it("write_file allows writes to rw extra dir", async () => {
+      vi.mocked(fs.mkdir).mockResolvedValue(undefined);
+      vi.mocked(fs.writeFile).mockResolvedValue(undefined);
+      const result = await execExtra("write_file", {
+        path: "projects/new.ts",
+        content: "code",
+      });
+      expect(fs.writeFile).toHaveBeenCalledWith(
+        path.resolve("/mnt/projects", "new.ts"),
+        "code",
+        "utf-8",
+      );
+      expect(result).toContain("File written");
+    });
+
+    it("delete_file rejects deletes in read-only extra dir", async () => {
+      const result = await execExtra("delete_file", { path: "vaults/old.md" });
+      expect(result).toMatch(/read.only/i);
+      expect(fs.unlink).not.toHaveBeenCalled();
+    });
+
+    it("delete_file allows deletes in rw extra dir", async () => {
+      vi.mocked(fs.unlink).mockResolvedValue(undefined);
+      const result = await execExtra("delete_file", { path: "projects/old.ts" });
+      expect(fs.unlink).toHaveBeenCalled();
+      expect(result).toContain("File deleted");
+    });
+
+    it("list_files lists an extra dir", async () => {
+      vi.mocked(fs.readdir).mockResolvedValue(["a.md", "b.md"] as any);
+      const result = await execExtra("list_files", { directory: "vaults" });
+      expect(fs.readdir).toHaveBeenCalledWith("/mnt/vaults");
+      expect(result).toBe("a.md\nb.md");
+    });
+
+    it("rejects path traversal from extra dir", async () => {
+      const result = await execExtra("read_file", {
+        path: "vaults/../../etc/passwd",
+      });
+      expect(result).toMatch(/Error/);
+      expect(fs.readFile).not.toHaveBeenCalled();
+    });
+
+    it("rejects symlink escape from extra dir", async () => {
+      vi.mocked(fs.realpath as (p: string) => Promise<string>).mockResolvedValue(
+        "/etc/passwd",
+      );
+      const result = await execExtra("read_file", { path: "vaults/sneaky.md" });
+      expect(result).toMatch(/symlink/);
+      expect(fs.readFile).not.toHaveBeenCalled();
+    });
+
+    it("write_file in rw extra dir does NOT trigger schedule sync or chmod", async () => {
+      vi.mocked(fs.mkdir).mockResolvedValue(undefined);
+      vi.mocked(fs.writeFile).mockResolvedValue(undefined);
+      await execExtra("write_file", { path: "projects/test.sh", content: "#!/bin/bash" });
+      expect(fs.chmod).not.toHaveBeenCalled();
+      expect(syncSchedules).not.toHaveBeenCalled();
+    });
+  });
+
+  // =========================================================================
   // MCP integration
   // =========================================================================
   describe("MCP integration", () => {
