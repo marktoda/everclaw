@@ -2,14 +2,21 @@ import { Bot } from "grammy";
 import type { ChannelAdapter, InboundMessage } from "./adapter.ts";
 import { splitMessage } from "./split.ts";
 import { logger } from "../logger.ts";
+import { transcribeAudio } from "../transcription.ts";
+
+export interface TelegramAdapterOptions {
+  openaiApiKey?: string;
+}
 
 export class TelegramAdapter implements ChannelAdapter {
   name = "telegram" as const;
   private maxMessageLength = 4096;
   private bot: Bot;
+  private openaiApiKey?: string;
 
-  constructor(token: string) {
+  constructor(token: string, options?: TelegramAdapterOptions) {
     this.bot = new Bot(token);
+    this.openaiApiKey = options?.openaiApiKey;
   }
 
   async start(onMessage: (msg: InboundMessage) => Promise<void>): Promise<void> {
@@ -19,6 +26,29 @@ export class TelegramAdapter implements ChannelAdapter {
         text: ctx.message.text,
       });
     });
+
+    if (this.openaiApiKey) {
+      const apiKey = this.openaiApiKey;
+      this.bot.on("message:voice", async (ctx) => {
+        const recipientId = `telegram:${ctx.chat.id}`;
+        let text = "[Voice Message - transcription unavailable]";
+        try {
+          const file = await ctx.api.getFile(ctx.message.voice.file_id);
+          if (file.file_path) {
+            const url = `https://api.telegram.org/file/bot${this.bot.token}/${file.file_path}`;
+            const resp = await fetch(url);
+            if (!resp.ok) throw new Error(`File download failed: ${resp.status}`);
+            const buf = Buffer.from(await resp.arrayBuffer());
+            const transcript = await transcribeAudio(buf, apiKey);
+            text = `[Voice: ${transcript}]`;
+          }
+        } catch (err) {
+          logger.warn({ err, recipientId }, "voice transcription failed");
+        }
+        await onMessage({ recipientId, text });
+      });
+    }
+
     this.bot.start({ onStart: () => {} }).catch((err) => {
       logger.fatal({ err }, "Telegram bot polling crashed");
       process.exit(1);
