@@ -2,10 +2,20 @@ services:
   assistant:
     build: .
     restart: unless-stopped
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1G
     volumes:
       - ./data:/app/data
       - ./skills:/app/skills
       - ./scripts:/app/scripts
+      - ./servers:/app/servers
       - ./.env:/app/.env:ro
     environment:
       # Only non-secret config

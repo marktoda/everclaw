@@ -424,13 +424,36 @@ describe("registry", () => {
       expect(syncSchedules).not.toHaveBeenCalled();
     });
 
-    it("rejects writes to servers/ (read-only)", async () => {
+    it("validates and writes to servers/", async () => {
+      vi.mocked(fs.mkdir).mockResolvedValue(undefined);
+      vi.mocked(fs.writeFile).mockResolvedValue(undefined);
+
       const result = await exec("write_file", {
         path: "servers/github.json",
         content: '{"command":"npx","args":["github-mcp"]}',
       });
 
-      expect(result).toContain("read-only");
+      expect(result).toContain("File written");
+      expect(fs.writeFile).toHaveBeenCalled();
+    });
+
+    it("rejects servers/ write with invalid config", async () => {
+      const result = await exec("write_file", {
+        path: "servers/bad.json",
+        content: '{"command":"bash"}',
+      });
+
+      expect(result).toContain("not allowed");
+      expect(fs.writeFile).not.toHaveBeenCalled();
+    });
+
+    it("rejects servers/ write with non-.json extension", async () => {
+      const result = await exec("write_file", {
+        path: "servers/readme.txt",
+        content: "hello",
+      });
+
+      expect(result).toContain("must be .json");
       expect(fs.writeFile).not.toHaveBeenCalled();
     });
 
@@ -664,11 +687,13 @@ describe("registry", () => {
       expect(syncSchedules).not.toHaveBeenCalled();
     });
 
-    it("rejects deletes from servers/ (read-only)", async () => {
+    it("allows deletes from servers/", async () => {
+      vi.mocked(fs.unlink).mockResolvedValue(undefined);
+
       const result = await exec("delete_file", { path: "servers/old-server.json" });
 
-      expect(result).toContain("read-only");
-      expect(fs.unlink).not.toHaveBeenCalled();
+      expect(result).toContain("File deleted");
+      expect(fs.unlink).toHaveBeenCalled();
     });
   });
 

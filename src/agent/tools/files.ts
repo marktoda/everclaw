@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { syncSchedules } from "../../skills/manager.ts";
+import { validateServerConfig } from "../../servers/manager.ts";
 import type { ExecutorDeps, ToolHandler } from "./types.ts";
 import { defineTool } from "./types.ts";
 
@@ -19,7 +20,7 @@ const DIR_MAPPINGS: Array<{
   { prefix: "data/notes/", dirKey: "notesDir", dir: "notes" },
   { prefix: "skills/", dirKey: "skillsDir", dir: "skills" },
   { prefix: "scripts/", dirKey: "scriptsDir", dir: "scripts" },
-  { prefix: "servers/", dirKey: "serversDir", dir: "servers", readOnly: true },
+  { prefix: "servers/", dirKey: "serversDir", dir: "servers" },
 ];
 
 interface ResolvedPath {
@@ -152,7 +153,7 @@ export const fileTools: ToolHandler[] = [
   {
     def: defineTool(
       "read_file",
-      "Read a file from an accessible directory (data/notes/, skills/, scripts/, servers/ [read-only]).",
+      "Read a file from an accessible directory (data/notes/, skills/, scripts/, servers/).",
       {
         path: {
           type: "string",
@@ -179,7 +180,7 @@ export const fileTools: ToolHandler[] = [
   {
     def: defineTool(
       "write_file",
-      "Write or overwrite a file. Side effects: writes to skills/ trigger schedule sync, writes to scripts/ auto chmod +x. servers/ is read-only.",
+      "Write or overwrite a file. Side effects: writes to skills/ trigger schedule sync, writes to scripts/ auto chmod +x, writes to servers/ validate config and trigger MCP reload.",
       {
         path: { type: "string", description: "Relative path within a writable directory" },
         content: { type: "string", description: "Full file content" },
@@ -193,6 +194,14 @@ export const fileTools: ToolHandler[] = [
       if (resolved.mode === "ro") return `Error: ${resolved.dir}/ is read-only`;
       const escape = await validateRealPath(resolved.abs, resolved.baseDir);
       if (escape) return escape;
+      if (resolved.dir === "servers") {
+        if (!filePath.endsWith(".json"))
+          return "Error: server configs must be .json files";
+        if (path.dirname(resolved.abs) !== resolved.baseDir)
+          return "Error: server configs must be top-level files in servers/";
+        const validation = validateServerConfig(content);
+        if (!validation.ok) return `Error: invalid server config: ${validation.error}`;
+      }
       await fs.mkdir(path.dirname(resolved.abs), { recursive: true });
       await fs.writeFile(resolved.abs, content, "utf-8");
       if (resolved.dir === "scripts") {
@@ -200,6 +209,9 @@ export const fileTools: ToolHandler[] = [
       }
       if (resolved.dir === "skills") {
         await syncSchedules(deps.absurd, deps.skillsDir);
+      }
+      if (resolved.dir === "servers" && deps.reloadMcp) {
+        await deps.reloadMcp();
       }
       return `File written: ${input.path}`;
     },
@@ -342,7 +354,7 @@ export const fileTools: ToolHandler[] = [
   {
     def: defineTool(
       "delete_file",
-      "Delete a file. Side effects: deletes in skills/ trigger schedule sync. servers/ is read-only.",
+      "Delete a file. Side effects: deletes in skills/ trigger schedule sync, deletes in servers/ trigger MCP reload.",
       {
         path: { type: "string", description: "Relative path within a writable directory" },
       },
@@ -363,6 +375,9 @@ export const fileTools: ToolHandler[] = [
       }
       if (resolved.dir === "skills") {
         await syncSchedules(deps.absurd, deps.skillsDir);
+      }
+      if (resolved.dir === "servers" && deps.reloadMcp) {
+        await deps.reloadMcp();
       }
       return `File deleted: ${filePath}`;
     },
