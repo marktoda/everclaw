@@ -75,6 +75,7 @@ function makeConfig() {
     scriptEnv: {},
     serversDir: "/tmp/servers",
     extraDirs: [],
+    allowedChatIds: new Set<string>(),
   };
 }
 

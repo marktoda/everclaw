@@ -40,6 +40,7 @@ export interface Config {
   scriptEnv: Record<string, string>;
   serversDir: string;
   extraDirs: ExtraDir[];
+  allowedChatIds: Set<string>;
 }
 
 /** Read key=value pairs from a .env file WITHOUT setting process.env */
@@ -101,6 +102,12 @@ function parseExtraDirs(raw: string | undefined): ExtraDir[] {
   return dirs;
 }
 
+function parseAllowedChatIds(raw: string | undefined): Set<string> {
+  if (!raw?.trim()) return new Set();
+  const ids = raw.split(",").map((s) => s.trim()).filter(Boolean);
+  return new Set(ids.map((id) => `telegram:${id}`));
+}
+
 export function loadConfig(envPath: string = ".env"): Config {
   const secrets = readEnvFile(envPath);
 
@@ -132,5 +139,6 @@ export function loadConfig(envPath: string = ".env"): Config {
     scriptEnv: Object.fromEntries(Object.entries(secrets).filter(([k]) => k.startsWith("TOOL_"))),
     serversDir: path.resolve(process.env.SERVERS_DIR ?? "servers"),
     extraDirs: parseExtraDirs(process.env.EXTRA_DIRS),
+    allowedChatIds: parseAllowedChatIds(secrets.ALLOWED_CHAT_IDS),
   };
 }

@@ -79,6 +79,8 @@ docs/plans/             Design and implementation documents
 
 **Config: secrets vs env.** Secrets (`TELEGRAM_BOT_TOKEN`, `ANTHROPIC_API_KEY`) are read from `.env` file only and never set in `process.env`. Non-secret config (`DATABASE_URL`, `QUEUE_NAME`, `CLAUDE_MODEL`, etc.) comes from `process.env` with defaults. Channel tokens are stored in `config.channels[]`. Queue name is validated as a safe SQL identifier at load time.
 
+**Chat ID allowlist.** `ALLOWED_CHAT_IDS` in `.env` (comma-separated integers) restricts which Telegram users can interact with the agent. When unset/empty the bot runs in **discovery mode** — it replies with the sender's chat ID and setup instructions instead of running the agent. When set, unauthorized messages are silently ignored (logged at warn). Filtering happens in `index.ts` before any task is spawned.
+
 **Skill schedule sync.** Writing or deleting a skill file in `skills/` triggers `syncSchedules`, which reconciles YAML frontmatter `schedule` fields with Absurd's schedule registry. Schedules are prefixed `skill:`.
 
 **Tool scripts.** Files written to `scripts/` are auto-`chmod +x`. Scripts receive JSON on stdin and return output on stdout, with a configurable timeout (default 30s).

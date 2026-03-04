@@ -84,9 +84,11 @@ TELEGRAM_BOT_TOKEN=<token>
 ANTHROPIC_API_KEY=<key>
 # Optional: enables the web_search tool (free tier: 2000 queries/month)
 # BRAVE_SEARCH_API_KEY=BSA...
+# Chat ID allowlist — leave empty for now; discovery mode will reveal your ID
+# ALLOWED_CHAT_IDS=
 ```
 
-If Brave key was provided, uncomment that line.
+If Brave key was provided, uncomment that line. Leave `ALLOWED_CHAT_IDS` commented out for now — the discovery mode flow in Phase 9 will guide the user to fill it in.
 
 ---
 
@@ -169,10 +171,23 @@ Run this in the background. Check output for startup errors. Common issues:
 
 ---
 
-### Phase 9: Verify and wrap up
+### Phase 9: Discover chat ID and enable allowlist
+
+The bot starts in **discovery mode** when `ALLOWED_CHAT_IDS` is not set. Walk the user through:
+
+1. Send any message to the Telegram bot
+2. The bot replies with their chat ID and instructions (it does NOT run the agent yet)
+3. Copy the chat ID from the reply
+4. Add it to `.env`: `ALLOWED_CHAT_IDS=<chat_id>` (uncomment and fill in the value)
+5. Restart the bot (Ctrl+C and re-run, or `docker compose restart`)
+6. Send another message — this time the agent will respond normally
+
+If the user wants to allow multiple accounts, they can comma-separate IDs: `ALLOWED_CHAT_IDS=123,456`.
+
+### Phase 10: Verify and wrap up
 
 Tell the user:
-1. Send a test message to their Telegram bot
+1. Send a test message to their Telegram bot (after enabling the allowlist)
 2. Check the logs to see the message was received and a response was generated
 
 Provide these useful commands:

@@ -67,6 +67,7 @@ beforeAll(async () => {
     scriptEnv: {},
     serversDir: path.join(tmpDir, "servers"),
     extraDirs: [],
+    allowedChatIds: new Set<string>(),
   };
 
   taskDeps = {
