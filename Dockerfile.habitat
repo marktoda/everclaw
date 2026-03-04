@@ -1,0 +1,18 @@
+FROM node:22-alpine AS ui-build
+RUN apk add --no-cache git
+WORKDIR /src
+RUN git clone --depth 1 https://github.com/marktoda/absurd.git .
+WORKDIR /src/habitat/ui
+RUN npm ci && npm run build
+
+FROM golang:1.24-alpine AS go-build
+RUN apk add --no-cache git
+WORKDIR /src
+COPY --from=ui-build /src /src
+COPY --from=ui-build /src/habitat/ui/dist /src/habitat/internal/web/dist
+WORKDIR /src/habitat
+RUN go build -o /habitat ./cmd/habitat
+
+FROM gcr.io/distroless/base-debian12
+COPY --from=go-build /habitat /habitat
+ENTRYPOINT ["/habitat", "run"]
