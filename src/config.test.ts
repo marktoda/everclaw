@@ -59,4 +59,50 @@ describe("loadConfig", () => {
     const c = loadConfig(envPath);
     expect(c.scriptEnv).toEqual({});
   });
+
+  it("parses EXTRA_DIRS into extraDirs array", () => {
+    fs.writeFileSync(envPath, "TELEGRAM_BOT_TOKEN=tg\nANTHROPIC_API_KEY=sk\n");
+    process.env.EXTRA_DIRS = "vaults:ro:/mnt/vaults,projects:rw:/mnt/projects";
+    const c = loadConfig(envPath);
+    expect(c.extraDirs).toEqual([
+      { name: "vaults", mode: "ro", absPath: "/mnt/vaults" },
+      { name: "projects", mode: "rw", absPath: "/mnt/projects" },
+    ]);
+  });
+
+  it("defaults extraDirs to empty array when EXTRA_DIRS is not set", () => {
+    fs.writeFileSync(envPath, "TELEGRAM_BOT_TOKEN=tg\nANTHROPIC_API_KEY=sk\n");
+    const c = loadConfig(envPath);
+    expect(c.extraDirs).toEqual([]);
+  });
+
+  it("throws on invalid EXTRA_DIRS name", () => {
+    fs.writeFileSync(envPath, "TELEGRAM_BOT_TOKEN=tg\nANTHROPIC_API_KEY=sk\n");
+    process.env.EXTRA_DIRS = "../bad:ro:/mnt/bad";
+    expect(() => loadConfig(envPath)).toThrow("Invalid extra dir name");
+  });
+
+  it("throws on EXTRA_DIRS name colliding with built-in prefix", () => {
+    fs.writeFileSync(envPath, "TELEGRAM_BOT_TOKEN=tg\nANTHROPIC_API_KEY=sk\n");
+    process.env.EXTRA_DIRS = "skills:rw:/mnt/skills";
+    expect(() => loadConfig(envPath)).toThrow("conflicts with built-in");
+  });
+
+  it("throws on invalid EXTRA_DIRS mode", () => {
+    fs.writeFileSync(envPath, "TELEGRAM_BOT_TOKEN=tg\nANTHROPIC_API_KEY=sk\n");
+    process.env.EXTRA_DIRS = "vaults:xx:/mnt/vaults";
+    expect(() => loadConfig(envPath)).toThrow("mode must be");
+  });
+
+  it("throws on non-absolute EXTRA_DIRS path", () => {
+    fs.writeFileSync(envPath, "TELEGRAM_BOT_TOKEN=tg\nANTHROPIC_API_KEY=sk\n");
+    process.env.EXTRA_DIRS = "vaults:ro:relative/path";
+    expect(() => loadConfig(envPath)).toThrow("must be absolute");
+  });
+
+  it("throws on duplicate EXTRA_DIRS names", () => {
+    fs.writeFileSync(envPath, "TELEGRAM_BOT_TOKEN=tg\nANTHROPIC_API_KEY=sk\n");
+    process.env.EXTRA_DIRS = "vaults:ro:/mnt/a,vaults:rw:/mnt/b";
+    expect(() => loadConfig(envPath)).toThrow("duplicate");
+  });
 });

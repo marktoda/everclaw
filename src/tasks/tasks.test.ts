@@ -74,6 +74,7 @@ function makeConfig() {
     scriptTimeout: 10,
     scriptEnv: {},
     serversDir: "/tmp/servers",
+    extraDirs: [],
   };
 }
 
