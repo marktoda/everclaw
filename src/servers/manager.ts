@@ -18,6 +18,17 @@ export interface ServerConfig {
 }
 
 export const ALLOWED_COMMANDS = new Set(["npx", "uvx", "node", "python3", "python", "docker"]);
+const ALLOWED_COMMANDS_LIST = Array.from(ALLOWED_COMMANDS).join(", ");
+
+/** Check whether a value is a plain object where every value is a string. */
+function isStringRecord(v: unknown): v is Record<string, string> {
+  return (
+    typeof v === "object" &&
+    v !== null &&
+    !Array.isArray(v) &&
+    Object.values(v as Record<string, unknown>).every((val) => typeof val === "string")
+  );
+}
 
 /**
  * Validate a raw JSON string as a valid MCP server config.
@@ -52,8 +63,7 @@ export function validateServerConfig(raw: string): { ok: true } | { ok: false; e
   }
 
   if (!ALLOWED_COMMANDS.has(obj.command)) {
-    const allowed = Array.from(ALLOWED_COMMANDS).join(", ");
-    return { ok: false, error: `command "${obj.command}" is not allowed (allowed: ${allowed})` };
+    return { ok: false, error: `command "${obj.command}" is not allowed (allowed: ${ALLOWED_COMMANDS_LIST})` };
   }
 
   if ("args" in obj) {
@@ -63,12 +73,7 @@ export function validateServerConfig(raw: string): { ok: true } | { ok: false; e
   }
 
   if ("env" in obj) {
-    if (
-      typeof obj.env !== "object" ||
-      obj.env === null ||
-      Array.isArray(obj.env) ||
-      !Object.values(obj.env as Record<string, unknown>).every((v) => typeof v === "string")
-    ) {
+    if (!isStringRecord(obj.env)) {
       return { ok: false, error: '"env" must be a plain object where every value is a string' };
     }
   }
@@ -126,12 +131,6 @@ export async function listServerConfigs(
 
     const obj = parsed as Record<string, unknown>;
     const name = path.basename(entry, ".json");
-
-    const isStringRecord = (v: unknown): v is Record<string, string> =>
-      typeof v === "object" &&
-      v !== null &&
-      !Array.isArray(v) &&
-      Object.values(v as Record<string, unknown>).every((val) => typeof val === "string");
 
     configs.push({
       name,
