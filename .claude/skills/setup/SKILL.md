@@ -77,6 +77,13 @@ Check if `.env` already exists in the project root.
 
    If yes, ask for the key. Mention https://brave.com/search/api/.
 
+4. **OPENAI_API_KEY** (optional) — Use `AskUserQuestion` to ask if they want voice transcription:
+   > Enable voice message transcription? When configured, the bot transcribes voice messages sent on Telegram using OpenAI Whisper (~$0.006/min of audio).
+   > - **Skip for now**
+   > - **Add API key**
+
+   If yes, ask for the key. Mention https://platform.openai.com/api-keys.
+
 Write the `.env` file with collected values. Include the comment about Brave being optional. Format:
 
 ```
@@ -84,6 +91,8 @@ TELEGRAM_BOT_TOKEN=<token>
 ANTHROPIC_API_KEY=<key>
 # Optional: enables the web_search tool (free tier: 2000 queries/month)
 # BRAVE_SEARCH_API_KEY=BSA...
+# Optional: enables voice message transcription (~$0.006/min of audio)
+# OPENAI_API_KEY=sk-...
 # Chat ID allowlist — leave empty for now; discovery mode will reveal your ID
 # ALLOWED_CHAT_IDS=
 ```
@@ -178,7 +187,7 @@ The bot starts in **discovery mode** when `ALLOWED_CHAT_IDS` is not set. Walk th
 1. Send any message to the Telegram bot
 2. The bot replies with their chat ID and instructions (it does NOT run the agent yet)
 3. Copy the chat ID from the reply
-4. Add it to `.env`: `ALLOWED_CHAT_IDS=<chat_id>` (uncomment and fill in the value)
+4. Add it to `.env`: `ALLOWED_CHAT_IDS=telegram:<chat_id>` (use the full prefixed value shown by the bot)
 5. Restart the bot (Ctrl+C and re-run, or `docker compose restart`)
 6. Send another message — this time the agent will respond normally
 
