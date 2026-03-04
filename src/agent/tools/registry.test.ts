@@ -69,6 +69,7 @@ function makeDeps(overrides: Partial<ExecutorDeps> = {}): ExecutorDeps {
     scriptTimeout: 30,
     scriptEnv: {},
     startedAt: new Date("2025-01-01T00:00:00Z"),
+    extraDirs: [],
     ...overrides,
   };
 }

@@ -49,6 +49,7 @@ export function buildAgentDeps(
       startedAt: deps.startedAt,
       searchApiKey: deps.config.braveSearchApiKey,
       reloadMcp: deps.mcp ? () => deps.mcp!.reload() : undefined,
+      extraDirs: deps.config.extraDirs,
     },
     deps.mcp,
   );
