@@ -23,10 +23,7 @@ const mockStop = vi.fn();
 vi.mock("grammy", () => {
   class Bot {
     token: string;
-    api = {
-      sendMessage: mockSendMessage,
-      getFile: vi.fn().mockResolvedValue({ file_path: "voice/file_0.oga" }),
-    };
+    api = { sendMessage: mockSendMessage };
     constructor(token: string) {
       this.token = token;
     }
@@ -128,6 +125,10 @@ describe("TelegramAdapter", () => {
         recipientId: "telegram:42",
         text: "[Voice: hello from voice]",
       });
+      expect(transcribeAudio).toHaveBeenCalledWith(expect.any(Buffer), "sk-key");
+      expect(mockFetch).toHaveBeenCalledWith(
+        "https://api.telegram.org/file/bottoken/voice/file_0.oga",
+      );
     });
 
     it("delivers fallback when transcription fails", async () => {
