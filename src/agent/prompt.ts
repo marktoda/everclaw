@@ -2,6 +2,7 @@ export interface PromptContext {
   notes: string;
   skills: Array<{ name: string; description: string; schedule?: string }>;
   tools: Array<{ name: string; description?: string }>;
+  mcpServers?: Array<{ name: string; description?: string }>;
 }
 
 export function buildSystemPrompt(ctx: PromptContext): string {
@@ -21,6 +22,8 @@ You have generic file tools for all writable directories:
   Schedules are synced automatically when you write or delete skill files.
 - **scripts/**: Executable scripts. Write shell/Python scripts here — they're
   auto-marked executable. Run them with run_script.
+- **servers/**: MCP server configurations. Each .json file defines an MCP server
+  that provides additional tools. Changes require a restart to take effect.
 
 ## Workflow Capabilities
 
@@ -98,6 +101,23 @@ Current date and time: ${new Date().toISOString()}`);
       .map((t) => (t.description ? `- **${t.name}**: ${t.description}` : `- ${t.name}`))
       .join("\n");
     parts.push(`## Available Tool Scripts\n\n${list}`);
+  }
+
+  if (ctx.mcpServers && ctx.mcpServers.length > 0) {
+    const list = ctx.mcpServers
+      .map(
+        (s) =>
+          `- **${s.name}**: ${s.description ?? "MCP server"}`,
+      )
+      .join("\n");
+    parts.push(`## MCP Servers
+
+MCP servers are external integrations that provide tools over a protocol. Unlike
+scripts (which you write and run yourself), MCP tools connect to running services
+configured by the operator. Use MCP tools when they are available for the task;
+use scripts for custom one-off automation you build yourself.
+
+${list}`);
   }
 
   return parts.join("\n\n---\n\n");
