@@ -105,4 +105,24 @@ describe("loadConfig", () => {
     process.env.EXTRA_DIRS = "vaults:ro:/mnt/a,vaults:rw:/mnt/b";
     expect(() => loadConfig(envPath)).toThrow("duplicate");
   });
+
+  it("returns empty extraDirs for empty string EXTRA_DIRS", () => {
+    fs.writeFileSync(envPath, "TELEGRAM_BOT_TOKEN=tg\nANTHROPIC_API_KEY=sk\n");
+    process.env.EXTRA_DIRS = "";
+    const c = loadConfig(envPath);
+    expect(c.extraDirs).toEqual([]);
+  });
+
+  it("parses a single EXTRA_DIRS entry without comma", () => {
+    fs.writeFileSync(envPath, "TELEGRAM_BOT_TOKEN=tg\nANTHROPIC_API_KEY=sk\n");
+    process.env.EXTRA_DIRS = "vaults:ro:/mnt/vaults";
+    const c = loadConfig(envPath);
+    expect(c.extraDirs).toEqual([{ name: "vaults", mode: "ro", absPath: "/mnt/vaults" }]);
+  });
+
+  it("throws on malformed EXTRA_DIRS entry with too few colons", () => {
+    fs.writeFileSync(envPath, "TELEGRAM_BOT_TOKEN=tg\nANTHROPIC_API_KEY=sk\n");
+    process.env.EXTRA_DIRS = "vaults:ro";
+    expect(() => loadConfig(envPath)).toThrow("expected name:mode:path");
+  });
 });
