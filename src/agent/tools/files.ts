@@ -1,3 +1,4 @@
+import { execFile } from "node:child_process";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { syncSchedules } from "../../skills/manager.ts";
@@ -81,6 +82,72 @@ async function validateRealPath(abs: string, baseDir: string): Promise<string | 
   return null;
 }
 
+// ---------------------------------------------------------------------------
+// Helpers for glob_files / grep_files (ripgrep-backed)
+// ---------------------------------------------------------------------------
+
+interface SearchDir {
+  prefix: string;
+  absPath: string;
+}
+
+/** Get all allowed directories as {prefix, absPath} pairs. */
+function getAllowedDirs(deps: ExecutorDeps): SearchDir[] {
+  const dirs: SearchDir[] = DIR_MAPPINGS.map((m) => ({
+    prefix: m.prefix,
+    absPath: deps[m.dirKey],
+  }));
+  for (const extra of deps.extraDirs) {
+    dirs.push({ prefix: extra.name + "/", absPath: extra.absPath });
+  }
+  return dirs;
+}
+
+/** Resolve a user-supplied directory name to a single SearchDir[], or return an error string. */
+function resolveSearchDir(name: string, deps: ExecutorDeps): SearchDir[] | string {
+  const clean = name.replace(/^\.?\//, "").replace(/\/$/, "");
+  const mapping = DIR_MAPPINGS.find((m) => m.prefix.replace(/\/$/, "") === clean);
+  if (mapping) return [{ prefix: mapping.prefix, absPath: deps[mapping.dirKey] }];
+  const extra = deps.extraDirs.find((d) => d.name === clean);
+  if (extra) return [{ prefix: extra.name + "/", absPath: extra.absPath }];
+  const valid = ["data/notes", "skills", "scripts", "servers", ...deps.extraDirs.map((d) => d.name)];
+  return `Error: directory must be ${valid.join(", ")}`;
+}
+
+/** Convert an absolute path from rg output back to agent-relative form. */
+function absToRelative(abs: string, dirs: SearchDir[]): string | null {
+  for (const { prefix, absPath } of dirs) {
+    if (abs === absPath || abs.startsWith(absPath + "/")) {
+      const rel = abs.slice(absPath.length + 1);
+      return rel ? prefix + rel : prefix.replace(/\/$/, "");
+    }
+  }
+  return null;
+}
+
+/** Replace leading absolute path in an rg output line with agent-relative form. */
+function transformOutputLine(line: string, dirs: SearchDir[]): string {
+  for (const { prefix, absPath } of dirs) {
+    if (line.startsWith(absPath + "/")) {
+      return prefix + line.slice(absPath.length + 1);
+    }
+  }
+  return line;
+}
+
+/** Run ripgrep with given args. Returns {stdout, error}. Exit 1 = no matches (empty stdout). */
+function runRg(args: string[]): Promise<{ stdout: string; error?: string }> {
+  return new Promise((resolve) => {
+    execFile("rg", args, { timeout: 30_000, maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
+      if (!err) return resolve({ stdout });
+      // Exit code 1 = no matches; check .status (set by child_process on non-zero exit)
+      const exitCode = (err as any).status as number | undefined;
+      if (exitCode === 1) return resolve({ stdout: "" });
+      resolve({ stdout: "", error: `Error running rg: ${stderr || err.message}` });
+    });
+  });
+}
+
 export const fileTools: ToolHandler[] = [
   {
     def: defineTool(
@@ -139,42 +206,134 @@ export const fileTools: ToolHandler[] = [
   },
   {
     def: defineTool(
-      "list_files",
-      "List files in a writable directory.",
+      "glob_files",
+      "Find files by name pattern (recursive). Searches all accessible directories unless restricted.",
       {
+        pattern: {
+          type: "string",
+          description: "Glob pattern (e.g. '*.md', '**/*.test.ts')",
+        },
         directory: {
           type: "string",
-          description: "Directory to list: 'data/notes', 'skills', 'scripts', or 'servers'",
+          description:
+            "Restrict to one directory (e.g. 'vaults', 'data/notes', 'skills'). Omit to search all.",
+        },
+        limit: {
+          type: "integer",
+          description: "Max files to return (default 200)",
         },
       },
-      ["directory"],
+      ["pattern"],
     ),
     async execute(input, deps) {
-      const { directory } = input as { directory: string };
-      const dir = directory.replace(/^\.?\//, "").replace(/\/$/, "");
-      const mapping = DIR_MAPPINGS.find((m) => m.prefix.replace(/\/$/, "") === dir);
-      if (mapping) {
-        const absDir = deps[mapping.dirKey];
-        try {
-          const entries = await fs.readdir(absDir);
-          if (entries.length === 0) return "(empty directory)";
-          return entries.join("\n");
-        } catch {
-          return "(directory does not exist)";
-        }
-      }
-      const extra = deps.extraDirs.find((d) => d.name === dir);
-      if (extra) {
-        try {
-          const entries = await fs.readdir(extra.absPath);
-          if (entries.length === 0) return "(empty directory)";
-          return entries.join("\n");
-        } catch {
-          return "(directory does not exist)";
-        }
-      }
-      const validDirs = ["data/notes", "skills", "scripts", "servers", ...deps.extraDirs.map((d) => d.name)];
-      return `Error: directory must be ${validDirs.join(", ")}`;
+      const { pattern, directory, limit: rawLimit } = input as {
+        pattern: string;
+        directory?: string;
+        limit?: number;
+      };
+      const cap = rawLimit ?? 200;
+
+      const dirs = directory ? resolveSearchDir(directory, deps) : getAllowedDirs(deps);
+      if (typeof dirs === "string") return dirs; // error message
+
+      const args = ["--files", "--glob", pattern, "--no-ignore", ...dirs.map((d) => d.absPath)];
+      const { stdout, error } = await runRg(args);
+      if (error) return error;
+      if (!stdout.trim()) return "(no matches found)";
+
+      const allDirs = getAllowedDirs(deps);
+      const lines = stdout.trim().split("\n");
+      const mapped = lines.flatMap((line) => {
+        const rel = absToRelative(line, allDirs);
+        return rel ? [rel] : [];
+      });
+      if (mapped.length === 0) return "(no matches found)";
+      const truncated = mapped.length > cap;
+      const result = mapped.slice(0, cap).join("\n");
+      return truncated ? `${result}\n\n(truncated — ${mapped.length} total, showing first ${cap})` : result;
+    },
+  },
+  {
+    def: defineTool(
+      "grep_files",
+      "Search file contents by regex. Returns matching lines with file paths and line numbers.",
+      {
+        pattern: {
+          type: "string",
+          description: "Regex pattern to search for",
+        },
+        directory: {
+          type: "string",
+          description:
+            "Restrict to one directory (e.g. 'vaults', 'data/notes'). Omit to search all.",
+        },
+        glob: {
+          type: "string",
+          description: "File glob filter (e.g. '*.ts', '*.md')",
+        },
+        ignore_case: {
+          type: "boolean",
+          description: "Case-insensitive search (default false)",
+        },
+        context_lines: {
+          type: "integer",
+          description: "Lines of context before/after each match (default 0)",
+        },
+        output_mode: {
+          type: "string",
+          description:
+            "Output format: 'content' (matching lines, default), 'files_with_matches' (file paths only), 'count' (match counts per file)",
+        },
+        limit: {
+          type: "integer",
+          description: "Max output lines/entries (default 100)",
+        },
+      },
+      ["pattern"],
+    ),
+    async execute(input, deps) {
+      const {
+        pattern,
+        directory,
+        glob: fileGlob,
+        ignore_case: ignoreCase,
+        context_lines: contextLines,
+        output_mode: outputMode,
+        limit: rawLimit,
+      } = input as {
+        pattern: string;
+        directory?: string;
+        glob?: string;
+        ignore_case?: boolean;
+        context_lines?: number;
+        output_mode?: string;
+        limit?: number;
+      };
+      const cap = rawLimit ?? 100;
+
+      const dirs = directory ? resolveSearchDir(directory, deps) : getAllowedDirs(deps);
+      if (typeof dirs === "string") return dirs;
+
+      const args: string[] = [];
+      if (outputMode === "files_with_matches") args.push("-l");
+      else if (outputMode === "count") args.push("-c");
+      else args.push("-n");
+      args.push("--no-heading", "--color", "never", "--no-ignore");
+      if (ignoreCase) args.push("-i");
+      if (contextLines && contextLines > 0) args.push("-C", String(contextLines));
+      if (fileGlob) args.push("--glob", fileGlob);
+      args.push(pattern, ...dirs.map((d) => d.absPath));
+
+      const { stdout, error } = await runRg(args);
+      if (error) return error;
+      if (!stdout.trim()) return "(no matches found)";
+
+      const allDirs = getAllowedDirs(deps);
+      const lines = stdout.trimEnd().split("\n");
+      const mapped = lines.map((line) => transformOutputLine(line, allDirs));
+      const truncated = mapped.length > cap;
+      const result = mapped.slice(0, cap).join("\n");
+      return truncated ? `${result}\n\n(truncated — ${mapped.length} total, showing first ${cap})` : result;
     },
   },
   {

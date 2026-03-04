@@ -31,7 +31,12 @@ vi.mock("../../scripts/runner.ts", () => ({
   listScripts: vi.fn(),
 }));
 
+vi.mock("node:child_process", () => ({
+  execFile: vi.fn(),
+}));
+
 // Import mocked modules so we can configure per-test return values.
+import { execFile } from "node:child_process";
 import * as fs from "node:fs/promises";
 import { TimeoutError } from "absurd-sdk";
 import { getState, setState } from "../../memory/state.ts";
@@ -447,63 +452,164 @@ describe("registry", () => {
   });
 
   // =========================================================================
-  // list_files
+  // glob_files
   // =========================================================================
-  describe("list_files", () => {
-    it("lists files from notes directory", async () => {
-      vi.mocked(fs.readdir).mockResolvedValue(["a.md", "b.txt"] as any);
-      const result = await exec("list_files", { directory: "data/notes" });
-      expect(result).toBe("a.md\nb.txt");
-      expect(fs.readdir).toHaveBeenCalledWith("/data/notes");
+  describe("glob_files", () => {
+    function mockRg(stdout: string, exitCode = 0) {
+      vi.mocked(execFile as any).mockImplementation(
+        (_cmd: string, _args: string[], _opts: any, cb: Function) => {
+          if (exitCode === 0) cb(null, stdout, "");
+          else {
+            const err = Object.assign(new Error(`exit code ${exitCode}`), { status: exitCode });
+            cb(err, stdout, "");
+          }
+        },
+      );
+    }
+
+    it("returns transformed paths from rg output", async () => {
+      mockRg("/data/notes/foo.md\n/data/notes/sub/bar.md\n");
+      const result = await exec("glob_files", { pattern: "*.md" });
+      expect(result).toBe("data/notes/foo.md\ndata/notes/sub/bar.md");
     });
 
-    it("lists files from skills directory", async () => {
-      vi.mocked(fs.readdir).mockResolvedValue(["skill.md"] as any);
-      const result = await exec("list_files", { directory: "skills" });
-      expect(result).toBe("skill.md");
-      expect(fs.readdir).toHaveBeenCalledWith("/data/skills");
+    it("restricts to a single directory when specified", async () => {
+      mockRg("/data/skills/morning.md\n");
+      const result = await exec("glob_files", { pattern: "*.md", directory: "skills" });
+      expect(result).toBe("skills/morning.md");
+      const callArgs = vi.mocked(execFile as any).mock.calls[0][1] as string[];
+      expect(callArgs).toContain("/data/skills");
+      expect(callArgs).not.toContain("/data/notes");
     });
 
-    it("lists files from scripts directory", async () => {
-      vi.mocked(fs.readdir).mockResolvedValue(["tool.sh"] as any);
-      const result = await exec("list_files", { directory: "scripts" });
-      expect(result).toBe("tool.sh");
-      expect(fs.readdir).toHaveBeenCalledWith("/data/scripts");
+    it("caps output at limit with truncation notice", async () => {
+      const lines = Array.from({ length: 5 }, (_, i) => `/data/notes/file${i}.md`).join("\n");
+      mockRg(lines + "\n");
+      const result = await exec("glob_files", { pattern: "*.md", limit: 3 });
+      expect(result).toContain("data/notes/file0.md");
+      expect(result).toContain("data/notes/file2.md");
+      expect(result).not.toContain("data/notes/file3.md");
+      expect(result).toContain("truncated");
+      expect(result).toContain("5 total");
     });
 
-    it("accepts trailing slash variants", async () => {
-      vi.mocked(fs.readdir).mockResolvedValue(["x.md"] as any);
-      const result = await exec("list_files", { directory: "data/notes/" });
-      expect(result).toBe("x.md");
-    });
-
-    it("accepts leading ./ variant", async () => {
-      vi.mocked(fs.readdir).mockResolvedValue(["x.md"] as any);
-      const result = await exec("list_files", { directory: "./data/notes" });
-      expect(result).toBe("x.md");
-    });
-
-    it("accepts leading / variant", async () => {
-      vi.mocked(fs.readdir).mockResolvedValue(["x.md"] as any);
-      const result = await exec("list_files", { directory: "/skills/" });
-      expect(result).toBe("x.md");
+    it("returns no-matches message on exit code 1", async () => {
+      mockRg("", 1);
+      const result = await exec("glob_files", { pattern: "*.xyz" });
+      expect(result).toBe("(no matches found)");
     });
 
     it("returns error for invalid directory", async () => {
-      const result = await exec("list_files", { directory: "other" });
+      const result = await exec("glob_files", { pattern: "*.md", directory: "nonexistent" });
       expect(result).toMatch(/Error/);
     });
 
-    it("returns '(empty directory)' when no files", async () => {
-      vi.mocked(fs.readdir).mockResolvedValue([] as any);
-      const result = await exec("list_files", { directory: "data/notes" });
-      expect(result).toBe("(empty directory)");
+    it("includes extra dirs when no directory specified", async () => {
+      const depsExtra = makeDeps({
+        extraDirs: [{ name: "vaults", mode: "ro", absPath: "/mnt/vaults" }],
+      });
+      const regExtra = createToolRegistry(depsExtra);
+      mockRg("/mnt/vaults/note.md\n");
+      const result = await regExtra.execute("glob_files", { pattern: "*.md" });
+      const callArgs = vi.mocked(execFile as any).mock.calls[0][1] as string[];
+      expect(callArgs).toContain("/mnt/vaults");
+      expect(result).toBe("vaults/note.md");
+    });
+  });
+
+  // =========================================================================
+  // grep_files
+  // =========================================================================
+  describe("grep_files", () => {
+    function mockRg(stdout: string, exitCode = 0) {
+      vi.mocked(execFile as any).mockImplementation(
+        (_cmd: string, _args: string[], _opts: any, cb: Function) => {
+          if (exitCode === 0) cb(null, stdout, "");
+          else {
+            const err = Object.assign(new Error(`exit code ${exitCode}`), { status: exitCode });
+            cb(err, stdout, exitCode === 1 ? "" : "rg error detail");
+          }
+        },
+      );
+    }
+
+    it("returns content with transformed paths and line numbers", async () => {
+      mockRg("/data/notes/foo.md:3:hello world\n/data/notes/foo.md:7:hello again\n");
+      const result = await exec("grep_files", { pattern: "hello" });
+      expect(result).toBe("data/notes/foo.md:3:hello world\ndata/notes/foo.md:7:hello again");
     });
 
-    it("returns '(directory does not exist)' on readdir error", async () => {
-      vi.mocked(fs.readdir).mockRejectedValue(new Error("ENOENT"));
-      const result = await exec("list_files", { directory: "data/notes" });
-      expect(result).toBe("(directory does not exist)");
+    it("supports files_with_matches output mode", async () => {
+      mockRg("/data/notes/foo.md\n/data/skills/bar.md\n");
+      const result = await exec("grep_files", { pattern: "hello", output_mode: "files_with_matches" });
+      expect(result).toBe("data/notes/foo.md\nskills/bar.md");
+      const callArgs = vi.mocked(execFile as any).mock.calls[0][1] as string[];
+      expect(callArgs).toContain("-l");
+    });
+
+    it("supports count output mode", async () => {
+      mockRg("/data/notes/foo.md:5\n");
+      const result = await exec("grep_files", { pattern: "hello", output_mode: "count" });
+      expect(result).toBe("data/notes/foo.md:5");
+      const callArgs = vi.mocked(execFile as any).mock.calls[0][1] as string[];
+      expect(callArgs).toContain("-c");
+    });
+
+    it("passes case insensitive flag", async () => {
+      mockRg("/data/notes/foo.md:1:Hello\n");
+      await exec("grep_files", { pattern: "hello", ignore_case: true });
+      const callArgs = vi.mocked(execFile as any).mock.calls[0][1] as string[];
+      expect(callArgs).toContain("-i");
+    });
+
+    it("passes context lines flag", async () => {
+      mockRg("/data/notes/foo.md:1:line\n");
+      await exec("grep_files", { pattern: "line", context_lines: 2 });
+      const callArgs = vi.mocked(execFile as any).mock.calls[0][1] as string[];
+      expect(callArgs).toContain("-C");
+      expect(callArgs).toContain("2");
+    });
+
+    it("passes glob filter", async () => {
+      mockRg("/data/notes/foo.md:1:match\n");
+      await exec("grep_files", { pattern: "match", glob: "*.md" });
+      const callArgs = vi.mocked(execFile as any).mock.calls[0][1] as string[];
+      expect(callArgs).toContain("--glob");
+      expect(callArgs).toContain("*.md");
+    });
+
+    it("caps output at limit with truncation notice", async () => {
+      const lines = Array.from({ length: 5 }, (_, i) => `/data/notes/f.md:${i}:line${i}`).join("\n");
+      mockRg(lines + "\n");
+      const result = await exec("grep_files", { pattern: "line", limit: 3 });
+      expect(result).toContain("data/notes/f.md:0:line0");
+      expect(result).toContain("data/notes/f.md:2:line2");
+      expect(result).not.toContain("line3");
+      expect(result).toContain("truncated");
+    });
+
+    it("returns no-matches on exit code 1", async () => {
+      mockRg("", 1);
+      const result = await exec("grep_files", { pattern: "nonexistent" });
+      expect(result).toBe("(no matches found)");
+    });
+
+    it("returns error message on rg error (exit code 2)", async () => {
+      mockRg("", 2);
+      const result = await exec("grep_files", { pattern: "[invalid" });
+      expect(result).toMatch(/Error running rg/);
+    });
+
+    it("includes extra dirs when searching all", async () => {
+      const depsExtra = makeDeps({
+        extraDirs: [{ name: "vaults", mode: "ro", absPath: "/mnt/vaults" }],
+      });
+      const regExtra = createToolRegistry(depsExtra);
+      mockRg("/mnt/vaults/note.md:1:found\n");
+      const result = await regExtra.execute("grep_files", { pattern: "found" });
+      const callArgs = vi.mocked(execFile as any).mock.calls[0][1] as string[];
+      expect(callArgs).toContain("/mnt/vaults");
+      expect(result).toBe("vaults/note.md:1:found");
     });
   });
 
@@ -1317,9 +1423,9 @@ describe("registry", () => {
   // definitions
   // =========================================================================
   describe("definitions", () => {
-    it("returns all 17 tool definitions", () => {
+    it("returns all 18 tool definitions", () => {
       const registry = createToolRegistry(deps);
-      expect(registry.definitions.length).toBe(17);
+      expect(registry.definitions.length).toBe(18);
     });
 
     it("includes expected tool names", () => {
@@ -1327,7 +1433,8 @@ describe("registry", () => {
       const names = registry.definitions.map((d) => d.name);
       expect(names).toContain("read_file");
       expect(names).toContain("write_file");
-      expect(names).toContain("list_files");
+      expect(names).toContain("glob_files");
+      expect(names).toContain("grep_files");
       expect(names).toContain("delete_file");
       expect(names).toContain("get_state");
       expect(names).toContain("set_state");
@@ -1424,11 +1531,16 @@ describe("registry", () => {
       expect(result).toContain("File deleted");
     });
 
-    it("list_files lists an extra dir", async () => {
-      vi.mocked(fs.readdir).mockResolvedValue(["a.md", "b.md"] as any);
-      const result = await execExtra("list_files", { directory: "vaults" });
-      expect(fs.readdir).toHaveBeenCalledWith("/mnt/vaults");
-      expect(result).toBe("a.md\nb.md");
+    it("glob_files searches an extra dir", async () => {
+      vi.mocked(execFile as any).mockImplementation(
+        (_cmd: string, _args: string[], _opts: any, cb: Function) => {
+          cb(null, "/mnt/vaults/a.md\n/mnt/vaults/b.md\n", "");
+        },
+      );
+      const result = await execExtra("glob_files", { pattern: "*.md", directory: "vaults" });
+      expect(result).toBe("vaults/a.md\nvaults/b.md");
+      const callArgs = vi.mocked(execFile as any).mock.calls[0][1] as string[];
+      expect(callArgs).toContain("/mnt/vaults");
     });
 
     it("rejects path traversal from extra dir", async () => {
@@ -1473,23 +1585,21 @@ describe("registry", () => {
       expect(result).toBe("deep content");
     });
 
-    it("list_files error message includes extra dir names", async () => {
-      const result = await execExtra("list_files", { directory: "nonexistent" });
+    it("glob_files error message includes extra dir names", async () => {
+      const result = await execExtra("glob_files", { pattern: "*.md", directory: "nonexistent" });
       expect(result).toContain("vaults");
       expect(result).toContain("projects");
       expect(result).toContain("data/notes");
     });
 
-    it("list_files returns empty message for empty extra dir", async () => {
-      vi.mocked(fs.readdir).mockResolvedValue([] as any);
-      const result = await execExtra("list_files", { directory: "vaults" });
-      expect(result).toBe("(empty directory)");
-    });
-
-    it("list_files returns not-exist message for missing extra dir", async () => {
-      vi.mocked(fs.readdir).mockRejectedValue(new Error("ENOENT"));
-      const result = await execExtra("list_files", { directory: "vaults" });
-      expect(result).toBe("(directory does not exist)");
+    it("grep_files searches extra dir when specified", async () => {
+      vi.mocked(execFile as any).mockImplementation(
+        (_cmd: string, _args: string[], _opts: any, cb: Function) => {
+          cb(null, "/mnt/vaults/note.md:1:found it\n", "");
+        },
+      );
+      const result = await execExtra("grep_files", { pattern: "found", directory: "vaults" });
+      expect(result).toBe("vaults/note.md:1:found it");
     });
   });
 
@@ -1520,7 +1630,7 @@ describe("registry", () => {
       const names = registry.definitions.map((d) => d.name);
       expect(names).toContain("read_file");
       expect(names).toContain("mcp_github_list_repos");
-      expect(registry.definitions.length).toBe(18);
+      expect(registry.definitions.length).toBe(19);
     });
 
     it("routes MCP tool calls to the MCP source execute", async () => {
