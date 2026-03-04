@@ -13,11 +13,12 @@ const DIR_MAPPINGS: Array<{
   prefix: string;
   dirKey: keyof Pick<ExecutorDeps, "notesDir" | "skillsDir" | "scriptsDir" | "serversDir">;
   dir: "notes" | "skills" | "scripts" | "servers";
+  readOnly?: boolean;
 }> = [
   { prefix: "data/notes/", dirKey: "notesDir", dir: "notes" },
   { prefix: "skills/", dirKey: "skillsDir", dir: "skills" },
   { prefix: "scripts/", dirKey: "scriptsDir", dir: "scripts" },
-  { prefix: "servers/", dirKey: "serversDir", dir: "servers" },
+  { prefix: "servers/", dirKey: "serversDir", dir: "servers", readOnly: true },
 ];
 
 interface ResolvedPath {
@@ -31,12 +32,12 @@ interface ResolvedPath {
 function resolvePath(input: string, deps: ExecutorDeps): ResolvedPath | null {
   const clean = input.replace(/^\.?\//, "");
   // Check built-in dirs first
-  for (const { prefix, dirKey, dir } of DIR_MAPPINGS) {
+  for (const { prefix, dirKey, dir, readOnly } of DIR_MAPPINGS) {
     if (clean.startsWith(prefix)) {
       const baseDir = deps[dirKey];
       const abs = path.resolve(baseDir, clean.slice(prefix.length));
       if (!isContainedIn(abs, baseDir)) return null;
-      return { abs, dir, baseDir };
+      return { abs, dir, baseDir, ...(readOnly ? { mode: "ro" as const } : {}) };
     }
   }
   // Check extra dirs
@@ -84,7 +85,7 @@ export const fileTools: ToolHandler[] = [
   {
     def: defineTool(
       "read_file",
-      "Read a file from a writable directory (data/notes/, skills/, scripts/, servers/).",
+      "Read a file from an accessible directory (data/notes/, skills/, scripts/, servers/ [read-only]).",
       {
         path: {
           type: "string",
@@ -111,7 +112,7 @@ export const fileTools: ToolHandler[] = [
   {
     def: defineTool(
       "write_file",
-      "Write or overwrite a file. Side effects: writes to skills/ trigger schedule sync, writes to scripts/ auto chmod +x, writes to servers/ trigger MCP server reload.",
+      "Write or overwrite a file. Side effects: writes to skills/ trigger schedule sync, writes to scripts/ auto chmod +x. servers/ is read-only.",
       {
         path: { type: "string", description: "Relative path within a writable directory" },
         content: { type: "string", description: "Full file content" },
@@ -132,9 +133,6 @@ export const fileTools: ToolHandler[] = [
       }
       if (resolved.dir === "skills") {
         await syncSchedules(deps.absurd, deps.skillsDir, deps.recipientId);
-      }
-      if (resolved.dir === "servers") {
-        await deps.reloadMcp?.();
       }
       return `File written: ${input.path}`;
     },
@@ -182,7 +180,7 @@ export const fileTools: ToolHandler[] = [
   {
     def: defineTool(
       "delete_file",
-      "Delete a file. Side effects: deletes in skills/ trigger schedule sync, deletes in servers/ trigger MCP server reload.",
+      "Delete a file. Side effects: deletes in skills/ trigger schedule sync. servers/ is read-only.",
       {
         path: { type: "string", description: "Relative path within a writable directory" },
       },
@@ -203,9 +201,6 @@ export const fileTools: ToolHandler[] = [
       }
       if (resolved.dir === "skills") {
         await syncSchedules(deps.absurd, deps.skillsDir, deps.recipientId);
-      }
-      if (resolved.dir === "servers") {
-        await deps.reloadMcp?.();
       }
       return `File deleted: ${filePath}`;
     },
