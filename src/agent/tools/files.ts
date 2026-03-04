@@ -199,7 +199,7 @@ export const fileTools: ToolHandler[] = [
         await fs.chmod(resolved.abs, 0o755);
       }
       if (resolved.dir === "skills") {
-        await syncSchedules(deps.absurd, deps.skillsDir, deps.recipientId);
+        await syncSchedules(deps.absurd, deps.skillsDir);
       }
       return `File written: ${input.path}`;
     },
@@ -362,7 +362,7 @@ export const fileTools: ToolHandler[] = [
         throw err;
       }
       if (resolved.dir === "skills") {
-        await syncSchedules(deps.absurd, deps.skillsDir, deps.recipientId);
+        await syncSchedules(deps.absurd, deps.skillsDir);
       }
       return `File deleted: ${filePath}`;
     },

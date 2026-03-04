@@ -42,7 +42,7 @@ async function main() {
   registerWorkflow(absurd, taskDeps);
 
   // Sync skill schedules on startup
-  await syncSchedules(absurd, config.skillsDir, defaultRecipientId);
+  await syncSchedules(absurd, config.skillsDir);
 
   const worker = await absurd.startWorker({
     concurrency: config.workerConcurrency,

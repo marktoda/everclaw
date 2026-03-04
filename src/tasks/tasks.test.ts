@@ -23,9 +23,15 @@ vi.mock("fs/promises", () => ({
   readFile: vi.fn().mockResolvedValue("skill file content"),
 }));
 
+vi.mock("../memory/state.ts", () => ({
+  getState: vi.fn().mockResolvedValue(null),
+  setState: vi.fn(),
+}));
+
 import { readFile } from "node:fs/promises";
 import { runAgentLoop } from "../agent/loop.ts";
 import { createToolRegistry } from "../agent/tools/index.ts";
+import { getState } from "../memory/state.ts";
 import { registerExecuteSkill } from "./execute-skill.ts";
 import { registerHandleMessage } from "./handle-message.ts";
 import { registerSendMessage } from "./send-message.ts";
@@ -247,6 +253,7 @@ describe("execute-skill", () => {
     vi.mocked(createToolRegistry)
       .mockReset()
       .mockReturnValue(mockRegistry as any);
+    vi.mocked(getState).mockReset().mockResolvedValue(null);
     vi.mocked(readFile)
       .mockReset()
       .mockResolvedValue("skill file content" as any);
@@ -345,6 +352,37 @@ describe("execute-skill", () => {
     const opts = vi.mocked(runAgentLoop).mock.calls[0][3];
     opts.onText?.("some text");
     expect(deps.channels.sendMessage).toHaveBeenCalledWith("telegram:88", "some text");
+  });
+
+  it("resolves recipientId from state when not in params", async () => {
+    vi.mocked(getState).mockResolvedValue("telegram:99");
+    const absurd = makeAbsurd();
+    const deps = makeDeps();
+    registerExecuteSkill(absurd as any, deps);
+
+    const handler = absurd.handlers.get("execute-skill")!;
+    await handler({ skillName: "scheduled-skill" }, makeCtx());
+
+    expect(getState).toHaveBeenCalledWith(deps.pool, "system", "defaultRecipientId");
+    expect(runAgentLoop).toHaveBeenCalledWith(
+      expect.anything(),
+      "telegram:99",
+      expect.stringContaining("skill file content"),
+      expect.anything(),
+    );
+  });
+
+  it("skips execution when no recipientId available", async () => {
+    vi.mocked(getState).mockResolvedValue(null);
+    const absurd = makeAbsurd();
+    const deps = makeDeps();
+    registerExecuteSkill(absurd as any, deps);
+
+    const handler = absurd.handlers.get("execute-skill")!;
+    const result = await handler({ skillName: "orphan-skill" }, makeCtx());
+
+    expect(result).toEqual({ skillName: "orphan-skill", skipped: true });
+    expect(runAgentLoop).not.toHaveBeenCalled();
   });
 });
 
