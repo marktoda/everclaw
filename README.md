@@ -170,10 +170,26 @@ Non-secret config uses environment variables with defaults:
 node src/index.ts
 ```
 
-Or with Docker Compose (includes Postgres):
+Or with Docker Compose (includes Postgres and [Habitat](https://github.com/marktoda/absurd) task queue UI on port 7890):
 
 ```bash
 docker compose up --build
+```
+
+### Local customization
+
+To add instance-specific config (extra volume mounts, env vars, ports) without modifying tracked files, create a `docker-compose.override.yml` — Docker Compose merges it automatically. This file is gitignored.
+
+For example, to mount a local directory for the agent's `EXTRA_DIRS`:
+
+```yaml
+# docker-compose.override.yml
+services:
+  assistant:
+    volumes:
+      - /home/me/vaults:/app/extra/vaults:ro
+    environment:
+      - EXTRA_DIRS=vaults:ro:/app/extra/vaults
 ```
 
 ## Tools

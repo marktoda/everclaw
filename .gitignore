@@ -1,6 +1,8 @@
 node_modules/
 dist/
 .env
+docker-compose.override.yml
+__pycache__/
 .worktrees/
 !.claude/skills/
 
