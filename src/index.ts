@@ -23,7 +23,7 @@ async function main() {
   await absurd.createQueue();
 
   const mcpManager = createMcpManager();
-  await mcpManager.start(config.serversDir, config.scriptEnv);
+  await mcpManager.start(config.serversDir, config.serverEnv);
 
   const channelRegistry = new ChannelRegistry();
   for (const ch of config.channels) {

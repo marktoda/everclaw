@@ -39,6 +39,7 @@ export interface Config {
   claimTimeout: number;
   scriptTimeout: number;
   scriptEnv: Record<string, string>;
+  serverEnv: Record<string, string>;
   serversDir: string;
   extraDirs: ExtraDir[];
   allowedChatIds: Set<string>;
@@ -156,6 +157,11 @@ export function loadConfig(envPath: string = ".env"): Config {
     claimTimeout: parseInt(process.env.CLAIM_TIMEOUT ?? "300", 10),
     scriptTimeout: parseInt(process.env.SCRIPT_TIMEOUT ?? "30", 10),
     scriptEnv: Object.fromEntries(Object.entries(secrets).filter(([k]) => k.startsWith("TOOL_"))),
+    serverEnv: Object.fromEntries(
+      Object.entries(secrets)
+        .filter(([k]) => k.startsWith("SERVER_"))
+        .map(([k, v]) => [k.slice("SERVER_".length), v]),
+    ),
     serversDir: path.resolve(process.env.SERVERS_DIR ?? "servers"),
     extraDirs: parseExtraDirs(process.env.EXTRA_DIRS),
     allowedChatIds: parseAllowedChatIds(secrets.ALLOWED_CHAT_IDS),

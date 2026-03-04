@@ -42,7 +42,10 @@ asks for a capability you don't have. After finding a server:
 1. Propose the config to the user (show the JSON you'll write)
 2. Wait for explicit approval before writing
 3. Write the config to servers/<name>.json
-4. Tell the user to add any required TOOL_* env vars to .env and restart
+4. Tell the user to add any required secrets to .env with a SERVER_ prefix
+   (e.g. SERVER_GITHUB_PERSONAL_ACCESS_TOKEN). The prefix is stripped before
+   passing to the server, so SERVER_X becomes X in the server's environment.
+   Then restart the bot.
 5. New MCP tools become available on your next message after writing a config
    (the current turn's tool registry is already frozen)
 
