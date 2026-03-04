@@ -17,6 +17,12 @@ export interface ChannelConfig {
   token: string;
 }
 
+export interface ExtraDir {
+  name: string;
+  mode: "ro" | "rw";
+  absPath: string;
+}
+
 export interface Config {
   channels: ChannelConfig[];
   anthropicApiKey: string;
@@ -33,6 +39,7 @@ export interface Config {
   scriptTimeout: number;
   scriptEnv: Record<string, string>;
   serversDir: string;
+  extraDirs: ExtraDir[];
 }
 
 /** Read key=value pairs from a .env file WITHOUT setting process.env */
@@ -55,6 +62,43 @@ function readEnvFile(envPath: string): Record<string, string> {
     result[key] = val;
   }
   return result;
+}
+
+// Must stay in sync with DIR_MAPPINGS prefix roots in agent/tools/files.ts.
+const BUILTIN_PREFIXES = ["data", "skills", "scripts", "servers"];
+
+function parseExtraDirs(raw: string | undefined): ExtraDir[] {
+  if (!raw?.trim()) return [];
+  const dirs: ExtraDir[] = [];
+  const seen = new Set<string>();
+  for (const entry of raw.split(",")) {
+    const parts = entry.trim().split(":");
+    if (parts.length < 3) {
+      throw new Error(`Invalid EXTRA_DIRS entry "${entry}": expected name:mode:path`);
+    }
+    const name = parts[0];
+    const mode = parts[1];
+    const absPath = parts.slice(2).join(":");
+
+    if (!/^[a-z][a-z0-9_-]*$/.test(name)) {
+      throw new Error(`Invalid extra dir name "${name}": must match /^[a-z][a-z0-9_-]*$/`);
+    }
+    if (BUILTIN_PREFIXES.includes(name)) {
+      throw new Error(`Extra dir "${name}" conflicts with built-in directory prefix`);
+    }
+    if (mode !== "ro" && mode !== "rw") {
+      throw new Error(`Invalid extra dir "${name}": mode must be "ro" or "rw", got "${mode}"`);
+    }
+    if (!path.isAbsolute(absPath)) {
+      throw new Error(`Invalid extra dir "${name}": path must be absolute, got "${absPath}"`);
+    }
+    if (seen.has(name)) {
+      throw new Error(`Invalid EXTRA_DIRS: duplicate name "${name}"`);
+    }
+    seen.add(name);
+    dirs.push({ name, mode, absPath });
+  }
+  return dirs;
 }
 
 export function loadConfig(envPath: string = ".env"): Config {
@@ -87,5 +131,6 @@ export function loadConfig(envPath: string = ".env"): Config {
     scriptTimeout: parseInt(process.env.SCRIPT_TIMEOUT ?? "30", 10),
     scriptEnv: Object.fromEntries(Object.entries(secrets).filter(([k]) => k.startsWith("TOOL_"))),
     serversDir: path.resolve(process.env.SERVERS_DIR ?? "servers"),
+    extraDirs: parseExtraDirs(process.env.EXTRA_DIRS),
   };
 }
