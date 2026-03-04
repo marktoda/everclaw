@@ -60,6 +60,24 @@ describe("loadConfig", () => {
     expect(c.scriptEnv).toEqual({});
   });
 
+  it("populates serverEnv with SERVER_* keys, prefix stripped", () => {
+    fs.writeFileSync(
+      envPath,
+      "ANTHROPIC_API_KEY=sk\nSERVER_GITHUB_TOKEN=gh123\nSERVER_OTHER=val\n",
+    );
+    const c = loadConfig(envPath);
+    expect(c.serverEnv).toEqual({ GITHUB_TOKEN: "gh123", OTHER: "val" });
+  });
+
+  it("excludes non-SERVER keys from serverEnv", () => {
+    fs.writeFileSync(
+      envPath,
+      "ANTHROPIC_API_KEY=sk\nTOOL_X=val\nBRAVE_SEARCH_API_KEY=brave\n",
+    );
+    const c = loadConfig(envPath);
+    expect(c.serverEnv).toEqual({});
+  });
+
   it("parses EXTRA_DIRS into extraDirs array", () => {
     fs.writeFileSync(envPath, "ANTHROPIC_API_KEY=sk\n");
     process.env.EXTRA_DIRS = "vaults:ro:/mnt/vaults,projects:rw:/mnt/projects";

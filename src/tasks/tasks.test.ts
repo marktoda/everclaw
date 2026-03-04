@@ -79,6 +79,7 @@ function makeConfig() {
     claimTimeout: 30,
     scriptTimeout: 10,
     scriptEnv: {},
+    serverEnv: {},
     serversDir: "/tmp/servers",
     extraDirs: [],
     allowedChatIds: new Set<string>(),
