@@ -31,11 +31,14 @@ vi.mock("@modelcontextprotocol/sdk/client/index.js", () => {
   return { Client };
 });
 
+const transportInstances: Array<{ params: unknown }> = [];
+
 vi.mock("@modelcontextprotocol/sdk/client/stdio.js", () => {
   class StdioClientTransport {
     params: unknown;
     constructor(params: unknown) {
       this.params = params;
+      transportInstances.push(this);
     }
   }
   return { StdioClientTransport };
@@ -45,7 +48,7 @@ vi.mock("@modelcontextprotocol/sdk/client/stdio.js", () => {
 /*  Import under test (after mocks)                                    */
 /* ------------------------------------------------------------------ */
 
-import { listServerConfigs, createMcpManager } from "./manager.ts";
+import { listServerConfigs, createMcpManager, validateServerConfig, ALLOWED_COMMANDS } from "./manager.ts";
 
 /* ================================================================== */
 /*  listServerConfigs                                                  */
@@ -126,6 +129,172 @@ describe("listServerConfigs", () => {
     expect(configs).toHaveLength(1);
     expect(configs[0].name).toBe("hascommand");
   });
+
+  it("parses env field from config JSON", async () => {
+    mockReaddir.mockResolvedValue(["github.json"]);
+    mockReadFile.mockResolvedValue(
+      JSON.stringify({ command: "npx", args: ["-y", "server"], env: { GITHUB_TOKEN: "abc" } }),
+    );
+
+    const configs = await listServerConfigs("/servers");
+
+    expect(configs).toHaveLength(1);
+    expect(configs[0].env).toEqual({ GITHUB_TOKEN: "abc" });
+  });
+
+  it("skips env if not a plain object", async () => {
+    mockReaddir.mockResolvedValue(["bad-env.json"]);
+    mockReadFile.mockResolvedValue(
+      JSON.stringify({ command: "npx", env: "not-an-object" }),
+    );
+
+    const configs = await listServerConfigs("/servers");
+
+    expect(configs).toHaveLength(1);
+    expect(configs[0].env).toBeUndefined();
+  });
+
+  it("skips env if values are not strings", async () => {
+    mockReaddir.mockResolvedValue(["bad-env.json"]);
+    mockReadFile.mockResolvedValue(
+      JSON.stringify({ command: "npx", env: { key: 123 } }),
+    );
+
+    const configs = await listServerConfigs("/servers");
+
+    expect(configs).toHaveLength(1);
+    expect(configs[0].env).toBeUndefined();
+  });
+});
+
+/* ================================================================== */
+/*  validateServerConfig                                               */
+/* ================================================================== */
+
+describe("validateServerConfig", () => {
+  /* -------------------------------------------------------------- */
+  /*  Happy path                                                     */
+  /* -------------------------------------------------------------- */
+
+  it("accepts valid npx config", () => {
+    const result = validateServerConfig(
+      JSON.stringify({ command: "npx", args: ["-y", "@modelcontextprotocol/server-github"] }),
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  it("accepts valid node config with env", () => {
+    const result = validateServerConfig(
+      JSON.stringify({ command: "node", args: ["server.js"], env: { TOOL_KEY: "val" } }),
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  it("accepts valid docker config", () => {
+    const result = validateServerConfig(
+      JSON.stringify({ command: "docker", args: ["run", "--rm", "-i", "mcp/postgres"] }),
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  it("accepts config with description", () => {
+    const result = validateServerConfig(
+      JSON.stringify({ command: "npx", args: ["-y", "server"], description: "GitHub integration" }),
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  it("accepts config without args", () => {
+    const result = validateServerConfig(JSON.stringify({ command: "npx" }));
+    expect(result.ok).toBe(true);
+  });
+
+  it("accepts config with unknown extra fields", () => {
+    const result = validateServerConfig(
+      JSON.stringify({ command: "npx", args: ["-y", "server"], timeout: 5000 }),
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  /* -------------------------------------------------------------- */
+  /*  Rejection                                                      */
+  /* -------------------------------------------------------------- */
+
+  it("rejects empty string", () => {
+    const result = validateServerConfig("");
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toContain("empty");
+  });
+
+  it("rejects invalid JSON", () => {
+    const result = validateServerConfig("not json {{{");
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toContain("not valid JSON");
+  });
+
+  it("rejects JSON array", () => {
+    const result = validateServerConfig(JSON.stringify([1, 2, 3]));
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toContain("object");
+  });
+
+  it("rejects missing command", () => {
+    const result = validateServerConfig(JSON.stringify({ args: ["foo"] }));
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toContain("command");
+  });
+
+  it("rejects empty command string", () => {
+    const result = validateServerConfig(JSON.stringify({ command: "" }));
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toContain("command");
+  });
+
+  it("rejects command not in allowlist", () => {
+    for (const cmd of ["bash", "sh", "curl", "wget"]) {
+      const result = validateServerConfig(JSON.stringify({ command: cmd }));
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.error).toContain("not allowed");
+    }
+  });
+
+  it("rejects command with path separator", () => {
+    for (const cmd of ["/usr/bin/npx", "./node"]) {
+      const result = validateServerConfig(JSON.stringify({ command: cmd }));
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.error).toContain("invalid characters");
+    }
+  });
+
+  it("rejects command with shell metacharacters", () => {
+    const result = validateServerConfig(JSON.stringify({ command: "npx; rm -rf /" }));
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toContain("invalid characters");
+  });
+
+  it("rejects args as string instead of array", () => {
+    const result = validateServerConfig(JSON.stringify({ command: "npx", args: "server" }));
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toContain("args");
+  });
+
+  it("rejects args containing non-string", () => {
+    const result = validateServerConfig(JSON.stringify({ command: "npx", args: ["ok", 42] }));
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toContain("args");
+  });
+
+  it("rejects env as array", () => {
+    const result = validateServerConfig(JSON.stringify({ command: "npx", env: ["a", "b"] }));
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toContain("env");
+  });
+
+  it("rejects env with non-string value", () => {
+    const result = validateServerConfig(JSON.stringify({ command: "npx", env: { key: 123 } }));
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toContain("env");
+  });
 });
 
 /* ================================================================== */
@@ -140,6 +309,7 @@ describe("createMcpManager", () => {
     mockListTools.mockReset();
     mockCallTool.mockReset();
     mockClose.mockReset();
+    transportInstances.length = 0;
   });
 
   function setupOneServer() {
@@ -355,5 +525,25 @@ describe("createMcpManager", () => {
     expect(mgr.definitions()).toHaveLength(2);
     // close was called during restart
     expect(mockClose).toHaveBeenCalled();
+  });
+
+  it("passes config.env to StdioClientTransport", async () => {
+    mockReaddir.mockResolvedValue(["github.json"]);
+    mockReadFile.mockResolvedValue(
+      JSON.stringify({ command: "npx", args: ["-y", "server"], env: { GITHUB_TOKEN: "abc" } }),
+    );
+    mockConnect.mockResolvedValue(undefined);
+    mockListTools.mockResolvedValue({ tools: [] });
+
+    const mgr = createMcpManager();
+    await mgr.start("/servers", { SHARED_KEY: "shared" });
+
+    expect(transportInstances).toHaveLength(1);
+    const params = transportInstances[0].params as Record<string, unknown>;
+    const env = params.env as Record<string, string>;
+    // config.env values are merged in
+    expect(env.GITHUB_TOKEN).toBe("abc");
+    // start() env values are also merged in
+    expect(env.SHARED_KEY).toBe("shared");
   });
 });

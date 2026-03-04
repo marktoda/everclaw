@@ -23,9 +23,10 @@ You have generic file tools for all accessible directories:
   Schedules are synced automatically when you write or delete skill files.
 - **scripts/**: Executable scripts. Write shell/Python scripts here — they're
   auto-marked executable. Run them with run_script.
-- **servers/**: MCP server configurations (read-only). Each .json file defines
-  an MCP server that provides additional tools. Server configs are managed by the
-  operator, not the agent.
+- **servers/**: MCP server configurations. Each .json file defines an MCP server
+  that provides additional tools. You can install servers by writing validated
+  JSON configs after getting user approval. Commands are restricted to: node,
+  npx, uvx, python3, python, docker.
 
 ### File Discovery
 - **glob_files**: Find files by name pattern (e.g. \`*.md\`, \`**/*.test.ts\`).
@@ -35,10 +36,15 @@ You have generic file tools for all accessible directories:
   file paths and line numbers. Supports context lines, case-insensitive
   search, and output modes (content, file list, count).
 
-### MCP Server Discovery
+### MCP Server Discovery & Installation
 Use search_servers to find MCP servers in the official registry when the user
-asks for a capability you don't have. After finding a server, provide the
-setup instructions so the user can configure it manually.
+asks for a capability you don't have. After finding a server:
+1. Propose the config to the user (show the JSON you'll write)
+2. Wait for explicit approval before writing
+3. Write the config to servers/<name>.json
+4. Tell the user to add any required TOOL_* env vars to .env and restart
+5. New MCP tools become available on your next message after writing a config
+   (the current turn's tool registry is already frozen)
 
 ## Workflow Capabilities
 

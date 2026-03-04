@@ -14,6 +14,72 @@ export interface ServerConfig {
   description?: string;
   command: string;     // required
   args?: string[];
+  env?: Record<string, string>;
+}
+
+export const ALLOWED_COMMANDS = new Set(["npx", "uvx", "node", "python3", "python", "docker"]);
+
+/**
+ * Validate a raw JSON string as a valid MCP server config.
+ *
+ * Returns `{ ok: true }` when valid, or `{ ok: false, error }` with a
+ * specific, actionable message describing the first problem found.
+ */
+export function validateServerConfig(raw: string): { ok: true } | { ok: false; error: string } {
+  if (!raw || !raw.trim()) {
+    return { ok: false, error: "content is empty" };
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return { ok: false, error: "not valid JSON" };
+  }
+
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    return { ok: false, error: "config must be a JSON object" };
+  }
+
+  const obj = parsed as Record<string, unknown>;
+
+  if (typeof obj.command !== "string" || obj.command.length === 0) {
+    return { ok: false, error: '"command" must be a non-empty string' };
+  }
+
+  if (!/^[a-zA-Z0-9_-]+$/.test(obj.command)) {
+    return { ok: false, error: "command contains invalid characters" };
+  }
+
+  if (!ALLOWED_COMMANDS.has(obj.command)) {
+    const allowed = Array.from(ALLOWED_COMMANDS).join(", ");
+    return { ok: false, error: `command "${obj.command}" is not allowed (allowed: ${allowed})` };
+  }
+
+  if ("args" in obj) {
+    if (!Array.isArray(obj.args) || !obj.args.every((a) => typeof a === "string")) {
+      return { ok: false, error: '"args" must be an array of strings' };
+    }
+  }
+
+  if ("env" in obj) {
+    if (
+      typeof obj.env !== "object" ||
+      obj.env === null ||
+      Array.isArray(obj.env) ||
+      !Object.values(obj.env as Record<string, unknown>).every((v) => typeof v === "string")
+    ) {
+      return { ok: false, error: '"env" must be a plain object where every value is a string' };
+    }
+  }
+
+  if ("description" in obj) {
+    if (typeof obj.description !== "string") {
+      return { ok: false, error: '"description" must be a string' };
+    }
+  }
+
+  return { ok: true };
 }
 
 /**
@@ -61,6 +127,12 @@ export async function listServerConfigs(
     const obj = parsed as Record<string, unknown>;
     const name = path.basename(entry, ".json");
 
+    const isStringRecord = (v: unknown): v is Record<string, string> =>
+      typeof v === "object" &&
+      v !== null &&
+      !Array.isArray(v) &&
+      Object.values(v as Record<string, unknown>).every((val) => typeof val === "string");
+
     configs.push({
       name,
       command: obj.command as string,
@@ -68,6 +140,7 @@ export async function listServerConfigs(
         ? { description: obj.description }
         : {}),
       ...(Array.isArray(obj.args) ? { args: obj.args as string[] } : {}),
+      ...(isStringRecord(obj.env) ? { env: obj.env } : {}),
     });
   }
 
@@ -138,7 +211,7 @@ export function createMcpManager(): McpManager {
         const transport = new StdioClientTransport({
           command: config.command,
           args: config.args,
-          env: { ...process.env as Record<string, string>, ...env },
+          env: { ...process.env as Record<string, string>, ...env, ...(config.env ?? {}) },
         });
 
         const client = new Client({

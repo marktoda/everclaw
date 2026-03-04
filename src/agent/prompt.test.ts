@@ -96,7 +96,7 @@ describe("buildSystemPrompt", () => {
   it("includes MCP server discovery instructions", () => {
     const p = buildSystemPrompt({ notes: "", skills: [], tools: [] });
     expect(p).toContain("search_servers");
-    expect(p).toContain("manually");
+    expect(p).toContain("approval");
   });
 
   it("omits extra directories section when none configured", () => {

@@ -120,4 +120,5 @@ Three layers: unit tests (mocked, fast), contract tests (FakeAnthropic validates
 - **SQL injection surface**: `list_tasks` in `agent/tools/orchestration.ts` interpolates `queueName` directly into SQL. This is safe because `loadConfig` validates it as `/^[a-z_][a-z0-9_]*$/i` — do not bypass this validation.
 - **Secret isolation**: Secrets are read from `.env` file, not `process.env`. Do not use `dotenv` or similar libraries that set `process.env`.
 - **MCP reload timing**: Writing/deleting in `servers/` triggers `McpManager.reload()`, but the current task's tool registry is already frozen. New MCP tools are available starting with the next message/task.
+- **Server config validation**: `write_file` to `servers/` validates JSON structure and enforces a command allowlist (`node`, `npx`, `uvx`, `python3`, `python`, `docker` — hardcoded in `src/servers/manager.ts`). Only `.json` files at the top level are accepted.
 - **`ALLOWED_CHAT_IDS` format**: Uses fully prefixed IDs (e.g. `telegram:601870898`, not bare `601870898`). Discovery mode shows the correct format.
