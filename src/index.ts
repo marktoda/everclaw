@@ -4,6 +4,7 @@ import * as pg from "pg";
 import { ChannelRegistry, TelegramAdapter } from "./channels/index.ts";
 import { loadConfig } from "./config.ts";
 import { logger } from "./logger.ts";
+import { createMcpManager } from "./servers/manager.ts";
 import { getState, setState } from "./memory/state.ts";
 import { syncSchedules } from "./skills/manager.ts";
 import { registerExecuteSkill } from "./tasks/execute-skill.ts";
@@ -21,6 +22,9 @@ async function main() {
 
   await absurd.createQueue();
 
+  const mcpManager = createMcpManager();
+  await mcpManager.start(config.serversDir, config.scriptEnv);
+
   const channelRegistry = new ChannelRegistry();
   for (const ch of config.channels) {
     if (ch.type === "telegram") {
@@ -31,7 +35,7 @@ async function main() {
   // Persist defaultRecipientId via state store
   let defaultRecipientId = ((await getState(pool, "system", "defaultRecipientId")) ?? "") as string;
 
-  const taskDeps = { anthropic, pool, channels: channelRegistry, config, startedAt, log: logger };
+  const taskDeps = { anthropic, pool, channels: channelRegistry, config, startedAt, log: logger, mcp: mcpManager };
   registerHandleMessage(absurd, taskDeps);
   registerExecuteSkill(absurd, taskDeps);
   registerSendMessage(absurd, channelRegistry);
@@ -63,6 +67,7 @@ async function main() {
   const shutdown = async () => {
     logger.info("shutting down");
     await channelRegistry.stopAll();
+    await mcpManager.stop();
     await worker.close();
     await pool.end();
     process.exit(0);

@@ -11,6 +11,7 @@ import { appendMessage, getRecentMessages } from "../memory/history.ts";
 import { deconstructMessages, reconstructMessages } from "../memory/messages.ts";
 import type { ScriptEntry } from "../scripts/runner.ts";
 import { listScripts } from "../scripts/runner.ts";
+import type { ServerSummary } from "../servers/manager.ts";
 import type { SkillSummary } from "../skills/manager.ts";
 import { listSkills } from "../skills/manager.ts";
 import { stripInternalTags } from "./output.ts";
@@ -33,6 +34,7 @@ export interface AgentDeps {
   maxHistory: number;
   registry: ToolRegistry;
   log?: Logger;
+  mcpSummaries?: ServerSummary[];
   /** Called with filtered text as it becomes available. */
   onText?: (text: string) => void;
 }
@@ -87,6 +89,7 @@ export async function runAgentLoop(
       name: t.name,
       description: t.description,
     })),
+    mcpServers: deps.mcpSummaries,
   });
 
   const messages = reconstructMessages(context.history as Message[]);
