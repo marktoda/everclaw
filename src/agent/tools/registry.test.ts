@@ -1344,6 +1344,42 @@ describe("registry", () => {
       expect(fs.chmod).not.toHaveBeenCalled();
       expect(syncSchedules).not.toHaveBeenCalled();
     });
+
+    it("delete_file in rw extra dir does NOT trigger schedule sync or MCP reload", async () => {
+      vi.mocked(fs.unlink).mockResolvedValue(undefined);
+      await execExtra("delete_file", { path: "projects/old.ts" });
+      expect(syncSchedules).not.toHaveBeenCalled();
+      // reloadMcp is undefined in default deps, so no call possible — just verify no error
+    });
+
+    it("read_file resolves nested paths in extra dir", async () => {
+      vi.mocked(fs.readFile).mockResolvedValue("deep content");
+      const result = await execExtra("read_file", { path: "vaults/sub/deep/file.md" });
+      expect(fs.readFile).toHaveBeenCalledWith(
+        path.resolve("/mnt/vaults", "sub/deep/file.md"),
+        "utf-8",
+      );
+      expect(result).toBe("deep content");
+    });
+
+    it("list_files error message includes extra dir names", async () => {
+      const result = await execExtra("list_files", { directory: "nonexistent" });
+      expect(result).toContain("vaults");
+      expect(result).toContain("projects");
+      expect(result).toContain("data/notes");
+    });
+
+    it("list_files returns empty message for empty extra dir", async () => {
+      vi.mocked(fs.readdir).mockResolvedValue([] as any);
+      const result = await execExtra("list_files", { directory: "vaults" });
+      expect(result).toBe("(empty directory)");
+    });
+
+    it("list_files returns not-exist message for missing extra dir", async () => {
+      vi.mocked(fs.readdir).mockRejectedValue(new Error("ENOENT"));
+      const result = await execExtra("list_files", { directory: "vaults" });
+      expect(result).toBe("(directory does not exist)");
+    });
   });
 
   // =========================================================================
