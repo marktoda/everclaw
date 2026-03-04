@@ -369,7 +369,7 @@ describe("runAgentLoop", () => {
       await runAgentLoop(ctx, "telegram:1", "run", deps);
 
       const stepNames = ctx.step.mock.calls.map((c: any[]) => c[0] as string);
-      expect(stepNames).toContain(`tool-0-${toolName}`);
+      expect(stepNames).toContain(`tool-0-ns-1`);
     });
   });
 
@@ -392,8 +392,8 @@ describe("runAgentLoop", () => {
       await runAgentLoop(ctx, "telegram:1", "mixed", deps);
 
       const stepNames = ctx.step.mock.calls.map((c: any[]) => c[0] as string);
-      // read_file should be wrapped
-      expect(stepNames).toContain("tool-0-read_file");
+      // read_file should be wrapped (using its tool_use_id)
+      expect(stepNames).toContain("tool-0-m-1");
       // sleep_for should NOT appear as a tool step
       const suspendSteps = stepNames.filter((n: string) => n.includes("sleep_for"));
       expect(suspendSteps).toHaveLength(0);

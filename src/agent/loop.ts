@@ -152,7 +152,7 @@ export async function runAgentLoop(
         // Call directly — SuspendTask propagates up to the Absurd worker
         result = await deps.registry.execute(tb.name, tb.input as Record<string, unknown>);
       } else {
-        result = await ctx.step(`tool-${turn}-${tb.name}`, () =>
+        result = await ctx.step(`tool-${turn}-${tb.id}`, () =>
           deps.registry.execute(tb.name, tb.input as Record<string, unknown>),
         );
       }
