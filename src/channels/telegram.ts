@@ -1,6 +1,7 @@
 import { Bot } from "grammy";
 import type { ChannelAdapter, InboundMessage } from "./adapter.ts";
 import { splitMessage } from "./split.ts";
+import { logger } from "../logger.ts";
 
 export class TelegramAdapter implements ChannelAdapter {
   name = "telegram" as const;
@@ -18,7 +19,10 @@ export class TelegramAdapter implements ChannelAdapter {
         text: ctx.message.text,
       });
     });
-    this.bot.start({ onStart: () => {} });
+    this.bot.start({ onStart: () => {} }).catch((err) => {
+      logger.fatal({ err }, "Telegram bot polling crashed");
+      process.exit(1);
+    });
   }
 
   async sendMessage(recipientId: string, text: string): Promise<void> {
@@ -29,6 +33,6 @@ export class TelegramAdapter implements ChannelAdapter {
   }
 
   async stop(): Promise<void> {
-    this.bot.stop();
+    await this.bot.stop();
   }
 }
