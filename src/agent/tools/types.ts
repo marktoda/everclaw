@@ -13,6 +13,7 @@ export interface ExecutorDeps {
   notesDir: string;
   skillsDir: string;
   scriptsDir: string;
+  serversDir: string;
   scriptTimeout: number;
   scriptEnv: Record<string, string>;
   startedAt: Date;

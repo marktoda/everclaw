@@ -65,6 +65,7 @@ function makeDeps(overrides: Partial<ExecutorDeps> = {}): ExecutorDeps {
     notesDir: "/data/notes",
     skillsDir: "/data/skills",
     scriptsDir: "/data/scripts",
+    serversDir: "/data/servers",
     scriptTimeout: 30,
     scriptEnv: {},
     startedAt: new Date("2025-01-01T00:00:00Z"),
@@ -149,6 +150,24 @@ describe("registry", () => {
     it("rejects traversal from scripts/ directory", async () => {
       const result = await exec("read_file", {
         path: "scripts/../../secret",
+      });
+      expect(result).toMatch(/Error/);
+      expect(fs.readFile).not.toHaveBeenCalled();
+    });
+
+    it("accepts files in the servers directory", async () => {
+      vi.mocked(fs.readFile).mockResolvedValue('{"command":"npx"}');
+      const result = await exec("read_file", { path: "servers/github.json" });
+      expect(fs.readFile).toHaveBeenCalledWith(
+        path.resolve("/data/servers", "github.json"),
+        "utf-8",
+      );
+      expect(result).toBe('{"command":"npx"}');
+    });
+
+    it("rejects paths that escape the servers directory", async () => {
+      const result = await exec("read_file", {
+        path: "servers/../../etc/passwd",
       });
       expect(result).toMatch(/Error/);
       expect(fs.readFile).not.toHaveBeenCalled();
@@ -1164,6 +1183,66 @@ describe("registry", () => {
       expect(names).toContain("wait_for_event");
       expect(names).toContain("emit_event");
       expect(names).toContain("web_search");
+    });
+  });
+
+  // =========================================================================
+  // MCP integration
+  // =========================================================================
+  describe("MCP integration", () => {
+    const mcpDef = {
+      name: "mcp_github_list_repos",
+      description: "List GitHub repos",
+      input_schema: {
+        type: "object" as const,
+        properties: { org: { type: "string" } },
+        required: ["org"],
+      },
+    };
+
+    function makeMcp() {
+      return {
+        definitions: () => [mcpDef],
+        execute: vi.fn().mockResolvedValue("mcp result"),
+      };
+    }
+
+    it("includes MCP tool definitions alongside built-in tools", () => {
+      const mcp = makeMcp();
+      const registry = createToolRegistry(deps, mcp);
+      const names = registry.definitions.map((d) => d.name);
+      expect(names).toContain("read_file");
+      expect(names).toContain("mcp_github_list_repos");
+      expect(registry.definitions.length).toBe(17);
+    });
+
+    it("routes MCP tool calls to the MCP source execute", async () => {
+      const mcp = makeMcp();
+      const registry = createToolRegistry(deps, mcp);
+      const result = await registry.execute("mcp_github_list_repos", { org: "acme" });
+      expect(mcp.execute).toHaveBeenCalledWith("mcp_github_list_repos", { org: "acme" });
+      expect(result).toBe("mcp result");
+    });
+
+    it("still routes built-in tools to built-in handlers", async () => {
+      const mcp = makeMcp();
+      const registry = createToolRegistry(deps, mcp);
+      vi.mocked(fs.readFile).mockResolvedValue("hello");
+      const result = await registry.execute("read_file", { path: "data/notes/foo.txt" });
+      expect(result).toBe("hello");
+      expect(mcp.execute).not.toHaveBeenCalled();
+    });
+
+    it("MCP tools are never suspending", () => {
+      const mcp = makeMcp();
+      const registry = createToolRegistry(deps, mcp);
+      expect(registry.isSuspending("mcp_github_list_repos")).toBe(false);
+    });
+
+    it("returns Unknown tool when no MCP source and tool not found", async () => {
+      const registry = createToolRegistry(deps);
+      const result = await registry.execute("mcp_github_list_repos", {});
+      expect(result).toBe("Unknown tool: mcp_github_list_repos");
     });
   });
 });

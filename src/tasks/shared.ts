@@ -40,6 +40,7 @@ export function buildAgentDeps(
     notesDir: deps.config.notesDir,
     skillsDir: deps.config.skillsDir,
     scriptsDir: deps.config.scriptsDir,
+    serversDir: deps.config.serversDir,
     scriptTimeout: deps.config.scriptTimeout,
     scriptEnv: deps.config.scriptEnv,
     startedAt: deps.startedAt,
