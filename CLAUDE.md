@@ -24,8 +24,10 @@ src/
     adapter.ts          ChannelAdapter interface & InboundMessage type
     registry.ts         ChannelRegistry: routes messages by recipientId prefix
     telegram.ts         TelegramAdapter: grammY-based Telegram implementation
+    adapters.ts         Adapter factory: maps channel type → adapter constructor
     split.ts            Generic message splitting utility (paragraph → line → hard split)
     index.ts            Barrel export
+  transcription.ts      Shared audio transcription via OpenAI Whisper
   agent/
     loop.ts             Agent loop: loads context, calls Claude in a tool-use loop (max 20 turns)
     tools/              Tool definitions co-located with handlers in domain modules
@@ -69,6 +71,10 @@ docs/plans/             Design and implementation documents
 
 **Channel abstraction.** Messaging channels implement the `ChannelAdapter` interface (`start`, `sendMessage`, `stop`). A `ChannelRegistry` routes outbound messages by parsing the prefix from `recipientId` strings (e.g. `telegram:601870898`). Each adapter owns message splitting via the generic `splitMessage` utility. Adding a new channel means writing a single adapter file.
 
+**Pluggable channels.** Channels are auto-detected from `*_BOT_TOKEN` secrets in `.env` (e.g. `TELEGRAM_BOT_TOKEN` → telegram adapter). The adapter factory in `channels/adapters.ts` maps type strings to constructors. Adding a new channel means writing an adapter file and adding one line to the factory map.
+
+**Voice transcription.** When `OPENAI_API_KEY` is set, the Telegram adapter transcribes voice messages via OpenAI Whisper and delivers them as `[Voice: transcript]`. The shared `transcription.ts` module can be used by any adapter. Without the key, voice messages are silently ignored.
+
 **Stateless message handling.** Every inbound message spawns a fresh `handle-message` task. There is no "wait for reply" — the agent saves state via `set_state`, completes, and picks up context on the next message from conversation history.
 
 **Durable workflows.** The agent has orchestration tools (`sleep_for`, `sleep_until`, `wait_for_event`, `emit_event`, `spawn_task`, `cancel_task`, `list_tasks`) that suspend and resume durably through Absurd. Suspending tools must NOT be wrapped in `ctx.step()` — they throw `SuspendTask` which must propagate to the Absurd worker.
@@ -77,9 +83,9 @@ docs/plans/             Design and implementation documents
 
 **Extra directories.** Users can mount additional directories via the `EXTRA_DIRS` env var (`name:mode:path` comma-separated, e.g. `vaults:ro:/mnt/vaults`). Each gets read-only or read-write access through the same file tools, with the same path containment and symlink protection as built-in dirs. No side-effects (no schedule sync, chmod, etc.).
 
-**Config: secrets vs env.** Secrets (`TELEGRAM_BOT_TOKEN`, `ANTHROPIC_API_KEY`) are read from `.env` file only and never set in `process.env`. Non-secret config (`DATABASE_URL`, `QUEUE_NAME`, `CLAUDE_MODEL`, etc.) comes from `process.env` with defaults. Channel tokens are stored in `config.channels[]`. Queue name is validated as a safe SQL identifier at load time.
+**Config: secrets vs env.** Secrets (`TELEGRAM_BOT_TOKEN`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`) are read from `.env` file only and never set in `process.env`. Non-secret config (`DATABASE_URL`, `QUEUE_NAME`, `CLAUDE_MODEL`, etc.) comes from `process.env` with defaults. Channel tokens are stored in `config.channels[]`. Queue name is validated as a safe SQL identifier at load time.
 
-**Chat ID allowlist.** `ALLOWED_CHAT_IDS` in `.env` (comma-separated integers) restricts which Telegram users can interact with the agent. When unset/empty the bot runs in **discovery mode** — it replies with the sender's chat ID and setup instructions instead of running the agent. When set, unauthorized messages are silently ignored (logged at warn). Filtering happens in `index.ts` before any task is spawned.
+**Chat ID allowlist.** `ALLOWED_CHAT_IDS` in `.env` (comma-separated, fully prefixed IDs like `telegram:601870898`) restricts which users can interact with the agent. When unset/empty the bot runs in **discovery mode** — it replies with the sender's chat ID and setup instructions instead of running the agent. When set, unauthorized messages are silently ignored (logged at warn). Filtering happens in `index.ts` before any task is spawned.
 
 **Skill schedule sync.** Writing or deleting a skill file in `skills/` triggers `syncSchedules`, which reconciles YAML frontmatter `schedule` fields with Absurd's schedule registry. Schedules are prefixed `skill:`.
 
@@ -114,3 +120,4 @@ Three layers: unit tests (mocked, fast), contract tests (FakeAnthropic validates
 - **SQL injection surface**: `list_tasks` in `agent/tools/orchestration.ts` interpolates `queueName` directly into SQL. This is safe because `loadConfig` validates it as `/^[a-z_][a-z0-9_]*$/i` — do not bypass this validation.
 - **Secret isolation**: Secrets are read from `.env` file, not `process.env`. Do not use `dotenv` or similar libraries that set `process.env`.
 - **MCP reload timing**: Writing/deleting in `servers/` triggers `McpManager.reload()`, but the current task's tool registry is already frozen. New MCP tools are available starting with the next message/task.
+- **`ALLOWED_CHAT_IDS` format**: Uses fully prefixed IDs (e.g. `telegram:601870898`, not bare `601870898`). Discovery mode shows the correct format.
