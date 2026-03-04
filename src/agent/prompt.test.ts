@@ -53,4 +53,25 @@ describe("buildSystemPrompt", () => {
     expect(p).toContain("- bare-script");
     expect(p).not.toContain("**bare-script**");
   });
+
+  it("includes MCP server summaries with guidance", () => {
+    const p = buildSystemPrompt({
+      notes: "",
+      skills: [],
+      tools: [],
+      mcpServers: [
+        { name: "github", description: "GitHub tools" },
+      ],
+    });
+    expect(p).toContain("MCP Servers");
+    expect(p).toContain("github");
+    expect(p).toContain("GitHub tools");
+    expect(p).toContain("external integrations");
+    expect(p).toContain("scripts");
+  });
+
+  it("omits MCP section when no servers configured", () => {
+    const p = buildSystemPrompt({ notes: "", skills: [], tools: [], mcpServers: [] });
+    expect(p).not.toContain("MCP Servers");
+  });
 });
