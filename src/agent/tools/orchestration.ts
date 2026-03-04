@@ -6,10 +6,10 @@ import { defineTool } from "./types.ts";
 function resolveRecipient(
   recipient: string | undefined,
   deps: ExecutorDeps,
-): string | { error: string } {
+): string {
   const resolved = !recipient || recipient === "current" ? deps.recipientId : recipient;
   if (deps.allowedChatIds.size > 0 && !deps.allowedChatIds.has(resolved)) {
-    return { error: `Error: recipient "${resolved}" is not in the allowed list` };
+    return `Error: recipient "${resolved}" is not in the allowed list`;
   }
   return resolved;
 }
@@ -85,7 +85,7 @@ export const orchestrationTools: ToolHandler[] = [
         recipient?: string;
       };
       const resolved = resolveRecipient(recipient, deps);
-      if (typeof resolved === "object") return resolved.error;
+      if (resolved.startsWith("Error:")) return resolved;
       const params: Record<string, unknown> = { recipientId: resolved, instructions };
       if (context) params.context = context;
       const result = await deps.absurd.spawn("workflow", params);
@@ -133,7 +133,7 @@ export const orchestrationTools: ToolHandler[] = [
     async execute(input, deps) {
       const { text, recipient } = input as { text: string; recipient?: string };
       const resolved = resolveRecipient(recipient, deps);
-      if (typeof resolved === "object") return resolved.error;
+      if (resolved.startsWith("Error:")) return resolved;
       const result = await deps.absurd.spawn("send-message", {
         recipientId: resolved,
         text,
