@@ -27,7 +27,7 @@ async function main() {
 
   const channelRegistry = new ChannelRegistry();
   for (const ch of config.channels) {
-    channelRegistry.register(createAdapter(ch.type, ch.token));
+    channelRegistry.register(createAdapter(ch.type, ch.token, { openaiApiKey: config.openaiApiKey }));
   }
 
   // Persist defaultRecipientId via state store
@@ -54,11 +54,10 @@ async function main() {
     // Allowlist check
     if (config.allowedChatIds.size === 0) {
       // Discovery mode: reply with chat ID instructions, don't run agent
-      const rawId = msg.recipientId.split(":").slice(1).join(":");
       logger.info({ recipientId: msg.recipientId }, "discovery mode — replying with chat ID");
       await channelRegistry.sendMessage(
         msg.recipientId,
-        `Your chat ID is: ${rawId}\n\nAdd this to your .env file:\nALLOWED_CHAT_IDS=${rawId}\n\nThen restart the bot.`,
+        `Your chat ID is: ${msg.recipientId}\n\nAdd this to your .env file:\nALLOWED_CHAT_IDS=${msg.recipientId}\n\nThen restart the bot.`,
       );
       return;
     }
