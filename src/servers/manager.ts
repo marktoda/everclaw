@@ -122,9 +122,8 @@ export function createMcpManager(): McpManager {
     serversDir: string,
     env: Record<string, string>,
   ): Promise<void> {
-    // Idempotent: stop existing connections first
+    // Idempotent: stop existing connections first (stop() calls clearState())
     await stop();
-    clearState();
 
     const configs = await listServerConfigs(serversDir);
 

@@ -194,6 +194,7 @@ describe("handle-message", () => {
       registry: mockRegistry,
       onText: expect.any(Function),
       log: undefined,
+      mcpSummaries: undefined,
     });
   });
 
