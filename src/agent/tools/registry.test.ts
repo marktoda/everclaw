@@ -416,6 +416,40 @@ describe("registry", () => {
 
       expect(syncSchedules).not.toHaveBeenCalled();
     });
+
+    it("calls reloadMcp when writing to servers/", async () => {
+      const reloadMcp = vi.fn().mockResolvedValue(undefined);
+      deps = makeDeps({ reloadMcp });
+      const registry = createToolRegistry(deps);
+      exec = registry.execute;
+
+      vi.mocked(fs.mkdir).mockResolvedValue(undefined);
+      vi.mocked(fs.writeFile).mockResolvedValue(undefined);
+
+      await exec("write_file", {
+        path: "servers/github.json",
+        content: '{"command":"npx","args":["github-mcp"]}',
+      });
+
+      expect(reloadMcp).toHaveBeenCalledOnce();
+    });
+
+    it("does NOT call reloadMcp when writing to notes/", async () => {
+      const reloadMcp = vi.fn().mockResolvedValue(undefined);
+      deps = makeDeps({ reloadMcp });
+      const registry = createToolRegistry(deps);
+      exec = registry.execute;
+
+      vi.mocked(fs.mkdir).mockResolvedValue(undefined);
+      vi.mocked(fs.writeFile).mockResolvedValue(undefined);
+
+      await exec("write_file", {
+        path: "data/notes/todo.md",
+        content: "stuff",
+      });
+
+      expect(reloadMcp).not.toHaveBeenCalled();
+    });
   });
 
   // =========================================================================
@@ -536,6 +570,19 @@ describe("registry", () => {
       await exec("delete_file", { path: "data/notes/old.txt" });
 
       expect(syncSchedules).not.toHaveBeenCalled();
+    });
+
+    it("calls reloadMcp when deleting from servers/", async () => {
+      const reloadMcp = vi.fn().mockResolvedValue(undefined);
+      deps = makeDeps({ reloadMcp });
+      const registry = createToolRegistry(deps);
+      exec = registry.execute;
+
+      vi.mocked(fs.unlink).mockResolvedValue(undefined);
+
+      await exec("delete_file", { path: "servers/old-server.json" });
+
+      expect(reloadMcp).toHaveBeenCalledOnce();
     });
   });
 

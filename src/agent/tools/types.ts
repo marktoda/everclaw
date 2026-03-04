@@ -18,6 +18,7 @@ export interface ExecutorDeps {
   scriptEnv: Record<string, string>;
   startedAt: Date;
   searchApiKey?: string;
+  reloadMcp?: () => Promise<void>;
 }
 
 export interface ToolHandler {
