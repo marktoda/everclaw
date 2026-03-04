@@ -1354,6 +1354,7 @@ describe("registry", () => {
       expect(names).toContain("wait_for_event");
       expect(names).toContain("emit_event");
       expect(names).toContain("web_search");
+      expect(names).toContain("search_servers");
     });
   });
 

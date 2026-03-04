@@ -83,18 +83,18 @@ docs/plans/             Design and implementation documents
 
 **Tool scripts.** Files written to `scripts/` are auto-`chmod +x`. Scripts receive JSON on stdin and return output on stdout, with a configurable timeout (default 30s).
 
-**MCP server integration.** MCP (Model Context Protocol) servers are configured via JSON files in `servers/`, one per server. On startup, `McpManager` spawns each server as a stdio child process, discovers its tools via `tools/list`, and exposes them through the ToolRegistry with `mcp_<server>_<tool>` namespacing. Secrets from `TOOL_*` env vars are passed to server processes. Changes to `servers/` trigger automatic MCP reload (new tools are available on the next message).
+**MCP server integration.** MCP (Model Context Protocol) servers are configured via JSON files in `servers/`, one per server. On startup, `McpManager` spawns each server as a stdio child process, discovers its tools via `tools/list`, and exposes them through the ToolRegistry with `mcp_<server>_<tool>` namespacing. Secrets from `TOOL_*` env vars are passed to server processes. Changes to `servers/` trigger automatic MCP reload (new tools are available on the next message). The agent can discover new MCP servers via `search_servers`, which queries the official MCP registry at `registry.modelcontextprotocol.io`. The agent must ask the user for approval before writing any server config.
 
 **Agent scratchpad.** The agent can use `<internal>...</internal>` tags for reasoning that gets stripped before sending to the user (see `output.ts`).
 
-## Tools (16 built-in + dynamic MCP tools)
+## Tools (17 built-in + dynamic MCP tools)
 
 | Category | Tools |
 |---|---|
 | Files (4) | `read_file`, `write_file`, `list_files`, `delete_file` |
 | State (3) | `get_state`, `set_state`, `get_status` |
 | Scripts (1) | `run_script` |
-| Search (1) | `web_search` |
+| Search (2) | `web_search`, `search_servers` |
 | Orchestration (7) | `sleep_for`, `sleep_until`, `spawn_task`, `cancel_task`, `list_tasks`, `wait_for_event`, `emit_event` |
 | MCP (dynamic) | `mcp_<server>_<tool>` — discovered at startup from `servers/*.json` configs |
 
