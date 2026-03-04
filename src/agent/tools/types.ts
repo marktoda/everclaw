@@ -1,6 +1,7 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import type { Absurd, TaskContext } from "absurd-sdk";
 import type { Pool } from "pg";
+import type { ExtraDir } from "../../config.ts";
 
 export type ToolDef = Anthropic.Tool;
 
@@ -19,6 +20,7 @@ export interface ExecutorDeps {
   startedAt: Date;
   searchApiKey?: string;
   reloadMcp?: () => Promise<void>;
+  extraDirs: ExtraDir[];
 }
 
 export interface ToolHandler {
