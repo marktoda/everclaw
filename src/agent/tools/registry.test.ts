@@ -1157,6 +1157,129 @@ describe("registry", () => {
   });
 
   // =========================================================================
+  // search_servers
+  // =========================================================================
+  describe("search_servers", () => {
+    let fetchSpy: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+      fetchSpy = vi.fn();
+      vi.stubGlobal("fetch", fetchSpy);
+    });
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it("returns formatted results from the MCP registry", async () => {
+      fetchSpy.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          servers: [
+            {
+              name: "io.github.org/server-github",
+              description: "GitHub tools for issues and PRs",
+              packages: [
+                {
+                  registryType: "npm",
+                  identifier: "@modelcontextprotocol/server-github",
+                  transport: { type: "stdio" },
+                },
+              ],
+            },
+          ],
+          metadata: { count: 1 },
+        }),
+      });
+
+      const result = await exec("search_servers", { query: "github" });
+      expect(result).toContain("io.github.org/server-github");
+      expect(result).toContain("GitHub tools");
+      expect(result).toContain("npx -y @modelcontextprotocol/server-github");
+      expect(result).toContain("stdio");
+    });
+
+    it("returns error for empty query", async () => {
+      const result = await exec("search_servers", { query: "   " });
+      expect(result).toBe("Error: query is required");
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
+
+    it("returns message when no servers found", async () => {
+      fetchSpy.mockResolvedValue({
+        ok: true,
+        json: async () => ({ servers: [], metadata: { count: 0 } }),
+      });
+
+      const result = await exec("search_servers", { query: "xyznonexistent" });
+      expect(result).toContain("No servers found");
+    });
+
+    it("returns error on non-200 response", async () => {
+      fetchSpy.mockResolvedValue({ ok: false, status: 503 });
+
+      const result = await exec("search_servers", { query: "github" });
+      expect(result).toContain("Error");
+      expect(result).toContain("503");
+    });
+
+    it("returns error on fetch timeout/failure", async () => {
+      fetchSpy.mockRejectedValue(new Error("fetch failed"));
+
+      const result = await exec("search_servers", { query: "github" });
+      expect(result).toContain("Error");
+      expect(result).toContain("fetch failed");
+    });
+
+    it("calls the registry API with correct URL and params", async () => {
+      fetchSpy.mockResolvedValue({
+        ok: true,
+        json: async () => ({ servers: [], metadata: { count: 0 } }),
+      });
+
+      await exec("search_servers", { query: "postgres", limit: 5 });
+
+      expect(fetchSpy).toHaveBeenCalledOnce();
+      const url = fetchSpy.mock.calls[0][0] as string;
+      expect(url).toContain("registry.modelcontextprotocol.io");
+      expect(url).toContain("search=postgres");
+      expect(url).toContain("limit=5");
+    });
+
+    it("defaults limit to 10", async () => {
+      fetchSpy.mockResolvedValue({
+        ok: true,
+        json: async () => ({ servers: [], metadata: { count: 0 } }),
+      });
+
+      await exec("search_servers", { query: "test" });
+
+      const url = fetchSpy.mock.calls[0][0] as string;
+      expect(url).toContain("limit=10");
+    });
+
+    it("handles servers with no packages gracefully", async () => {
+      fetchSpy.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          servers: [
+            {
+              name: "io.github.someone/bare-server",
+              description: "A server with no packages",
+              packages: [],
+            },
+          ],
+          metadata: { count: 1 },
+        }),
+      });
+
+      const result = await exec("search_servers", { query: "bare" });
+      expect(result).toContain("io.github.someone/bare-server");
+      expect(result).not.toContain("npx");
+    });
+  });
+
+  // =========================================================================
   // Unknown tool
   // =========================================================================
   describe("unknown tool", () => {
@@ -1207,9 +1330,9 @@ describe("registry", () => {
   // definitions
   // =========================================================================
   describe("definitions", () => {
-    it("returns all 16 tool definitions", () => {
+    it("returns all 17 tool definitions", () => {
       const registry = createToolRegistry(deps);
-      expect(registry.definitions.length).toBe(16);
+      expect(registry.definitions.length).toBe(17);
     });
 
     it("includes expected tool names", () => {
@@ -1409,7 +1532,7 @@ describe("registry", () => {
       const names = registry.definitions.map((d) => d.name);
       expect(names).toContain("read_file");
       expect(names).toContain("mcp_github_list_repos");
-      expect(registry.definitions.length).toBe(17);
+      expect(registry.definitions.length).toBe(18);
     });
 
     it("routes MCP tool calls to the MCP source execute", async () => {
