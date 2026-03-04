@@ -8,6 +8,7 @@ import { createToolRegistry } from "../agent/tools/index.ts";
 import type { ChannelRegistry } from "../channels/index.ts";
 import type { Config } from "../config.ts";
 import type { Logger } from "../logger.ts";
+import type { McpManager } from "../servers/manager.ts";
 
 /** Shorter history window for background tasks (skills, workflows). */
 export const BACKGROUND_MAX_HISTORY = 10;
@@ -19,6 +20,7 @@ export interface TaskDeps {
   config: Config;
   startedAt: Date;
   log?: Logger;
+  mcp?: McpManager;
 }
 
 /** Build AgentDeps from TaskDeps for a specific task invocation. */
@@ -31,21 +33,24 @@ export function buildAgentDeps(
 ): AgentDeps {
   const log = deps.log?.child({ task: opts?.taskName, recipientId });
 
-  const registry = createToolRegistry({
-    absurd,
-    pool: deps.pool,
-    ctx,
-    queueName: deps.config.queueName,
-    recipientId,
-    notesDir: deps.config.notesDir,
-    skillsDir: deps.config.skillsDir,
-    scriptsDir: deps.config.scriptsDir,
-    serversDir: deps.config.serversDir,
-    scriptTimeout: deps.config.scriptTimeout,
-    scriptEnv: deps.config.scriptEnv,
-    startedAt: deps.startedAt,
-    searchApiKey: deps.config.braveSearchApiKey,
-  });
+  const registry = createToolRegistry(
+    {
+      absurd,
+      pool: deps.pool,
+      ctx,
+      queueName: deps.config.queueName,
+      recipientId,
+      notesDir: deps.config.notesDir,
+      skillsDir: deps.config.skillsDir,
+      scriptsDir: deps.config.scriptsDir,
+      serversDir: deps.config.serversDir,
+      scriptTimeout: deps.config.scriptTimeout,
+      scriptEnv: deps.config.scriptEnv,
+      startedAt: deps.startedAt,
+      searchApiKey: deps.config.braveSearchApiKey,
+    },
+    deps.mcp,
+  );
 
   return {
     anthropic: deps.anthropic,
@@ -59,6 +64,7 @@ export function buildAgentDeps(
     maxHistory: opts?.maxHistory ?? deps.config.maxHistoryMessages,
     registry,
     log,
+    mcpSummaries: deps.mcp?.serverSummaries(),
     onText: opts?.silent
       ? undefined
       : (text) => {

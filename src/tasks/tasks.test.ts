@@ -73,6 +73,7 @@ function makeConfig() {
     claimTimeout: 30,
     scriptTimeout: 10,
     scriptEnv: {},
+    serversDir: "/tmp/servers",
   };
 }
 
@@ -166,6 +167,7 @@ describe("handle-message", () => {
         scriptTimeout: deps.config.scriptTimeout,
         startedAt: deps.startedAt,
       }),
+      undefined,
     );
   });
 
@@ -301,6 +303,7 @@ describe("execute-skill", () => {
         recipientId: "telegram:55",
         ctx,
       }),
+      undefined,
     );
   });
 
@@ -437,6 +440,7 @@ describe("workflow", () => {
         scriptTimeout: deps.config.scriptTimeout,
         startedAt: deps.startedAt,
       }),
+      undefined,
     );
   });
 
