@@ -418,21 +418,14 @@ describe("registry", () => {
       expect(syncSchedules).not.toHaveBeenCalled();
     });
 
-    it("calls reloadMcp when writing to servers/", async () => {
-      const reloadMcp = vi.fn().mockResolvedValue(undefined);
-      deps = makeDeps({ reloadMcp });
-      const registry = createToolRegistry(deps);
-      exec = registry.execute;
-
-      vi.mocked(fs.mkdir).mockResolvedValue(undefined);
-      vi.mocked(fs.writeFile).mockResolvedValue(undefined);
-
-      await exec("write_file", {
+    it("rejects writes to servers/ (read-only)", async () => {
+      const result = await exec("write_file", {
         path: "servers/github.json",
         content: '{"command":"npx","args":["github-mcp"]}',
       });
 
-      expect(reloadMcp).toHaveBeenCalledOnce();
+      expect(result).toContain("read-only");
+      expect(fs.writeFile).not.toHaveBeenCalled();
     });
 
     it("does NOT call reloadMcp when writing to notes/", async () => {
@@ -573,17 +566,11 @@ describe("registry", () => {
       expect(syncSchedules).not.toHaveBeenCalled();
     });
 
-    it("calls reloadMcp when deleting from servers/", async () => {
-      const reloadMcp = vi.fn().mockResolvedValue(undefined);
-      deps = makeDeps({ reloadMcp });
-      const registry = createToolRegistry(deps);
-      exec = registry.execute;
+    it("rejects deletes from servers/ (read-only)", async () => {
+      const result = await exec("delete_file", { path: "servers/old-server.json" });
 
-      vi.mocked(fs.unlink).mockResolvedValue(undefined);
-
-      await exec("delete_file", { path: "servers/old-server.json" });
-
-      expect(reloadMcp).toHaveBeenCalledOnce();
+      expect(result).toContain("read-only");
+      expect(fs.unlink).not.toHaveBeenCalled();
     });
   });
 
