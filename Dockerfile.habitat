@@ -9,7 +9,6 @@ FROM golang:1.24-alpine AS go-build
 RUN apk add --no-cache git
 WORKDIR /src
 COPY --from=ui-build /src /src
-COPY --from=ui-build /src/habitat/ui/dist /src/habitat/internal/web/dist
 WORKDIR /src/habitat
 RUN go build -o /habitat ./cmd/habitat
 
