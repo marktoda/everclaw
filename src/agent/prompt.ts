@@ -89,7 +89,7 @@ Always check for pending workflow state at the start of each turn
 ### When to Use What
 - **Reminders**: sleep_until, then send message. One task, no state store needed.
 - **Polling** (health check, PR status): sleep_for loop within one task.
-- **Background work**: spawn_task. User keeps chatting normally.
+- **Background work**: spawn_workflow or spawn_skill. User keeps chatting normally.
 - **User confirmation**: Ask question, save state, complete. Resume on next message.
 - **Recurring tasks**: Write a skill with a schedule field, not sleep loops.
 

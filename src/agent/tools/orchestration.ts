@@ -148,7 +148,7 @@ export const orchestrationTools: ToolHandler[] = [
       {
         task_id: {
           type: "string",
-          description: "Task ID to cancel (from list_tasks or spawn_task result)",
+          description: "Task ID to cancel (from list_tasks or spawn_workflow/spawn_skill result)",
         },
       },
       ["task_id"],

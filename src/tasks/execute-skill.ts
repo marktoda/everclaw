@@ -11,7 +11,7 @@ export function registerExecuteSkill(absurd: Absurd, deps: TaskDeps): void {
   absurd.registerTask(
     { name: "execute-skill" },
     async (params: { skillName: string; recipientId?: string }, ctx: TaskContext) => {
-      // Resolve recipientId: use explicit param (from spawn_task) or fall back
+      // Resolve recipientId: use explicit param (from spawn_skill) or fall back
       // to the persisted default (for scheduled skills).
       const recipientId =
         params.recipientId ||
