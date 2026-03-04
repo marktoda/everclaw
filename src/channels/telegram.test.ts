@@ -16,9 +16,10 @@ vi.mock("grammy", () => {
     on(_filter: string, handler: Handler) {
       capturedHandler = handler;
     }
-    start(_opts?: any) {}
+    start(_opts?: any) { return Promise.resolve(); }
     stop() {
       mockStop();
+      return Promise.resolve();
     }
   }
   return { Bot };
