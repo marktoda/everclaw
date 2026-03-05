@@ -1,0 +1,5 @@
+{
+  "command": "uvx",
+  "args": ["mcp-server-fetch"],
+  "description": "Fetch web content as markdown"
+}
