@@ -92,11 +92,11 @@ export const TEXT_PLUS_TOOL: Scenario = {
 };
 
 /**
- * Returns a scenario with 20 turns of tool_use(read_file), each with a unique
- * id "tu-0" through "tu-19". Useful for testing max-turn limits.
+ * Returns a scenario with 50 turns of tool_use(read_file), each with a unique
+ * id "tu-0" through "tu-49". Useful for testing max-turn limits.
  */
 export function makeMaxTurnsScenario(): Scenario {
-  const turns = Array.from({ length: 20 }, (_, i) => ({
+  const turns = Array.from({ length: 50 }, (_, i) => ({
     content: [
       toolUse("read_file", { path: "data/notes/test.md" }, `tu-${i}`),
     ] as Anthropic.ContentBlock[],

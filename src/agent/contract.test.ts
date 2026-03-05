@@ -135,7 +135,7 @@ describe("contract tests — API-valid message arrays", () => {
   });
 
   // 6. Max turns exhaustion
-  it("max turns exhaustion produces valid calls for all 20 turns", async () => {
+  it("max turns exhaustion produces valid calls for all 50 turns", async () => {
     const scenario = makeMaxTurnsScenario();
     const fake = new FakeAnthropic(scenario);
     const deps = baseDeps(fake);
@@ -143,7 +143,7 @@ describe("contract tests — API-valid message arrays", () => {
 
     await runAgentLoop(ctx, "telegram:1", "loop forever", deps);
 
-    expect(fake.callCount).toBe(20);
+    expect(fake.callCount).toBe(50);
     fake.assertAllTurnsConsumed();
   });
 
