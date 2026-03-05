@@ -51,6 +51,7 @@ export interface Config {
     extra: ExtraDir[];
   };
 
+  gmailLabel: string;
   scriptEnv: Record<string, string>;
   serverEnv: Record<string, string>;
   scriptTimeout: number;
@@ -183,6 +184,7 @@ export function loadConfig(envPath: string = ".env"): Config {
       servers: path.resolve(process.env.SERVERS_DIR ?? "servers"),
       extra: parseExtraDirs(process.env.EXTRA_DIRS),
     },
+    gmailLabel: secrets.GMAIL_LABEL ?? "everclaw",
     scriptTimeout: parseInt(process.env.SCRIPT_TIMEOUT ?? "30", 10),
     scriptEnv: parsePrefixedEnv(secrets, "SCRIPT_"),
     serverEnv: parsePrefixedEnv(secrets, "SERVER_"),

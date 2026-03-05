@@ -72,31 +72,47 @@ describe("GmailAdapter", () => {
   });
 
   it("has name 'gmail'", () => {
-    const adapter = new GmailAdapter();
+    const adapter = new GmailAdapter({ label: "everclaw" });
     expect(adapter.name).toBe("gmail");
   });
 
   it("setTyping is not defined", () => {
-    const adapter = new GmailAdapter() as ChannelAdapter;
+    const adapter = new GmailAdapter({ label: "everclaw" }) as ChannelAdapter;
     expect(adapter.setTyping).toBeUndefined();
   });
 
   it("start connects and does initial poll without processing", async () => {
     mockList.mockResolvedValueOnce({ data: { messages: [{ id: "old1" }, { id: "old2" }] } });
 
-    const adapter = new GmailAdapter();
+    const adapter = new GmailAdapter({ label: "everclaw" });
     const onMessage = vi.fn().mockResolvedValue(undefined);
 
     await adapter.start(onMessage);
 
     expect(onMessage).not.toHaveBeenCalled();
     expect(mockGet).not.toHaveBeenCalled();
+    expect(mockList).toHaveBeenCalledWith(
+      expect.objectContaining({ q: "is:unread label:everclaw" }),
+    );
+
+    await adapter.stop();
+  });
+
+  it("uses custom label in poll query", async () => {
+    const adapter = new GmailAdapter({ label: "my-label" });
+    const onMessage = vi.fn().mockResolvedValue(undefined);
+
+    await adapter.start(onMessage);
+
+    expect(mockList).toHaveBeenCalledWith(
+      expect.objectContaining({ q: "is:unread label:my-label" }),
+    );
 
     await adapter.stop();
   });
 
   it("sendMessage constructs RFC 2822 email and sends", async () => {
-    const adapter = new GmailAdapter();
+    const adapter = new GmailAdapter({ label: "everclaw" });
     const onMessage = vi.fn().mockResolvedValue(undefined);
     await adapter.start(onMessage);
 
@@ -113,7 +129,7 @@ describe("GmailAdapter", () => {
   });
 
   it("sendMessage uses stored threading headers for replies", async () => {
-    const adapter = new GmailAdapter();
+    const adapter = new GmailAdapter({ label: "everclaw" });
     const onMessage = vi.fn().mockResolvedValue(undefined);
     await adapter.start(onMessage);
 
@@ -135,7 +151,7 @@ describe("GmailAdapter", () => {
   });
 
   it("stop clears polling interval", async () => {
-    const adapter = new GmailAdapter();
+    const adapter = new GmailAdapter({ label: "everclaw" });
     const onMessage = vi.fn().mockResolvedValue(undefined);
     await adapter.start(onMessage);
     await adapter.stop();

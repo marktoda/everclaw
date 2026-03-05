@@ -64,6 +64,7 @@ beforeAll(async () => {
       servers: path.join(tmpDir, "servers"),
       extra: [],
     },
+    gmailLabel: "everclaw",
     scriptTimeout: 10,
     scriptEnv: {},
     serverEnv: {},

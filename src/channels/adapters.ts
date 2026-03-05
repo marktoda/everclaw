@@ -3,6 +3,7 @@ import type { ChannelAdapter } from "./adapter.ts";
 
 export interface AdapterOptions {
   openaiApiKey?: string;
+  gmailLabel?: string;
 }
 
 const ADAPTER_FACTORIES: Record<
@@ -21,9 +22,9 @@ const ADAPTER_FACTORIES: Record<
     const { TelegramAdapter } = await import("./telegram.ts");
     return new TelegramAdapter(token, { openaiApiKey: opts.openaiApiKey });
   },
-  gmail: async () => {
+  gmail: async (_token, opts) => {
     const { GmailAdapter } = await import("./gmail.ts");
-    return new GmailAdapter();
+    return new GmailAdapter({ label: opts.gmailLabel ?? "everclaw" });
   },
   whatsapp: async () => {
     const { WhatsAppAdapter } = await import("./whatsapp.ts");

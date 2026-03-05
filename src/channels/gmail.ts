@@ -60,15 +60,24 @@ function buildRawEmail(
   return Buffer.from(lines.join("\r\n")).toString("base64url");
 }
 
+interface GmailAdapterOptions {
+  label: string;
+}
+
 export class GmailAdapter implements ChannelAdapter {
   name = "gmail" as const;
   private gmail: any;
   private auth: any;
+  private label: string;
   private pollTimer?: ReturnType<typeof setInterval>;
   private processedIds = new Set<string>();
   private threadContext = new Map<string, ThreadContext>();
   private onMessage?: (msg: InboundMessage) => Promise<void>;
   private myEmail?: string;
+
+  constructor(opts: GmailAdapterOptions) {
+    this.label = opts.label;
+  }
 
   async start(onMessage: (msg: InboundMessage) => Promise<void>): Promise<void> {
     this.onMessage = onMessage;
@@ -102,7 +111,7 @@ export class GmailAdapter implements ChannelAdapter {
 
     const profile = await this.gmail.users.getProfile({ userId: "me" });
     this.myEmail = profile.data.emailAddress;
-    logger.info({ email: this.myEmail }, "Gmail connected");
+    logger.info({ email: this.myEmail, label: this.label }, "Gmail connected");
 
     // Load persisted state or do initial sync
     try {
@@ -114,7 +123,7 @@ export class GmailAdapter implements ChannelAdapter {
       // No state file — first run. Mark existing unread as seen without processing.
       const res = await this.gmail.users.messages.list({
         userId: "me",
-        q: "is:unread category:primary",
+        q: `is:unread label:${this.label}`,
         maxResults: 100,
       });
       for (const { id } of res.data.messages || []) {
@@ -135,7 +144,7 @@ export class GmailAdapter implements ChannelAdapter {
   private async poll(): Promise<void> {
     const res = await this.gmail.users.messages.list({
       userId: "me",
-      q: "is:unread category:primary",
+      q: `is:unread label:${this.label}`,
       maxResults: 10,
     });
 

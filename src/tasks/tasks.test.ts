@@ -79,6 +79,7 @@ function makeConfig() {
       servers: "/tmp/servers",
       extra: [] as Array<{ name: string; mode: "ro" | "rw"; absPath: string }>,
     },
+    gmailLabel: "everclaw",
     scriptTimeout: 10,
     scriptEnv: {},
     serverEnv: {},

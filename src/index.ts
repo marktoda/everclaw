@@ -28,7 +28,10 @@ async function main() {
   for (const ch of config.channels) {
     try {
       channelRegistry.register(
-        await createAdapter(ch.type, ch.token, { openaiApiKey: config.openaiApiKey }),
+        await createAdapter(ch.type, ch.token, {
+          openaiApiKey: config.openaiApiKey,
+          gmailLabel: config.gmailLabel,
+        }),
       );
     } catch (err) {
       logger.error({ err, channel: ch.type }, "failed to create channel adapter — skipping");
