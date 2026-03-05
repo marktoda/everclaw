@@ -1,9 +1,9 @@
+import type Anthropic from "@anthropic-ai/sdk";
 import { fileTools } from "./files.ts";
 import { orchestrationTools } from "./orchestration.ts";
 import { scriptTools } from "./scripts.ts";
 import { searchTools } from "./search.ts";
 import { stateTools } from "./state.ts";
-import type Anthropic from "@anthropic-ai/sdk";
 import type { ExecutorDeps, ToolHandler } from "./types.ts";
 
 export interface ToolRegistry {

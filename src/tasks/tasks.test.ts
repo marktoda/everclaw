@@ -233,22 +233,21 @@ describe("handle-message", () => {
     // Extract the onText callback that was passed to runAgentLoop
     const opts = vi.mocked(runAgentLoop).mock.calls[0][3];
     // Invoke onText
-    opts.onText?.("reply text");
+    await opts.onText?.("reply text");
     expect(deps.channels.sendMessage).toHaveBeenCalledWith("telegram:77", "reply text");
   });
 
-  it("onText swallows send errors", async () => {
+  it("onText propagates send errors", async () => {
     const absurd = makeAbsurd();
     const deps = makeDeps();
-    deps.channels.sendMessage.mockReturnValue(Promise.reject(new Error("net")));
+    deps.channels.sendMessage.mockRejectedValue(new Error("net"));
     registerHandleMessage(absurd as any, deps);
 
     const handler = absurd.handlers.get("handle-message")!;
     await handler({ recipientId: "telegram:1", text: "x" }, makeCtx());
 
     const opts = vi.mocked(runAgentLoop).mock.calls[0][3];
-    // Should not throw
-    expect(() => opts.onText?.("y")).not.toThrow();
+    await expect(opts.onText?.("y")).rejects.toThrow("net");
   });
 });
 

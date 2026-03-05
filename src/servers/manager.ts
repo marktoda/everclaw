@@ -1,8 +1,8 @@
 import { readdir, readFile } from "node:fs/promises";
 import * as path from "node:path";
+import type Anthropic from "@anthropic-ai/sdk";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import type Anthropic from "@anthropic-ai/sdk";
 import { baseChildEnv } from "../child-env.ts";
 import { logger } from "../logger.ts";
 

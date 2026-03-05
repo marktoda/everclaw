@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { buildSystemPrompt } from "./prompt.ts";
 
-const base = { pinnedNotes: "", availableNotes: [] as string[], skills: [] as any[], tools: [] as any[] };
+const base = {
+  pinnedNotes: "",
+  availableNotes: [] as string[],
+  skills: [] as any[],
+  tools: [] as any[],
+};
 
 describe("buildSystemPrompt", () => {
   it("includes base instructions", () => {
@@ -21,7 +26,10 @@ describe("buildSystemPrompt", () => {
   });
 
   it("lists available notes by filename", () => {
-    const p = buildSystemPrompt({ ...base, availableNotes: ["slc-travel-guide.md", "research.md"] });
+    const p = buildSystemPrompt({
+      ...base,
+      availableNotes: ["slc-travel-guide.md", "research.md"],
+    });
     expect(p).toContain("## Available Notes");
     expect(p).toContain("- data/notes/slc-travel-guide.md");
     expect(p).toContain("- data/notes/research.md");

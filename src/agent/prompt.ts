@@ -134,7 +134,9 @@ Current date and time: ${new Date().toISOString()}`);
 
   if (ctx.availableNotes.length > 0) {
     const list = ctx.availableNotes.map((f) => `- data/notes/${f}`).join("\n");
-    parts.push(`## Available Notes\n\nReference notes — use read_file to load when relevant.\n\n${list}`);
+    parts.push(
+      `## Available Notes\n\nReference notes — use read_file to load when relevant.\n\n${list}`,
+    );
   }
 
   if (ctx.skills.length > 0) {
