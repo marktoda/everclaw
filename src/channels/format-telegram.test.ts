@@ -1,105 +1,136 @@
 import { describe, expect, it } from "vitest";
-import { markdownToTelegramHtml } from "./format-telegram.ts";
+import { markdownToEntities } from "./format-telegram.ts";
 
-describe("markdownToTelegramHtml", () => {
-  it("escapes HTML entities", () => {
-    expect(markdownToTelegramHtml("a < b & c > d")).toBe("a &lt; b &amp; c &gt; d");
+describe("markdownToEntities", () => {
+  it("returns plain text with no entities for simple text", () => {
+    const result = markdownToEntities("hello world");
+    expect(result.text).toBe("hello world");
+    expect(result.entities).toEqual([]);
   });
 
-  describe("code", () => {
-    it("converts fenced code blocks to <pre><code>", () => {
-      const md = "```ts\nconst x = 1;\n```";
-      expect(markdownToTelegramHtml(md)).toBe('<pre><code language="ts">const x = 1;</code></pre>');
-    });
-
-    it("handles fenced code blocks without language", () => {
-      const md = "```\nhello\n```";
-      expect(markdownToTelegramHtml(md)).toBe("<pre><code>hello</code></pre>");
-    });
-
-    it("converts inline code to <code>", () => {
-      expect(markdownToTelegramHtml("use `foo()` here")).toBe("use <code>foo()</code> here");
-    });
-
-    it("does not apply inline rules inside code blocks", () => {
-      const md = "```\n**bold** and *italic*\n```";
-      expect(markdownToTelegramHtml(md)).toBe("<pre><code>**bold** and *italic*</code></pre>");
-    });
-
-    it("does not apply inline rules inside inline code", () => {
-      expect(markdownToTelegramHtml("`**not bold**`")).toBe("<code>**not bold**</code>");
-    });
+  it("converts bold to bold entity", () => {
+    const result = markdownToEntities("**bold**");
+    expect(result.text).toBe("bold");
+    expect(result.entities).toEqual([
+      { type: "bold", offset: 0, length: 4 },
+    ]);
   });
 
-  describe("block rules", () => {
-    it("converts headings to bold", () => {
-      expect(markdownToTelegramHtml("# Title")).toBe("<b>Title</b>");
-      expect(markdownToTelegramHtml("### Sub")).toBe("<b>Sub</b>");
-    });
-
-    it("strips bold markers inside headings to avoid nested <b> tags", () => {
-      expect(markdownToTelegramHtml("## **Bold Heading**")).toBe("<b>Bold Heading</b>");
-      expect(markdownToTelegramHtml("## **Multi-Tenant SaaS Model**")).toBe(
-        "<b>Multi-Tenant SaaS Model</b>",
-      );
-    });
-
-    it("strips italic markers inside headings", () => {
-      expect(markdownToTelegramHtml("## *Italic Heading*")).toBe("<b>Italic Heading</b>");
-    });
-
-    it("removes horizontal rules", () => {
-      expect(markdownToTelegramHtml("above\n\n---\n\nbelow")).toBe("above\n\nbelow");
-    });
-
-    it("converts blockquotes", () => {
-      expect(markdownToTelegramHtml("> hello\n> world")).toBe(
-        "<blockquote>hello\nworld</blockquote>",
-      );
-    });
-
-    it("converts unordered list items to bullet", () => {
-      const md = "- one\n- two\n- three";
-      expect(markdownToTelegramHtml(md)).toBe("\u2022 one\n\u2022 two\n\u2022 three");
-    });
-
-    it("handles * and + list markers", () => {
-      expect(markdownToTelegramHtml("* item")).toBe("\u2022 item");
-      expect(markdownToTelegramHtml("+ item")).toBe("\u2022 item");
-    });
+  it("converts italic to italic entity", () => {
+    const result = markdownToEntities("*italic*");
+    expect(result.text).toBe("italic");
+    expect(result.entities).toEqual([
+      { type: "italic", offset: 0, length: 6 },
+    ]);
   });
 
-  describe("inline rules", () => {
-    it("converts bold", () => {
-      expect(markdownToTelegramHtml("**bold**")).toBe("<b>bold</b>");
-    });
-
-    it("converts italic", () => {
-      expect(markdownToTelegramHtml("*italic*")).toBe("<i>italic</i>");
-    });
-
-    it("converts strikethrough", () => {
-      expect(markdownToTelegramHtml("~~strike~~")).toBe("<s>strike</s>");
-    });
-
-    it("converts links", () => {
-      expect(markdownToTelegramHtml("[click](https://example.com)")).toBe(
-        '<a href="https://example.com">click</a>',
-      );
-    });
-
-    it("converts images to links", () => {
-      expect(markdownToTelegramHtml("![alt](https://img.png)")).toBe(
-        '<a href="https://img.png">alt</a>',
-      );
-    });
-
-    it("handles bold and italic together", () => {
-      expect(markdownToTelegramHtml("**bold** and *italic*")).toBe("<b>bold</b> and <i>italic</i>");
-    });
+  it("converts strikethrough to strikethrough entity", () => {
+    const result = markdownToEntities("~~strike~~");
+    expect(result.text).toBe("strike");
+    expect(result.entities).toEqual([
+      { type: "strikethrough", offset: 0, length: 6 },
+    ]);
   });
 
-  it("handles a complex message", () => {
+  it("converts inline code to code entity", () => {
+    const result = markdownToEntities("use `foo()` here");
+    expect(result.text).toBe("use foo() here");
+    expect(result.entities).toEqual([
+      { type: "code", offset: 4, length: 5 },
+    ]);
+  });
+
+  it("converts fenced code block to pre entity with language", () => {
+    const result = markdownToEntities("```ts\nconst x = 1;\n```");
+    expect(result.text).toBe("const x = 1;");
+    expect(result.entities).toEqual([
+      { type: "pre", offset: 0, length: 12, language: "ts" },
+    ]);
+  });
+
+  it("converts fenced code block without language", () => {
+    const result = markdownToEntities("```\nhello\n```");
+    expect(result.text).toBe("hello");
+    expect(result.entities).toEqual([
+      { type: "pre", offset: 0, length: 5 },
+    ]);
+  });
+
+  it("converts links to text_link entity", () => {
+    const result = markdownToEntities("[click](https://example.com)");
+    expect(result.text).toBe("click");
+    expect(result.entities).toEqual([
+      { type: "text_link", offset: 0, length: 5, url: "https://example.com" },
+    ]);
+  });
+
+  it("converts images to text_link entity using alt text", () => {
+    const result = markdownToEntities("![photo](https://img.png)");
+    expect(result.text).toBe("photo");
+    expect(result.entities).toEqual([
+      { type: "text_link", offset: 0, length: 5, url: "https://img.png" },
+    ]);
+  });
+
+  it("converts headings to bold entity", () => {
+    const result = markdownToEntities("# Title");
+    expect(result.text).toBe("Title");
+    expect(result.entities).toEqual([
+      { type: "bold", offset: 0, length: 5 },
+    ]);
+  });
+
+  it("does not produce nested bold for bold text inside heading", () => {
+    const result = markdownToEntities("## **Bold Heading**");
+    expect(result.text).toBe("Bold Heading");
+    // Should be a single bold entity, not two nested ones
+    expect(result.entities).toEqual([
+      { type: "bold", offset: 0, length: 12 },
+    ]);
+  });
+
+  it("converts blockquotes to blockquote entity", () => {
+    const result = markdownToEntities("> quoted text");
+    expect(result.text).toBe("quoted text");
+    expect(result.entities).toEqual([
+      { type: "blockquote", offset: 0, length: 11 },
+    ]);
+  });
+
+  it("converts unordered list items to bullets", () => {
+    const result = markdownToEntities("- one\n- two");
+    expect(result.text).toContain("• one");
+    expect(result.text).toContain("• two");
+  });
+
+  it("preserves ordered list numbering", () => {
+    const result = markdownToEntities("1. first\n2. second");
+    expect(result.text).toContain("1. first");
+    expect(result.text).toContain("2. second");
+  });
+
+  it("converts horizontal rule to empty line", () => {
+    const result = markdownToEntities("above\n\n---\n\nbelow");
+    expect(result.text).toContain("above");
+    expect(result.text).toContain("below");
+    expect(result.entities.every((e: any) => e.type !== "hr")).toBe(true);
+  });
+
+  it("handles bold and italic together", () => {
+    const result = markdownToEntities("**bold** and *italic*");
+    expect(result.text).toBe("bold and italic");
+    expect(result.entities).toEqual([
+      { type: "bold", offset: 0, length: 4 },
+      { type: "italic", offset: 9, length: 6 },
+    ]);
+  });
+
+  it("separates paragraphs with double newline", () => {
+    const result = markdownToEntities("first\n\nsecond");
+    expect(result.text).toBe("first\n\nsecond");
+  });
+
+  it("handles complex message with multiple constructs", () => {
     const md = [
       "# Summary",
       "",
@@ -115,17 +146,25 @@ describe("markdownToTelegramHtml", () => {
       "- item two",
     ].join("\n");
 
-    const html = markdownToTelegramHtml(md);
-    expect(html).toContain("<b>Summary</b>");
-    expect(html).toContain("<b>bold</b>");
-    expect(html).toContain("<i>italic</i>");
-    expect(html).toContain('<pre><code language="ts">const x = 1;</code></pre>');
-    expect(html).toContain("<blockquote>A quote</blockquote>");
-    expect(html).toContain("\u2022 item one");
-    expect(html).toContain("\u2022 item two");
+    const result = markdownToEntities(md);
+    expect(result.text).toContain("Summary");
+    expect(result.text).toContain("bold");
+    expect(result.text).toContain("italic");
+    expect(result.text).toContain("const x = 1;");
+    expect(result.text).toContain("A quote");
+    expect(result.text).toContain("• item one");
+
+    const types = result.entities.map((e) => e.type);
+    expect(types).toContain("bold");
+    expect(types).toContain("italic");
+    expect(types).toContain("pre");
+    expect(types).toContain("blockquote");
   });
 
-  it("passes through plain text unchanged (after entity escaping)", () => {
-    expect(markdownToTelegramHtml("just plain text")).toBe("just plain text");
+  it("handles emoji correctly (UTF-16 offsets)", () => {
+    const result = markdownToEntities("Hello 😄 **world**");
+    expect(result.text).toBe("Hello 😄 world");
+    const bold = result.entities.find((e) => e.type === "bold");
+    expect(bold).toEqual({ type: "bold", offset: 9, length: 5 });
   });
 });
