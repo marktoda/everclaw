@@ -16,14 +16,14 @@ async function main() {
   const config = loadConfig();
   const startedAt = new Date();
 
-  const pool = new pg.Pool({ connectionString: config.databaseUrl });
+  const pool = new pg.Pool({ connectionString: config.worker.databaseUrl });
   const anthropic = new Anthropic({ apiKey: config.anthropicApiKey });
-  const absurd = new Absurd({ db: pool, queueName: config.queueName });
+  const absurd = new Absurd({ db: pool, queueName: config.worker.queueName });
 
   await absurd.createQueue();
 
   const mcpManager = createMcpManager();
-  await mcpManager.start(config.serversDir, config.serverEnv);
+  await mcpManager.start(config.dirs.servers, config.serverEnv);
 
   const channelRegistry = new ChannelRegistry();
   for (const ch of config.channels) {
@@ -50,15 +50,15 @@ async function main() {
   registerWorkflow(absurd, taskDeps);
 
   // Sync skill schedules on startup
-  await syncSchedules(absurd, config.skillsDir);
+  await syncSchedules(absurd, config.dirs.skills);
 
   const worker = await absurd.startWorker({
-    concurrency: config.workerConcurrency,
-    claimTimeout: config.claimTimeout,
+    concurrency: config.worker.concurrency,
+    claimTimeout: config.worker.claimTimeout,
     onError: (err) => logger.error({ err }, "worker error"),
   });
 
-  logger.info({ queue: config.queueName }, "everclaw started");
+  logger.info({ queue: config.worker.queueName }, "everclaw started");
 
   await channelRegistry.startAll(async (msg) => {
     // Allowlist check

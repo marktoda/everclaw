@@ -13,14 +13,13 @@ function isContainedIn(child: string, parent: string): boolean {
 
 const DIR_MAPPINGS: Array<{
   prefix: string;
-  dirKey: keyof Pick<ExecutorDeps, "notesDir" | "skillsDir" | "scriptsDir" | "serversDir">;
   dir: "notes" | "skills" | "scripts" | "servers";
   readOnly?: boolean;
 }> = [
-  { prefix: "data/notes/", dirKey: "notesDir", dir: "notes" },
-  { prefix: "skills/", dirKey: "skillsDir", dir: "skills" },
-  { prefix: "scripts/", dirKey: "scriptsDir", dir: "scripts" },
-  { prefix: "servers/", dirKey: "serversDir", dir: "servers" },
+  { prefix: "data/notes/", dir: "notes" },
+  { prefix: "skills/", dir: "skills" },
+  { prefix: "scripts/", dir: "scripts" },
+  { prefix: "servers/", dir: "servers" },
 ];
 
 interface ResolvedPath {
@@ -34,16 +33,16 @@ interface ResolvedPath {
 function resolvePath(input: string, deps: ExecutorDeps): ResolvedPath | null {
   const clean = input.replace(/^\.?\//, "");
   // Check built-in dirs first
-  for (const { prefix, dirKey, dir, readOnly } of DIR_MAPPINGS) {
+  for (const { prefix, dir, readOnly } of DIR_MAPPINGS) {
     if (clean.startsWith(prefix)) {
-      const baseDir = deps[dirKey];
+      const baseDir = deps.dirs[dir];
       const abs = path.resolve(baseDir, clean.slice(prefix.length));
       if (!isContainedIn(abs, baseDir)) return null;
       return { abs, dir, baseDir, ...(readOnly ? { mode: "ro" as const } : {}) };
     }
   }
   // Check extra dirs
-  for (const extra of deps.extraDirs) {
+  for (const extra of deps.dirs.extra) {
     const prefix = `${extra.name}/`;
     if (clean.startsWith(prefix)) {
       const abs = path.resolve(extra.absPath, clean.slice(prefix.length));
@@ -56,7 +55,7 @@ function resolvePath(input: string, deps: ExecutorDeps): ResolvedPath | null {
 
 function allDirPrefixes(deps: ExecutorDeps): string {
   const builtins = DIR_MAPPINGS.map((m) => m.prefix);
-  const extras = deps.extraDirs.map((d) => `${d.name}/`);
+  const extras = deps.dirs.extra.map((d) => `${d.name}/`);
   return [...builtins, ...extras].join(", ");
 }
 
@@ -95,9 +94,9 @@ interface SearchDir {
 function getAllowedDirs(deps: ExecutorDeps): SearchDir[] {
   const dirs: SearchDir[] = DIR_MAPPINGS.map((m) => ({
     prefix: m.prefix,
-    absPath: deps[m.dirKey],
+    absPath: deps.dirs[m.dir],
   }));
-  for (const extra of deps.extraDirs) {
+  for (const extra of deps.dirs.extra) {
     dirs.push({ prefix: `${extra.name}/`, absPath: extra.absPath });
   }
   return dirs;
@@ -107,12 +106,12 @@ function getAllowedDirs(deps: ExecutorDeps): SearchDir[] {
 function resolveSearchDir(name: string, deps: ExecutorDeps): SearchDir[] | string {
   const clean = name.replace(/^\.?\//, "").replace(/\/$/, "");
   const mapping = DIR_MAPPINGS.find((m) => m.prefix.replace(/\/$/, "") === clean);
-  if (mapping) return [{ prefix: mapping.prefix, absPath: deps[mapping.dirKey] }];
-  const extra = deps.extraDirs.find((d) => d.name === clean);
+  if (mapping) return [{ prefix: mapping.prefix, absPath: deps.dirs[mapping.dir] }];
+  const extra = deps.dirs.extra.find((d) => d.name === clean);
   if (extra) return [{ prefix: `${extra.name}/`, absPath: extra.absPath }];
   const valid = [
     ...DIR_MAPPINGS.map((m) => m.prefix.replace(/\/$/, "")),
-    ...deps.extraDirs.map((d) => d.name),
+    ...deps.dirs.extra.map((d) => d.name),
   ];
   return `Error: directory must be ${valid.join(", ")}`;
 }
@@ -155,6 +154,48 @@ function runRg(args: string[]): Promise<{ stdout: string; error?: string }> {
     );
   });
 }
+
+// ---------------------------------------------------------------------------
+// Declarative side-effect hooks for write_file / delete_file
+// ---------------------------------------------------------------------------
+
+interface DirHook {
+  validate?: (absPath: string, baseDir: string, content: string) => string | null;
+  onWrite?: (absPath: string, deps: ExecutorDeps) => Promise<void>;
+  onDelete?: (absPath: string, deps: ExecutorDeps) => Promise<void>;
+}
+
+const DIR_HOOKS: Record<string, DirHook> = {
+  skills: {
+    onWrite: async (_, deps) => {
+      await syncSchedules(deps.absurd, deps.dirs.skills);
+    },
+    onDelete: async (_, deps) => {
+      await syncSchedules(deps.absurd, deps.dirs.skills);
+    },
+  },
+  scripts: {
+    onWrite: async (abs) => {
+      await fs.chmod(abs, 0o755);
+    },
+  },
+  servers: {
+    validate: (abs, baseDir, content) => {
+      if (!abs.endsWith(".json")) return "Error: server configs must be .json files";
+      if (path.dirname(abs) !== baseDir)
+        return "Error: server configs must be top-level files in servers/";
+      const v = validateServerConfig(content);
+      if (!v.ok) return `Error: invalid server config: ${v.error}`;
+      return null;
+    },
+    onWrite: async (_, deps) => {
+      if (deps.reloadMcp) await deps.reloadMcp();
+    },
+    onDelete: async (_, deps) => {
+      if (deps.reloadMcp) await deps.reloadMcp();
+    },
+  },
+};
 
 export const fileTools: ToolHandler[] = [
   {
@@ -201,24 +242,17 @@ export const fileTools: ToolHandler[] = [
       if (resolved.mode === "ro") return `Error: ${resolved.dir}/ is read-only`;
       const escapeErr = await validateRealPath(resolved.abs, resolved.baseDir);
       if (escapeErr) return escapeErr;
-      if (resolved.dir === "servers") {
-        if (!filePath.endsWith(".json")) return "Error: server configs must be .json files";
-        if (path.dirname(resolved.abs) !== resolved.baseDir)
-          return "Error: server configs must be top-level files in servers/";
-        const validation = validateServerConfig(content);
-        if (!validation.ok) return `Error: invalid server config: ${validation.error}`;
+
+      const hook = DIR_HOOKS[resolved.dir];
+      if (hook?.validate) {
+        const err = hook.validate(resolved.abs, resolved.baseDir, content);
+        if (err) return err;
       }
+
       await fs.mkdir(path.dirname(resolved.abs), { recursive: true });
       await fs.writeFile(resolved.abs, content, "utf-8");
-      if (resolved.dir === "scripts") {
-        await fs.chmod(resolved.abs, 0o755);
-      }
-      if (resolved.dir === "skills") {
-        await syncSchedules(deps.absurd, deps.skillsDir);
-      }
-      if (resolved.dir === "servers" && deps.reloadMcp) {
-        await deps.reloadMcp();
-      }
+
+      if (hook?.onWrite) await hook.onWrite(resolved.abs, deps);
       return `File written: ${input.path}`;
     },
   },
@@ -394,12 +428,8 @@ export const fileTools: ToolHandler[] = [
         if ((err as NodeJS.ErrnoException).code === "ENOENT") return "(file not found)";
         throw err;
       }
-      if (resolved.dir === "skills") {
-        await syncSchedules(deps.absurd, deps.skillsDir);
-      }
-      if (resolved.dir === "servers" && deps.reloadMcp) {
-        await deps.reloadMcp();
-      }
+      const hook = DIR_HOOKS[resolved.dir];
+      if (hook?.onDelete) await hook.onDelete(resolved.abs, deps);
       return `File deleted: ${filePath}`;
     },
   },

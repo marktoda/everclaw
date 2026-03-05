@@ -9,18 +9,22 @@ export interface ExecutorDeps {
   absurd: Absurd;
   pool: Pool;
   ctx: TaskContext;
-  queueName: string;
   recipientId: string;
-  notesDir: string;
-  skillsDir: string;
-  scriptsDir: string;
-  serversDir: string;
+  startedAt: Date;
+
+  dirs: {
+    notes: string;
+    skills: string;
+    scripts: string;
+    servers: string;
+    extra: ExtraDir[];
+  };
+
+  queueName: string;
   scriptTimeout: number;
   scriptEnv: Record<string, string>;
-  startedAt: Date;
   searchApiKey?: string;
   reloadMcp?: () => Promise<void>;
-  extraDirs: ExtraDir[];
   allowedChatIds: Set<string>;
 }
 

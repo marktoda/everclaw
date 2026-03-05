@@ -43,12 +43,12 @@ export const stateTools: ToolHandler[] = [
     def: defineTool("get_status", "Get assistant uptime, file counts, and schedule count.", {}),
     async execute(_input, deps) {
       const uptime = Math.floor((Date.now() - deps.startedAt.getTime()) / 1000);
-      const skills = await listSkills(deps.skillsDir);
-      const scripts = await listScripts(deps.scriptsDir);
+      const skills = await listSkills(deps.dirs.skills);
+      const scripts = await listScripts(deps.dirs.scripts);
       const schedules = await deps.absurd.listSchedules();
       return [
         `Uptime: ${uptime}s`,
-        `Notes: ${(await fs.readdir(deps.notesDir).catch(() => [])).length} files`,
+        `Notes: ${(await fs.readdir(deps.dirs.notes).catch(() => [])).length} files`,
         `Skills: ${skills.length}`,
         `Scripts: ${scripts.length}`,
         `Schedules: ${schedules.length}`,

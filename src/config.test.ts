@@ -25,30 +25,30 @@ describe("loadConfig", () => {
   });
 
   it("reads secrets from .env file, not process.env", () => {
-    fs.writeFileSync(envPath, "TELEGRAM_BOT_TOKEN=tg\nANTHROPIC_API_KEY=sk\n");
+    fs.writeFileSync(envPath, "CHANNEL_TELEGRAM=tg\nANTHROPIC_API_KEY=sk\n");
     const c = loadConfig(envPath);
     expect(c.channels).toEqual([{ type: "telegram", token: "tg" }]);
     expect(c.anthropicApiKey).toBe("sk");
     // Secrets should NOT be in process.env
-    expect(process.env.TELEGRAM_BOT_TOKEN).toBeUndefined();
+    expect(process.env.CHANNEL_TELEGRAM).toBeUndefined();
     expect(process.env.ANTHROPIC_API_KEY).toBeUndefined();
   });
 
   it("returns config with defaults", () => {
     fs.writeFileSync(envPath, "ANTHROPIC_API_KEY=sk\n");
     const c = loadConfig(envPath);
-    expect(c.databaseUrl).toContain("postgresql");
-    expect(c.queueName).toBe("assistant");
-    expect(c.model).toBe("claude-sonnet-4-5-20250929");
+    expect(c.worker.databaseUrl).toContain("postgresql");
+    expect(c.worker.queueName).toBe("assistant");
+    expect(c.agent.model).toBe("claude-sonnet-4-5-20250929");
   });
 
-  it("populates scriptEnv with TOOL_* keys from .env", () => {
-    fs.writeFileSync(envPath, "ANTHROPIC_API_KEY=sk\nTOOL_SOME_KEY=val1\nTOOL_OTHER=val2\n");
+  it("populates scriptEnv with SCRIPT_* keys from .env", () => {
+    fs.writeFileSync(envPath, "ANTHROPIC_API_KEY=sk\nSCRIPT_SOME_KEY=val1\nSCRIPT_OTHER=val2\n");
     const c = loadConfig(envPath);
-    expect(c.scriptEnv).toEqual({ TOOL_SOME_KEY: "val1", TOOL_OTHER: "val2" });
+    expect(c.scriptEnv).toEqual({ SOME_KEY: "val1", OTHER: "val2" });
   });
 
-  it("excludes non-TOOL keys from scriptEnv", () => {
+  it("excludes non-SCRIPT keys from scriptEnv", () => {
     fs.writeFileSync(envPath, "ANTHROPIC_API_KEY=sk\nBRAVE_SEARCH_API_KEY=brave\n");
     const c = loadConfig(envPath);
     expect(c.scriptEnv).toEqual({});
@@ -64,25 +64,25 @@ describe("loadConfig", () => {
   });
 
   it("excludes non-SERVER keys from serverEnv", () => {
-    fs.writeFileSync(envPath, "ANTHROPIC_API_KEY=sk\nTOOL_X=val\nBRAVE_SEARCH_API_KEY=brave\n");
+    fs.writeFileSync(envPath, "ANTHROPIC_API_KEY=sk\nSCRIPT_X=val\nBRAVE_SEARCH_API_KEY=brave\n");
     const c = loadConfig(envPath);
     expect(c.serverEnv).toEqual({});
   });
 
-  it("parses EXTRA_DIRS into extraDirs array", () => {
+  it("parses EXTRA_DIRS into dirs.extra array", () => {
     fs.writeFileSync(envPath, "ANTHROPIC_API_KEY=sk\n");
     process.env.EXTRA_DIRS = "vaults:ro:/mnt/vaults,projects:rw:/mnt/projects";
     const c = loadConfig(envPath);
-    expect(c.extraDirs).toEqual([
+    expect(c.dirs.extra).toEqual([
       { name: "vaults", mode: "ro", absPath: "/mnt/vaults" },
       { name: "projects", mode: "rw", absPath: "/mnt/projects" },
     ]);
   });
 
-  it("defaults extraDirs to empty array when EXTRA_DIRS is not set", () => {
+  it("defaults dirs.extra to empty array when EXTRA_DIRS is not set", () => {
     fs.writeFileSync(envPath, "ANTHROPIC_API_KEY=sk\n");
     const c = loadConfig(envPath);
-    expect(c.extraDirs).toEqual([]);
+    expect(c.dirs.extra).toEqual([]);
   });
 
   it("throws on invalid EXTRA_DIRS name", () => {
@@ -115,18 +115,18 @@ describe("loadConfig", () => {
     expect(() => loadConfig(envPath)).toThrow("duplicate");
   });
 
-  it("returns empty extraDirs for empty string EXTRA_DIRS", () => {
+  it("returns empty dirs.extra for empty string EXTRA_DIRS", () => {
     fs.writeFileSync(envPath, "ANTHROPIC_API_KEY=sk\n");
     process.env.EXTRA_DIRS = "";
     const c = loadConfig(envPath);
-    expect(c.extraDirs).toEqual([]);
+    expect(c.dirs.extra).toEqual([]);
   });
 
   it("parses a single EXTRA_DIRS entry without comma", () => {
     fs.writeFileSync(envPath, "ANTHROPIC_API_KEY=sk\n");
     process.env.EXTRA_DIRS = "vaults:ro:/mnt/vaults";
     const c = loadConfig(envPath);
-    expect(c.extraDirs).toEqual([{ name: "vaults", mode: "ro", absPath: "/mnt/vaults" }]);
+    expect(c.dirs.extra).toEqual([{ name: "vaults", mode: "ro", absPath: "/mnt/vaults" }]);
   });
 
   it("throws on malformed EXTRA_DIRS entry with too few colons", () => {
@@ -162,10 +162,10 @@ describe("loadConfig", () => {
     expect(c.allowedChatIds).toEqual(new Set(["telegram:123", "discord:456"]));
   });
 
-  it("auto-detects multiple channels from *_BOT_TOKEN keys", () => {
+  it("auto-detects multiple channels from CHANNEL_* keys", () => {
     fs.writeFileSync(
       envPath,
-      "ANTHROPIC_API_KEY=sk\nTELEGRAM_BOT_TOKEN=tg\nDISCORD_BOT_TOKEN=dc\n",
+      "ANTHROPIC_API_KEY=sk\nCHANNEL_TELEGRAM=tg\nCHANNEL_DISCORD=dc\n",
     );
     const c = loadConfig(envPath);
     expect(c.channels).toEqual(
@@ -177,7 +177,7 @@ describe("loadConfig", () => {
     expect(c.channels).toHaveLength(2);
   });
 
-  it("returns empty channels when no *_BOT_TOKEN exists", () => {
+  it("returns empty channels when no CHANNEL_* exists", () => {
     fs.writeFileSync(envPath, "ANTHROPIC_API_KEY=sk\n");
     const c = loadConfig(envPath);
     expect(c.channels).toEqual([]);

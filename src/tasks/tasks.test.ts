@@ -68,20 +68,26 @@ function makeConfig() {
   return {
     channels: [{ type: "telegram", token: "tg-token" }],
     anthropicApiKey: "sk-key",
-    databaseUrl: "postgres://localhost/test",
-    queueName: "test-queue",
-    notesDir: "/tmp/notes",
-    skillsDir: "/tmp/skills",
-    scriptsDir: "/tmp/scripts",
-    model: "claude-sonnet-4-5-20250929",
-    maxHistoryMessages: 50,
-    workerConcurrency: 1,
-    claimTimeout: 30,
+    agent: {
+      model: "claude-sonnet-4-5-20250929",
+      maxHistoryMessages: 50,
+    },
+    worker: {
+      databaseUrl: "postgres://localhost/test",
+      queueName: "test-queue",
+      concurrency: 1,
+      claimTimeout: 30,
+    },
+    dirs: {
+      notes: "/tmp/notes",
+      skills: "/tmp/skills",
+      scripts: "/tmp/scripts",
+      servers: "/tmp/servers",
+      extra: [] as Array<{ name: string; mode: "ro" | "rw"; absPath: string }>,
+    },
     scriptTimeout: 10,
     scriptEnv: {},
     serverEnv: {},
-    serversDir: "/tmp/servers",
-    extraDirs: [],
     allowedChatIds: new Set<string>(),
   };
 }
@@ -168,11 +174,9 @@ describe("handle-message", () => {
         absurd,
         pool: deps.pool,
         ctx,
-        queueName: deps.config.queueName,
+        queueName: deps.config.worker.queueName,
         recipientId: "telegram:99",
-        notesDir: deps.config.notesDir,
-        skillsDir: deps.config.skillsDir,
-        scriptsDir: deps.config.scriptsDir,
+        dirs: deps.config.dirs,
         scriptTimeout: deps.config.scriptTimeout,
         startedAt: deps.startedAt,
       }),
@@ -193,18 +197,18 @@ describe("handle-message", () => {
     expect(runAgentLoop).toHaveBeenCalledWith(ctx, "telegram:99", "hi", {
       anthropic: deps.anthropic,
       pool: deps.pool,
-      model: deps.config.model,
+      model: deps.config.agent.model,
       dirs: {
-        notes: deps.config.notesDir,
-        skills: deps.config.skillsDir,
-        scripts: deps.config.scriptsDir,
+        notes: deps.config.dirs.notes,
+        skills: deps.config.dirs.skills,
+        scripts: deps.config.dirs.scripts,
       },
-      maxHistory: deps.config.maxHistoryMessages,
+      maxHistory: deps.config.agent.maxHistoryMessages,
       registry: mockRegistry,
       onText: expect.any(Function),
       log: undefined,
       mcpSummaries: undefined,
-      extraDirs: [],
+      extraDirs: deps.config.dirs.extra,
     });
   });
 
@@ -333,7 +337,7 @@ describe("execute-skill", () => {
     const absurd = makeAbsurd();
     const deps = makeDeps();
     // Use a skillsDir that does NOT contain the traversed path
-    deps.config.skillsDir = "/tmp/skills";
+    deps.config.dirs.skills = "/tmp/skills";
     registerExecuteSkill(absurd as any, deps);
 
     const handler = absurd.handlers.get("execute-skill")!;
@@ -475,11 +479,9 @@ describe("workflow", () => {
         absurd,
         pool: deps.pool,
         ctx,
-        queueName: deps.config.queueName,
+        queueName: deps.config.worker.queueName,
         recipientId: "telegram:33",
-        notesDir: deps.config.notesDir,
-        skillsDir: deps.config.skillsDir,
-        scriptsDir: deps.config.scriptsDir,
+        dirs: deps.config.dirs,
         scriptTimeout: deps.config.scriptTimeout,
         startedAt: deps.startedAt,
       }),

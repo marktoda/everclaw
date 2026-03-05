@@ -15,7 +15,7 @@ export const scriptTools: ToolHandler[] = [
     ),
     async execute(input, deps) {
       const { name, input: scriptInput } = input as { name: string; input?: unknown };
-      const scripts = await listScripts(deps.scriptsDir);
+      const scripts = await listScripts(deps.dirs.scripts);
       const script = scripts.find((s) => s.name === name);
       if (!script)
         return `Tool "${name}" not found. Available: ${scripts.map((s) => s.name).join(", ")}`;

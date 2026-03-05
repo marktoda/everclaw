@@ -21,25 +21,36 @@ export interface ExtraDir {
 }
 
 export interface Config {
-  channels: ChannelConfig[];
   anthropicApiKey: string;
   openaiApiKey?: string;
   braveSearchApiKey?: string;
-  databaseUrl: string;
-  queueName: string;
-  notesDir: string;
-  skillsDir: string;
-  scriptsDir: string;
-  model: string;
-  maxHistoryMessages: number;
-  workerConcurrency: number;
-  claimTimeout: number;
-  scriptTimeout: number;
+
+  channels: ChannelConfig[];
+  allowedChatIds: Set<string>;
+
+  agent: {
+    model: string;
+    maxHistoryMessages: number;
+  };
+
+  worker: {
+    databaseUrl: string;
+    queueName: string;
+    concurrency: number;
+    claimTimeout: number;
+  };
+
+  dirs: {
+    notes: string;
+    skills: string;
+    scripts: string;
+    servers: string;
+    extra: ExtraDir[];
+  };
+
   scriptEnv: Record<string, string>;
   serverEnv: Record<string, string>;
-  serversDir: string;
-  extraDirs: ExtraDir[];
-  allowedChatIds: Set<string>;
+  scriptTimeout: number;
 }
 
 /** Read key=value pairs from a .env file WITHOUT setting process.env */
@@ -117,14 +128,19 @@ function parseAllowedChatIds(raw: string | undefined): Set<string> {
   return new Set(ids);
 }
 
+function parsePrefixedEnv(secrets: Record<string, string>, prefix: string): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(secrets)
+      .filter(([k]) => k.startsWith(prefix))
+      .map(([k, v]) => [k.slice(prefix.length), v]),
+  );
+}
+
 function parseChannels(secrets: Record<string, string>): ChannelConfig[] {
-  const suffix = "_BOT_TOKEN";
-  return Object.entries(secrets)
-    .filter(([key]) => key.endsWith(suffix))
-    .map(([key, token]) => ({
-      type: key.slice(0, -suffix.length).toLowerCase(),
-      token,
-    }));
+  return Object.entries(parsePrefixedEnv(secrets, "CHANNEL_")).map(([type, token]) => ({
+    type: type.toLowerCase(),
+    token,
+  }));
 }
 
 export function loadConfig(envPath: string = ".env"): Config {
@@ -146,24 +162,26 @@ export function loadConfig(envPath: string = ".env"): Config {
     anthropicApiKey: requireSecret("ANTHROPIC_API_KEY"),
     openaiApiKey: secrets.OPENAI_API_KEY || undefined,
     braveSearchApiKey: secrets.BRAVE_SEARCH_API_KEY || undefined,
-    databaseUrl: process.env.DATABASE_URL ?? "postgresql://localhost/absurd",
-    queueName,
-    notesDir: path.resolve(process.env.NOTES_DIR ?? "data/notes"),
-    skillsDir: path.resolve(process.env.SKILLS_DIR ?? "skills"),
-    scriptsDir: path.resolve(process.env.TOOLS_DIR ?? "scripts"),
-    model: process.env.CLAUDE_MODEL ?? "claude-sonnet-4-5-20250929",
-    maxHistoryMessages: parseInt(process.env.MAX_HISTORY_MESSAGES ?? "50", 10),
-    workerConcurrency: parseInt(process.env.WORKER_CONCURRENCY ?? "2", 10),
-    claimTimeout: parseInt(process.env.CLAIM_TIMEOUT ?? "300", 10),
-    scriptTimeout: parseInt(process.env.SCRIPT_TIMEOUT ?? "30", 10),
-    scriptEnv: Object.fromEntries(Object.entries(secrets).filter(([k]) => k.startsWith("TOOL_"))),
-    serverEnv: Object.fromEntries(
-      Object.entries(secrets)
-        .filter(([k]) => k.startsWith("SERVER_"))
-        .map(([k, v]) => [k.slice("SERVER_".length), v]),
-    ),
-    serversDir: path.resolve(process.env.SERVERS_DIR ?? "servers"),
-    extraDirs: parseExtraDirs(process.env.EXTRA_DIRS),
     allowedChatIds: parseAllowedChatIds(secrets.ALLOWED_CHAT_IDS),
+    agent: {
+      model: process.env.CLAUDE_MODEL ?? "claude-sonnet-4-5-20250929",
+      maxHistoryMessages: parseInt(process.env.MAX_HISTORY_MESSAGES ?? "50", 10),
+    },
+    worker: {
+      databaseUrl: process.env.DATABASE_URL ?? "postgresql://localhost/absurd",
+      queueName,
+      concurrency: parseInt(process.env.WORKER_CONCURRENCY ?? "2", 10),
+      claimTimeout: parseInt(process.env.CLAIM_TIMEOUT ?? "300", 10),
+    },
+    dirs: {
+      notes: path.resolve(process.env.NOTES_DIR ?? "data/notes"),
+      skills: path.resolve(process.env.SKILLS_DIR ?? "skills"),
+      scripts: path.resolve(process.env.SCRIPTS_DIR ?? "scripts"),
+      servers: path.resolve(process.env.SERVERS_DIR ?? "servers"),
+      extra: parseExtraDirs(process.env.EXTRA_DIRS),
+    },
+    scriptTimeout: parseInt(process.env.SCRIPT_TIMEOUT ?? "30", 10),
+    scriptEnv: parsePrefixedEnv(secrets, "SCRIPT_"),
+    serverEnv: parsePrefixedEnv(secrets, "SERVER_"),
   };
 }

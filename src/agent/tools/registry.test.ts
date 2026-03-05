@@ -49,6 +49,14 @@ import { createToolRegistry } from "./index.ts";
 // Helpers to build the deps / mock objects
 // ---------------------------------------------------------------------------
 
+const DEFAULT_DIRS = {
+  notes: "/data/notes",
+  skills: "/data/skills",
+  scripts: "/data/scripts",
+  servers: "/data/servers",
+  extra: [] as ExecutorDeps["dirs"]["extra"],
+};
+
 function makeDeps(overrides: Partial<ExecutorDeps> = {}): ExecutorDeps {
   return {
     absurd: {
@@ -67,14 +75,10 @@ function makeDeps(overrides: Partial<ExecutorDeps> = {}): ExecutorDeps {
     } as any,
     queueName: "test_queue",
     recipientId: "telegram:42",
-    notesDir: "/data/notes",
-    skillsDir: "/data/skills",
-    scriptsDir: "/data/scripts",
-    serversDir: "/data/servers",
+    dirs: { ...DEFAULT_DIRS },
     scriptTimeout: 30,
     scriptEnv: {},
     startedAt: new Date("2025-01-01T00:00:00Z"),
-    extraDirs: [],
     allowedChatIds: new Set(["telegram:42"]),
     ...overrides,
   };
@@ -262,13 +266,13 @@ describe("registry", () => {
   // resolvePath — directory mappings
   // =========================================================================
   describe("resolvePath directory mappings", () => {
-    it("maps data/notes/ to notesDir", async () => {
+    it("maps data/notes/ to dirs.notes", async () => {
       vi.mocked(fs.readFile).mockResolvedValue("content");
       await exec("read_file", { path: "data/notes/test.txt" });
       expect(fs.readFile).toHaveBeenCalledWith(path.resolve("/data/notes", "test.txt"), "utf-8");
     });
 
-    it("maps skills/ to skillsDir", async () => {
+    it("maps skills/ to dirs.skills", async () => {
       vi.mocked(fs.readFile).mockResolvedValue("skill content");
       await exec("read_file", { path: "skills/my-skill.md" });
       expect(fs.readFile).toHaveBeenCalledWith(
@@ -277,7 +281,7 @@ describe("registry", () => {
       );
     });
 
-    it("maps scripts/ to scriptsDir", async () => {
+    it("maps scripts/ to dirs.scripts", async () => {
       vi.mocked(fs.readFile).mockResolvedValue("tool content");
       await exec("read_file", { path: "scripts/my-tool.sh" });
       expect(fs.readFile).toHaveBeenCalledWith(
@@ -517,7 +521,10 @@ describe("registry", () => {
 
     it("includes extra dirs when no directory specified", async () => {
       const depsExtra = makeDeps({
-        extraDirs: [{ name: "vaults", mode: "ro", absPath: "/mnt/vaults" }],
+        dirs: {
+          ...DEFAULT_DIRS,
+          extra: [{ name: "vaults", mode: "ro", absPath: "/mnt/vaults" }],
+        },
       });
       const regExtra = createToolRegistry(depsExtra);
       mockRg("/mnt/vaults/note.md\n");
@@ -606,7 +613,10 @@ describe("registry", () => {
 
     it("includes extra dirs when searching all", async () => {
       const depsExtra = makeDeps({
-        extraDirs: [{ name: "vaults", mode: "ro", absPath: "/mnt/vaults" }],
+        dirs: {
+          ...DEFAULT_DIRS,
+          extra: [{ name: "vaults", mode: "ro", absPath: "/mnt/vaults" }],
+        },
       });
       const regExtra = createToolRegistry(depsExtra);
       mockRg("/mnt/vaults/note.md:1:found\n");
@@ -1577,10 +1587,13 @@ describe("registry", () => {
       vi.resetAllMocks();
       vi.mocked(fs.realpath as (p: string) => Promise<string>).mockImplementation(async (p) => p);
       depsWithExtra = makeDeps({
-        extraDirs: [
-          { name: "vaults", mode: "ro", absPath: "/mnt/vaults" },
-          { name: "projects", mode: "rw", absPath: "/mnt/projects" },
-        ],
+        dirs: {
+          ...DEFAULT_DIRS,
+          extra: [
+            { name: "vaults", mode: "ro", absPath: "/mnt/vaults" },
+            { name: "projects", mode: "rw", absPath: "/mnt/projects" },
+          ],
+        },
       });
       const registry = createToolRegistry(depsWithExtra);
       execExtra = registry.execute;

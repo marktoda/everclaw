@@ -34,8 +34,8 @@ export function registerExecuteSkill(absurd: Absurd, deps: TaskDeps): void {
       agentDeps.log?.info({ skill: params.skillName }, "skill execution started");
 
       const skillContent = await ctx.step("read-skill", async () => {
-        const abs = path.resolve(deps.config.skillsDir, `${params.skillName}.md`);
-        if (!abs.startsWith(deps.config.skillsDir + path.sep)) {
+        const abs = path.resolve(deps.config.dirs.skills, `${params.skillName}.md`);
+        if (!abs.startsWith(deps.config.dirs.skills + path.sep)) {
           throw new Error(`Invalid skill name: ${params.skillName}`);
         }
         return await fs.readFile(abs, "utf-8");

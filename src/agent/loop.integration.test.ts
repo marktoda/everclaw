@@ -72,14 +72,16 @@ function buildDeps(fake: FakeAnthropic, recipientId: string): AgentDeps {
     ctx,
     queueName: "test",
     recipientId,
-    notesDir,
-    skillsDir,
-    scriptsDir,
-    serversDir: scriptsDir, // reuse temp dir; servers/ not exercised here
+    dirs: {
+      notes: notesDir,
+      skills: skillsDir,
+      scripts: scriptsDir,
+      servers: scriptsDir, // reuse temp dir; servers/ not exercised here
+      extra: [],
+    },
     scriptTimeout: 10,
     scriptEnv: {},
     startedAt: new Date(),
-    extraDirs: [],
     allowedChatIds: new Set([recipientId]),
   });
 

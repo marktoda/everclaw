@@ -54,20 +54,26 @@ beforeAll(async () => {
   const config: Config = {
     channels: [{ type: "telegram", token: "fake-token" }],
     anthropicApiKey: "fake-key",
-    databaseUrl: "unused",
-    queueName: "test",
-    notesDir,
-    skillsDir,
-    scriptsDir,
-    model: "fake-model",
-    maxHistoryMessages: 50,
-    workerConcurrency: 1,
-    claimTimeout: 30,
+    agent: {
+      model: "fake-model",
+      maxHistoryMessages: 50,
+    },
+    worker: {
+      databaseUrl: "unused",
+      queueName: "test",
+      concurrency: 1,
+      claimTimeout: 30,
+    },
+    dirs: {
+      notes: notesDir,
+      skills: skillsDir,
+      scripts: scriptsDir,
+      servers: path.join(tmpDir, "servers"),
+      extra: [],
+    },
     scriptTimeout: 10,
     scriptEnv: {},
     serverEnv: {},
-    serversDir: path.join(tmpDir, "servers"),
-    extraDirs: [],
     allowedChatIds: new Set<string>(),
   };
 
