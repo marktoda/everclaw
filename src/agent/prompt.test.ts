@@ -1,34 +1,61 @@
 import { describe, expect, it } from "vitest";
 import { buildSystemPrompt } from "./prompt.ts";
 
+const base = { pinnedNotes: "", availableNotes: [] as string[], skills: [] as any[], tools: [] as any[] };
+
 describe("buildSystemPrompt", () => {
   it("includes base instructions", () => {
-    const p = buildSystemPrompt({ notes: "", skills: [], tools: [] });
+    const p = buildSystemPrompt(base);
     expect(p).toContain("personal AI assistant");
   });
 
-  it("includes notes", () => {
-    const p = buildSystemPrompt({ notes: "Name: Alice", skills: [], tools: [] });
+  it("includes pinned notes", () => {
+    const p = buildSystemPrompt({ ...base, pinnedNotes: "Name: Alice" });
+    expect(p).toContain("## Your Notes");
     expect(p).toContain("Name: Alice");
+  });
+
+  it("omits Your Notes section when empty", () => {
+    const p = buildSystemPrompt(base);
+    expect(p).not.toContain("## Your Notes");
+  });
+
+  it("lists available notes by filename", () => {
+    const p = buildSystemPrompt({ ...base, availableNotes: ["slc-travel-guide.md", "research.md"] });
+    expect(p).toContain("## Available Notes");
+    expect(p).toContain("- data/notes/slc-travel-guide.md");
+    expect(p).toContain("- data/notes/research.md");
+  });
+
+  it("omits Available Notes section when empty", () => {
+    const p = buildSystemPrompt(base);
+    expect(p).not.toContain("Available Notes");
+  });
+
+  it("truncates pinned notes over budget with warning", () => {
+    const longNotes = "x".repeat(10000);
+    const p = buildSystemPrompt({ ...base, pinnedNotes: longNotes, pinnedNotesBudget: 8192 });
+    expect(p).toContain("## Your Notes");
+    expect(p).not.toContain("x".repeat(10000));
+    expect(p).toContain("pinned notes exceed");
   });
 
   it("includes skill summaries", () => {
     const p = buildSystemPrompt({
-      notes: "",
+      ...base,
       skills: [{ name: "todo", description: "Manage TODOs", schedule: "0 9 * * *" }],
-      tools: [],
     });
     expect(p).toContain("todo");
     expect(p).toContain("Manage TODOs");
   });
 
   it("includes date", () => {
-    const p = buildSystemPrompt({ notes: "", skills: [], tools: [] });
+    const p = buildSystemPrompt(base);
     expect(p).toMatch(/\d{4}-\d{2}-\d{2}/);
   });
 
   it("includes workflow capabilities", () => {
-    const p = buildSystemPrompt({ notes: "", skills: [], tools: [] });
+    const p = buildSystemPrompt(base);
     expect(p).toContain("Workflow Capabilities");
     expect(p).toContain("sleep_for");
     expect(p).toContain("spawn_workflow");
@@ -39,28 +66,21 @@ describe("buildSystemPrompt", () => {
 
   it("renders tool scripts with descriptions", () => {
     const p = buildSystemPrompt({
-      notes: "",
-      skills: [],
+      ...base,
       tools: [{ name: "search-flights", description: "Search for flights" }],
     });
     expect(p).toContain("**search-flights**: Search for flights");
   });
 
   it("renders tool scripts without descriptions as plain names", () => {
-    const p = buildSystemPrompt({
-      notes: "",
-      skills: [],
-      tools: [{ name: "bare-script" }],
-    });
+    const p = buildSystemPrompt({ ...base, tools: [{ name: "bare-script" }] });
     expect(p).toContain("- bare-script");
     expect(p).not.toContain("**bare-script**");
   });
 
   it("includes MCP server summaries with guidance", () => {
     const p = buildSystemPrompt({
-      notes: "",
-      skills: [],
-      tools: [],
+      ...base,
       mcpServers: [{ name: "github", description: "GitHub tools" }],
     });
     expect(p).toContain("MCP Servers");
@@ -71,18 +91,16 @@ describe("buildSystemPrompt", () => {
   });
 
   it("omits MCP section when no servers configured", () => {
-    const p = buildSystemPrompt({ notes: "", skills: [], tools: [], mcpServers: [] });
+    const p = buildSystemPrompt({ ...base, mcpServers: [] });
     expect(p).not.toContain("MCP Servers");
   });
 
   it("includes extra directories with mode indicators", () => {
     const p = buildSystemPrompt({
-      notes: "",
-      skills: [],
-      tools: [],
+      ...base,
       extraDirs: [
-        { name: "vaults", mode: "ro", absPath: "/mnt/vaults" },
-        { name: "projects", mode: "rw", absPath: "/mnt/projects" },
+        { name: "vaults", mode: "ro" as const, absPath: "/mnt/vaults" },
+        { name: "projects", mode: "rw" as const, absPath: "/mnt/projects" },
       ],
     });
     expect(p).toContain("vaults/");
@@ -92,13 +110,20 @@ describe("buildSystemPrompt", () => {
   });
 
   it("includes MCP server discovery instructions", () => {
-    const p = buildSystemPrompt({ notes: "", skills: [], tools: [] });
+    const p = buildSystemPrompt(base);
     expect(p).toContain("search_servers");
     expect(p).toContain("approval");
   });
 
   it("omits extra directories section when none configured", () => {
-    const p = buildSystemPrompt({ notes: "", skills: [], tools: [], extraDirs: [] });
+    const p = buildSystemPrompt({ ...base, extraDirs: [] });
     expect(p).not.toContain("Extra Directories");
+  });
+
+  it("includes notes tier descriptions in tool instructions", () => {
+    const p = buildSystemPrompt(base);
+    expect(p).toContain("data/notes/pinned/");
+    expect(p).toContain("data/notes/temp/");
+    expect(p).toContain("Scratch space");
   });
 });

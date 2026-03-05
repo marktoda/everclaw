@@ -1,9 +1,13 @@
+const DEFAULT_PINNED_NOTES_BUDGET = 8192;
+
 export interface PromptContext {
-  notes: string;
+  pinnedNotes: string;
+  availableNotes: string[];
   skills: Array<{ name: string; description: string; schedule?: string }>;
   tools: Array<{ name: string; description?: string }>;
   mcpServers?: Array<{ name: string; description?: string }>;
   extraDirs?: Array<{ name: string; mode: "ro" | "rw"; absPath: string }>;
+  pinnedNotesBudget?: number;
 }
 
 export function buildSystemPrompt(ctx: PromptContext): string {
@@ -16,8 +20,9 @@ by creating skills (markdown workflow templates) and tool scripts using file too
 ## File Tools
 
 You have generic file tools for all accessible directories:
-- **data/notes/**: Your persistent notes. Read them at the start of conversations.
-  Write here to remember things about the user, preferences, ongoing context.
+- **data/notes/pinned/**: Critical notes loaded every message. Keep small — profile, preferences, key context.
+- **data/notes/**: Reference notes. Listed by name in your prompt but not auto-loaded. Use read_file when relevant.
+- **data/notes/temp/**: Scratch space. Not listed or loaded. Use for drafts and intermediate work.
 - **skills/**: Workflow templates. Each .md file with YAML frontmatter defines a
   skill. Include a \`schedule\` field for recurring behaviors (cron expressions).
   Schedules are synced automatically when you write or delete skill files.
@@ -115,8 +120,21 @@ Current date and time: ${new Date().toISOString()}`);
     parts[0] += `\n\n### Extra Directories\n\n${extraList}`;
   }
 
-  if (ctx.notes.trim()) {
-    parts.push(`## Your Notes\n\n${ctx.notes}`);
+  const budget = ctx.pinnedNotesBudget ?? DEFAULT_PINNED_NOTES_BUDGET;
+  if (ctx.pinnedNotes.trim()) {
+    if (ctx.pinnedNotes.length > budget) {
+      parts.push(
+        `## Your Notes\n\n${ctx.pinnedNotes.slice(0, budget)}\n\n` +
+          `(pinned notes exceed ${budget} char limit — move less-critical notes to data/notes/)`,
+      );
+    } else {
+      parts.push(`## Your Notes\n\n${ctx.pinnedNotes}`);
+    }
+  }
+
+  if (ctx.availableNotes.length > 0) {
+    const list = ctx.availableNotes.map((f) => `- data/notes/${f}`).join("\n");
+    parts.push(`## Available Notes\n\nReference notes — use read_file to load when relevant.\n\n${list}`);
   }
 
   if (ctx.skills.length > 0) {

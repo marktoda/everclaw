@@ -769,12 +769,16 @@ describe("registry", () => {
       ]);
       vi.mocked(listScripts).mockResolvedValue([{ name: "t1", path: "/data/scripts/t1.sh" }]);
       vi.mocked(deps.absurd.listSchedules).mockResolvedValue([{ scheduleName: "sched1" } as any]);
-      vi.mocked(fs.readdir).mockResolvedValue(["n1.md", "n2.md", "n3.md"] as any);
+      // First readdir: pinned/ subdirectory; second: root notes/
+      vi.mocked(fs.readdir)
+        .mockResolvedValueOnce(["p1.md", "p2.md"] as any)
+        .mockResolvedValueOnce(["n1.md", "n2.md", "n3.md"] as any);
 
       const result = await exec("get_status", {});
 
       expect(result).toContain("Uptime: 300s");
-      expect(result).toContain("Notes: 3 files");
+      expect(result).toContain("Pinned notes: 2 files");
+      expect(result).toContain("Available notes: 3 files");
       expect(result).toContain("Skills: 2");
       expect(result).toContain("Scripts: 1");
       expect(result).toContain("Schedules: 1");
@@ -792,7 +796,8 @@ describe("registry", () => {
       const result = await exec("get_status", {});
 
       expect(result).toContain("Uptime: 10s");
-      expect(result).toContain("Notes: 0 files");
+      expect(result).toContain("Pinned notes: 0 files");
+      expect(result).toContain("Available notes: 0 files");
     });
   });
 

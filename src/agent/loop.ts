@@ -41,22 +41,34 @@ export interface AgentDeps {
   onText?: (text: string) => void;
 }
 
-/** Read all .md files in a directory and concatenate their contents. */
-async function readAllNotes(notesDir: string): Promise<string> {
+/** Read all .md files in the pinned notes directory and concatenate their contents. */
+async function readPinnedNotes(notesDir: string): Promise<string> {
+  const pinnedDir = path.join(notesDir, "pinned");
   let entries: string[];
   try {
-    entries = await fs.readdir(notesDir);
+    entries = await fs.readdir(pinnedDir);
   } catch {
     return "";
   }
   const mdEntries = entries.filter((e) => e.endsWith(".md")).sort();
   const contents = await Promise.all(
-    mdEntries.map((entry) => fs.readFile(path.join(notesDir, entry), "utf-8").catch(() => "")),
+    mdEntries.map((entry) => fs.readFile(path.join(pinnedDir, entry), "utf-8").catch(() => "")),
   );
   return contents
     .map((content, i) => (content.trim() ? `### ${mdEntries[i]}\n\n${content}` : ""))
     .filter(Boolean)
     .join("\n\n");
+}
+
+/** List .md filenames in the root notes directory (not recursive, excludes subdirs). */
+async function listAvailableNotes(notesDir: string): Promise<string[]> {
+  let entries: string[];
+  try {
+    entries = await fs.readdir(notesDir);
+  } catch {
+    return [];
+  }
+  return entries.filter((e) => e.endsWith(".md")).sort();
 }
 
 export async function runAgentLoop(
@@ -69,19 +81,21 @@ export async function runAgentLoop(
 
   // Load context (checkpointed)
   const context = await ctx.step("load-context", async () => {
-    const [notes, history, skills, tools] = await Promise.all([
-      readAllNotes(deps.dirs.notes),
+    const [pinnedNotes, availableNotes, history, skills, tools] = await Promise.all([
+      readPinnedNotes(deps.dirs.notes),
+      listAvailableNotes(deps.dirs.notes),
       getRecentMessages(deps.pool, recipientId, deps.maxHistory),
       listSkills(deps.dirs.skills),
       listScripts(deps.dirs.scripts),
     ]);
-    return { notes, history, skills, tools };
+    return { pinnedNotes, availableNotes, history, skills, tools };
   });
 
   log?.debug("context loaded");
 
   const systemPrompt = buildSystemPrompt({
-    notes: context.notes as string,
+    pinnedNotes: context.pinnedNotes as string,
+    availableNotes: context.availableNotes as string[],
     skills: (context.skills as SkillSummary[]).map((s) => ({
       name: s.name,
       description: s.description,

@@ -64,6 +64,8 @@ skills/                 Agent-writable skill .md files (YAML frontmatter with op
 scripts/                Agent-writable executable scripts (.sh, .py, .js, .ts)
 servers/                MCP server configs (JSON, one file per server)
 data/notes/             Agent-writable persistent notes
+  pinned/               Critical notes loaded every message (profile, preferences)
+  temp/                 Scratch space (not listed in prompt, not auto-loaded)
 docs/plans/             Design and implementation documents
 ```
 
@@ -92,6 +94,8 @@ docs/plans/             Design and implementation documents
 **Tool scripts.** Files written to `scripts/` are auto-`chmod +x`. Scripts receive JSON on stdin and return output on stdout, with a configurable timeout (default 30s).
 
 **MCP server integration.** MCP (Model Context Protocol) servers are configured via JSON files in `servers/`, one per server. On startup, `McpManager` spawns each server as a stdio child process, discovers its tools via `tools/list`, and exposes them through the ToolRegistry with `mcp_<server>_<tool>` namespacing. Secrets for MCP servers use the `SERVER_` prefix in `.env` — the prefix is stripped before passing to server processes (e.g. `SERVER_GITHUB_PERSONAL_ACCESS_TOKEN` → `GITHUB_PERSONAL_ACCESS_TOKEN`). This is separate from `SCRIPT_*` vars which go to tool scripts. Changes to `servers/` trigger automatic MCP reload (new tools are available on the next message). The agent can discover new MCP servers via `search_servers`, which queries the official MCP registry at `registry.modelcontextprotocol.io`. The agent must ask the user for approval before writing any server config.
+
+**Notes tiers.** Notes are split into three tiers under `data/notes/`: `pinned/` (full content loaded into every system prompt, size-capped at 8KB), root-level `.md` files (listed by filename in the prompt, loaded on demand via `read_file`), and `temp/` (invisible scratch space, not listed or loaded). The agent moves notes between tiers using `write_file` and `delete_file`.
 
 **Directory hooks.** Side effects triggered by `write_file` and `delete_file` are declared in a `DIR_HOOKS` map in `agent/tools/files.ts`. Each directory can specify `validate` (pre-write), `onWrite`, and `onDelete` hooks. Currently: `skills` syncs schedules, `scripts` auto-chmod, `servers` validates JSON + reloads MCP. Adding new directory behaviors is declarative.
 

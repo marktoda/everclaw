@@ -1,4 +1,5 @@
 import * as fs from "node:fs/promises";
+import * as path from "node:path";
 import { getState, setState } from "../../memory/state.ts";
 import { listScripts } from "../../scripts/runner.ts";
 import { listSkills } from "../../skills/manager.ts";
@@ -48,7 +49,8 @@ export const stateTools: ToolHandler[] = [
       const schedules = await deps.absurd.listSchedules();
       return [
         `Uptime: ${uptime}s`,
-        `Notes: ${(await fs.readdir(deps.dirs.notes).catch(() => [])).length} files`,
+        `Pinned notes: ${(await fs.readdir(path.join(deps.dirs.notes, "pinned")).catch(() => [])).filter((e: string) => e.endsWith(".md")).length} files`,
+        `Available notes: ${(await fs.readdir(deps.dirs.notes).catch(() => [])).filter((e: string) => e.endsWith(".md")).length} files`,
         `Skills: ${skills.length}`,
         `Scripts: ${scripts.length}`,
         `Schedules: ${schedules.length}`,
