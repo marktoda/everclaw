@@ -2,7 +2,6 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type { Absurd, TaskContext } from "absurd-sdk";
 import { runAgentLoop } from "../agent/loop.ts";
-import { getState } from "../memory/state.ts";
 import type { TaskDeps } from "./shared.ts";
 import { BACKGROUND_MAX_HISTORY, buildAgentDeps } from "./shared.ts";
 
@@ -14,9 +13,18 @@ export function registerExecuteSkill(absurd: Absurd, deps: TaskDeps): void {
       // to the persisted default (for scheduled skills).
       const recipientId =
         params.recipientId ||
-        ((await ctx.step("resolve-recipient", () =>
-          getState(deps.pool, "system", "defaultRecipientId"),
-        )) as string | null);
+        ((await ctx.step("resolve-recipient", async () => {
+          try {
+            return JSON.parse(
+              await fs.readFile(
+                path.join(deps.config.dirs.notes, "temp", "default-recipient.json"),
+                "utf-8",
+              ),
+            );
+          } catch {
+            return null;
+          }
+        })) as string | null);
 
       if (!recipientId) {
         deps.log?.warn(

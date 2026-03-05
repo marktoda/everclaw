@@ -23,15 +23,9 @@ vi.mock("fs/promises", () => ({
   readFile: vi.fn().mockResolvedValue("skill file content"),
 }));
 
-vi.mock("../memory/state.ts", () => ({
-  getState: vi.fn().mockResolvedValue(null),
-  setState: vi.fn(),
-}));
-
 import { readFile } from "node:fs/promises";
 import { runAgentLoop } from "../agent/loop.ts";
 import { createToolRegistry } from "../agent/tools/index.ts";
-import { getState } from "../memory/state.ts";
 import { registerExecuteSkill } from "./execute-skill.ts";
 import { registerHandleMessage } from "./handle-message.ts";
 import { registerSendMessage } from "./send-message.ts";
@@ -257,7 +251,6 @@ describe("execute-skill", () => {
     vi.mocked(createToolRegistry)
       .mockReset()
       .mockReturnValue(mockRegistry as any);
-    vi.mocked(getState).mockReset().mockResolvedValue(null);
     vi.mocked(readFile)
       .mockReset()
       .mockResolvedValue("skill file content" as any);
@@ -358,8 +351,13 @@ describe("execute-skill", () => {
     expect(deps.channels.sendMessage).toHaveBeenCalledWith("telegram:88", "some text");
   });
 
-  it("resolves recipientId from state when not in params", async () => {
-    vi.mocked(getState).mockResolvedValue("telegram:99");
+  it("resolves recipientId from file when not in params", async () => {
+    vi.mocked(readFile).mockImplementation(((filePath: string) => {
+      if (String(filePath).includes("default-recipient.json")) {
+        return Promise.resolve(JSON.stringify("telegram:99"));
+      }
+      return Promise.resolve("skill file content");
+    }) as any);
     const absurd = makeAbsurd();
     const deps = makeDeps();
     registerExecuteSkill(absurd as any, deps);
@@ -367,7 +365,10 @@ describe("execute-skill", () => {
     const handler = absurd.handlers.get("execute-skill")!;
     await handler({ skillName: "scheduled-skill" }, makeCtx());
 
-    expect(getState).toHaveBeenCalledWith(deps.pool, "system", "defaultRecipientId");
+    expect(readFile).toHaveBeenCalledWith(
+      expect.stringContaining("default-recipient.json"),
+      "utf-8",
+    );
     expect(runAgentLoop).toHaveBeenCalledWith(
       expect.anything(),
       "telegram:99",
@@ -377,7 +378,12 @@ describe("execute-skill", () => {
   });
 
   it("skips execution when no recipientId available", async () => {
-    vi.mocked(getState).mockResolvedValue(null);
+    vi.mocked(readFile).mockImplementation(((filePath: string) => {
+      if (String(filePath).includes("default-recipient.json")) {
+        return Promise.reject(new Error("ENOENT: no such file"));
+      }
+      return Promise.resolve("skill file content");
+    }) as any);
     const absurd = makeAbsurd();
     const deps = makeDeps();
     registerExecuteSkill(absurd as any, deps);

@@ -1,10 +1,11 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { Absurd } from "absurd-sdk";
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
 import * as pg from "pg";
 import { ChannelRegistry, createAdapter } from "./channels/index.ts";
 import { loadConfig } from "./config.ts";
 import { logger } from "./logger.ts";
-import { getState, setState } from "./memory/state.ts";
 import { createMcpManager } from "./servers/manager.ts";
 import { syncSchedules } from "./skills/manager.ts";
 import { registerExecuteSkill } from "./tasks/execute-skill.ts";
@@ -32,8 +33,14 @@ async function main() {
     );
   }
 
-  // Persist defaultRecipientId via state store
-  let defaultRecipientId = ((await getState(pool, "system", "defaultRecipientId")) ?? "") as string;
+  // Persist defaultRecipientId via file
+  const recipientFile = path.join(config.dirs.notes, "temp", "default-recipient.json");
+  let defaultRecipientId = "";
+  try {
+    defaultRecipientId = JSON.parse(await fs.readFile(recipientFile, "utf-8"));
+  } catch {
+    // Not set yet — will be written on first message
+  }
 
   const taskDeps = {
     anthropic,
@@ -78,7 +85,8 @@ async function main() {
 
     if (!defaultRecipientId) {
       defaultRecipientId = msg.recipientId;
-      await setState(pool, "system", "defaultRecipientId", msg.recipientId);
+      await fs.mkdir(path.dirname(recipientFile), { recursive: true });
+      await fs.writeFile(recipientFile, JSON.stringify(msg.recipientId));
     }
     logger.info({ recipientId: msg.recipientId }, "message received");
     await absurd.spawn("handle-message", {
