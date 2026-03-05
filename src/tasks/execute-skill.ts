@@ -17,7 +17,7 @@ export function registerExecuteSkill(absurd: Absurd, deps: TaskDeps): void {
       if (!recipientId) {
         deps.log?.warn(
           { skill: params.skillName },
-          "skipping scheduled skill — no default recipient yet",
+          "skipping scheduled skill — no allowed chat IDs configured",
         );
         return { skillName: params.skillName, skipped: true };
       }
