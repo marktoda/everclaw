@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo.png" alt="Everclaw" width="200" />
+</p>
+
 # everclaw
 
 AI personal assistant that reasons with [Claude](https://www.anthropic.com/claude), communicates via pluggable messaging channels (Telegram by default), and extends itself at runtime through markdown skill files, tool scripts, and [MCP](https://modelcontextprotocol.io/) servers. Built on [Absurd](https://github.com/marktoda/absurd), a Postgres-native durable task queue.

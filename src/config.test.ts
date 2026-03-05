@@ -163,10 +163,7 @@ describe("loadConfig", () => {
   });
 
   it("auto-detects multiple channels from CHANNEL_* keys", () => {
-    fs.writeFileSync(
-      envPath,
-      "ANTHROPIC_API_KEY=sk\nCHANNEL_TELEGRAM=tg\nCHANNEL_DISCORD=dc\n",
-    );
+    fs.writeFileSync(envPath, "ANTHROPIC_API_KEY=sk\nCHANNEL_TELEGRAM=tg\nCHANNEL_DISCORD=dc\n");
     const c = loadConfig(envPath);
     expect(c.channels).toEqual(
       expect.arrayContaining([

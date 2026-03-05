@@ -3,17 +3,13 @@ import { markdownToTelegramHtml } from "./format-telegram.ts";
 
 describe("markdownToTelegramHtml", () => {
   it("escapes HTML entities", () => {
-    expect(markdownToTelegramHtml("a < b & c > d")).toBe(
-      "a &lt; b &amp; c &gt; d",
-    );
+    expect(markdownToTelegramHtml("a < b & c > d")).toBe("a &lt; b &amp; c &gt; d");
   });
 
   describe("code", () => {
     it("converts fenced code blocks to <pre><code>", () => {
       const md = "```ts\nconst x = 1;\n```";
-      expect(markdownToTelegramHtml(md)).toBe(
-        '<pre><code language="ts">const x = 1;</code></pre>',
-      );
+      expect(markdownToTelegramHtml(md)).toBe('<pre><code language="ts">const x = 1;</code></pre>');
     });
 
     it("handles fenced code blocks without language", () => {
@@ -22,22 +18,16 @@ describe("markdownToTelegramHtml", () => {
     });
 
     it("converts inline code to <code>", () => {
-      expect(markdownToTelegramHtml("use `foo()` here")).toBe(
-        "use <code>foo()</code> here",
-      );
+      expect(markdownToTelegramHtml("use `foo()` here")).toBe("use <code>foo()</code> here");
     });
 
     it("does not apply inline rules inside code blocks", () => {
       const md = "```\n**bold** and *italic*\n```";
-      expect(markdownToTelegramHtml(md)).toBe(
-        "<pre><code>**bold** and *italic*</code></pre>",
-      );
+      expect(markdownToTelegramHtml(md)).toBe("<pre><code>**bold** and *italic*</code></pre>");
     });
 
     it("does not apply inline rules inside inline code", () => {
-      expect(markdownToTelegramHtml("`**not bold**`")).toBe(
-        "<code>**not bold**</code>",
-      );
+      expect(markdownToTelegramHtml("`**not bold**`")).toBe("<code>**not bold**</code>");
     });
   });
 
@@ -48,9 +38,7 @@ describe("markdownToTelegramHtml", () => {
     });
 
     it("removes horizontal rules", () => {
-      expect(markdownToTelegramHtml("above\n\n---\n\nbelow")).toBe(
-        "above\n\nbelow",
-      );
+      expect(markdownToTelegramHtml("above\n\n---\n\nbelow")).toBe("above\n\nbelow");
     });
 
     it("converts blockquotes", () => {
@@ -61,9 +49,7 @@ describe("markdownToTelegramHtml", () => {
 
     it("converts unordered list items to bullet", () => {
       const md = "- one\n- two\n- three";
-      expect(markdownToTelegramHtml(md)).toBe(
-        "\u2022 one\n\u2022 two\n\u2022 three",
-      );
+      expect(markdownToTelegramHtml(md)).toBe("\u2022 one\n\u2022 two\n\u2022 three");
     });
 
     it("handles * and + list markers", () => {
@@ -98,9 +84,7 @@ describe("markdownToTelegramHtml", () => {
     });
 
     it("handles bold and italic together", () => {
-      expect(markdownToTelegramHtml("**bold** and *italic*")).toBe(
-        "<b>bold</b> and <i>italic</i>",
-      );
+      expect(markdownToTelegramHtml("**bold** and *italic*")).toBe("<b>bold</b> and <i>italic</i>");
     });
   });
 
