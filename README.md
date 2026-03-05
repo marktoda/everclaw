@@ -11,22 +11,34 @@
 
 # everclaw
 
-AI personal assistant that runs on [durable workflows](https://lucumr.pocoo.org/2025/11/3/absurd-workflows/). Tell it to remind you in 3 hours, check something every morning, or monitor a website and ping you when it changes. It'll sleep in Postgres, consume zero resources while dormant, survive server restarts, and pick up exactly where it left off. No repeated API calls, no lost state.
+A durable personal AI assistant.
 
-The whole thing sits on top of [Absurd](https://github.com/earendil-works/absurd) (a Postgres-native durable task queue), [Claude](https://www.anthropic.com/claude) (for reasoning), and pluggable messaging channels (Telegram by default). The agent can extend itself at runtime by writing skill files, tool scripts, and [MCP](https://modelcontextprotocol.io/) server configs.
+## Highlights
 
-## Why durability
+- **Durable execution** — every Claude API call and tool execution is checkpointed in Postgres. Replayed on resume, never repeated.
+- **Sleeps, schedules, coordination** — `sleep_for`, `sleep_until`, cron-scheduled skills, and cross-task event latches, all backed by [Absurd](https://github.com/earendil-works/absurd).
+- **Self-extending** — the agent writes its own skill files, tool scripts, and [MCP](https://modelcontextprotocol.io/) server configs at runtime.
+- **Pluggable channels** — Telegram today, anything tomorrow. One adapter file per channel.
+- **20 built-in tools** — files, state, scripts, web search, orchestration, plus any tools discovered from MCP servers.
+- **Just Postgres** — the only infrastructure dependency. State, history, task queue, checkpoints, schedules. All in one place.
 
-Most AI assistants live in memory. Kill the process, lose everything.
+## Quick start
 
-Everclaw's agent loop is checkpoint-aware: every Claude API call and tool execution gets recorded as a step in Postgres. When the process comes back, Absurd replays the cached steps and continues from the last one. No repeated API calls, no duplicate side effects, no "sorry, I forgot what we were doing."
+```bash
+git clone https://github.com/marktoda/everclaw.git
+cd everclaw
+claude
+```
 
-That opens up patterns that in-memory agents can't touch:
+Then run `/setup`. It handles dependencies, database, config, and verification.
 
-- **"Remind me in 3 hours"** — the agent calls `sleep_for`, the task goes dormant in Postgres (zero resources), wakes up on schedule.
-- **"Check this every morning at 9am"** — the agent writes a skill file with a cron schedule. Absurd runs it forever.
-- **"Monitor this and let me know when it changes"** — spawn a background workflow that polls, sleeps, and messages you when something's different.
-- **Cross-task coordination** — `wait_for_event` / `emit_event` let independent tasks synchronize through named event latches.
+Or with Docker Compose (bundles Postgres and [Habitat](https://github.com/earendil-works/absurd) task queue UI on port 7890):
+
+```bash
+cp .env.example .env
+# fill in your API keys
+docker compose up --build
+```
 
 ## How it works
 
@@ -43,12 +55,16 @@ User message (Telegram, etc.)
 
 The agent extends itself by writing files:
 
-- **`skills/*.md`** — Workflow templates with optional cron schedules. Drop a `schedule` field in the YAML frontmatter and Absurd picks it up automatically.
-- **`scripts/*.sh|.py|.js|.ts`** — Executable tool scripts, auto-`chmod +x`. Called via `run_script` with JSON on stdin. Python runs through [`uv`](https://docs.astral.sh/uv/).
+- **`skills/*.md`** — workflow templates with optional cron schedules. Drop a `schedule` field in the YAML frontmatter and Absurd picks it up automatically.
+- **`scripts/*.sh|.py|.js|.ts`** — executable tool scripts, auto-`chmod +x`. Called via `run_script` with JSON on stdin. Python runs through [`uv`](https://docs.astral.sh/uv/).
 - **`servers/*.json`** — MCP server configs. Write or delete one, and the server reloads. New tools show up on the next message.
-- **`data/notes/*.md`** — Persistent notes injected into the system prompt every turn.
+- **`data/notes/*.md`** — persistent notes injected into the system prompt every turn.
 
-### Orchestration tools
+### Why durability matters
+
+The agent loop is checkpoint-aware: every `ctx.step()` records its result in Postgres. When a task resumes (after a sleep, a restart, a crash), Absurd replays cached steps and continues from the last one. API calls don't re-fire. Side effects don't duplicate.
+
+That's what makes the orchestration tools work:
 
 | Tool | What it does |
 |---|---|
@@ -58,11 +74,11 @@ The agent extends itself by writing files:
 | `wait_for_event` / `emit_event` | Cross-task coordination through named event latches. |
 | `cancel_task` / `list_tasks` | Manage running and sleeping tasks. |
 
-Suspending tools throw `SuspendTask`, which propagates up to the Absurd worker. The task goes dormant in Postgres (zero resources) until it's time to wake. Checkpointing via `ctx.step()` means no Claude API call runs twice on resume.
+Suspending tools throw `SuspendTask`, which propagates up to the Absurd worker. The task goes dormant in Postgres until it's time to wake. Zero resources while sleeping.
 
 ### Stateless message handling
 
-The agent can't block waiting for user input. It saves context via `set_state`, lets the task finish, and picks up where it left off when the next message comes in. Worker slots stay free, and it scales naturally.
+The agent can't block waiting for user input. It saves context via `set_state`, lets the task finish, and picks up where it left off when the next message comes in. Worker slots stay free, scales naturally.
 
 ### Channels
 
@@ -88,7 +104,7 @@ The agent can also find new servers via `search_servers`, which queries the offi
 
 ## Architecture
 
-No build step. TypeScript runs directly on Node 22.18+ with native type stripping.
+TypeScript, runs directly on Node 22.18+ with native type stripping. There's no build step.
 
 ### Core
 
@@ -104,7 +120,7 @@ No build step. TypeScript runs directly on Node 22.18+ with native type strippin
 | `agent/loop.ts` | The main loop. Checkpointed multi-turn Claude conversation, max 20 turns. |
 | `agent/prompt.ts` | Builds the system prompt: notes, skills, scripts, MCP servers, extra dirs. |
 | `agent/output.ts` | Strips `<internal>...</internal>` scratchpad tags before the user sees anything. |
-| `agent/tools/` | 20 built-in tools, split across 5 files. Registry in `index.ts`. |
+| `agent/tools/` | 20 built-in tools across 5 files. Registry in `index.ts`. |
 
 ### Tools
 
@@ -138,7 +154,7 @@ No build step. TypeScript runs directly on Node 22.18+ with native type strippin
 
 ### Tasks
 
-4 durable task types, all registered with Absurd:
+4 durable task types registered with Absurd:
 
 | File | Task | What it does |
 |---|---|---|
@@ -165,29 +181,7 @@ No build step. TypeScript runs directly on Node 22.18+ with native type strippin
 | `servers/` | MCP server configs (JSON, one per server) |
 | `data/notes/` | Agent-writable persistent notes |
 
-## Setup
-
-Quickest path is with [Claude Code](https://docs.anthropic.com/en/docs/claude-code):
-
-```bash
-git clone https://github.com/marktoda/everclaw.git
-cd everclaw
-claude
-```
-
-Then run `/setup`. It'll walk you through everything: dependencies, database, config, verification.
-
-### Docker
-
-Or just use Docker Compose (bundles Postgres and [Habitat](https://github.com/earendil-works/absurd) task queue UI on port 7890):
-
-```bash
-cp .env.example .env
-# fill in your API keys
-docker compose up --build
-```
-
-### Configuration
+## Configuration
 
 Secrets go in `.env` (read from the file directly, never set in `process.env`) with prefix conventions:
 
@@ -271,9 +265,9 @@ pnpm lint        # biome
 
 ## Inspirations
 
-- **[OpenClaw](https://github.com/openclaw/openclaw)** — The original AI personal assistant project. Everclaw borrows the vision of a self-extending agent but leans on durable workflows and Postgres instead of in-memory state and Redis.
-- **[NanoClaw](https://github.com/qwibitai/nanoclaw)** — Stripped-back take on the personal assistant with container isolation. Everclaw trades container sandboxing for durable execution: the agent can sleep, schedule, and coordinate across tasks in ways ephemeral processes can't.
-- **[Absurd](https://github.com/earendil-works/absurd)** — The Postgres-native durable execution engine underneath all of this. Everclaw is really just a thin agent layer bolted on top of Absurd's task queue, checkpointing, scheduling, and event system.
+- **[OpenClaw](https://github.com/openclaw/openclaw)** — the original AI personal assistant project. Everclaw borrows the vision of a self-extending agent but leans on durable workflows and Postgres instead of in-memory state and Redis.
+- **[NanoClaw](https://github.com/qwibitai/nanoclaw)** — stripped-back personal assistant with container isolation. Everclaw trades container sandboxing for durable execution: the agent can sleep, schedule, and coordinate across tasks in ways ephemeral processes can't.
+- **[Absurd](https://github.com/earendil-works/absurd)** — the Postgres-native durable execution engine underneath all of this. Everclaw is really just a thin agent layer bolted on top of Absurd's task queue, checkpointing, scheduling, and event system.
 
 ## License
 
