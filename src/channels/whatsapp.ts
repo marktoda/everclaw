@@ -39,6 +39,7 @@ export class WhatsAppAdapter implements ChannelAdapter {
   private stopped = false;
   private connected = false;
   private sentIds = new Set<string>();
+  private lidToPhone = new Map<string, string>();
 
   async start(onMessage: (msg: InboundMessage) => Promise<void>): Promise<void> {
     this.onMessage = onMessage;
@@ -91,6 +92,16 @@ export class WhatsAppAdapter implements ChannelAdapter {
       } else if (connection === "open") {
         this.connected = true;
         this.reconnectDelay = 1000;
+
+        // Build LID→phone mapping for self-chat translation
+        const user = (this.sock as any)?.user;
+        if (user?.id && user?.lid) {
+          const phone = user.id.split(":")[0];
+          const lid = user.lid.split(":")[0];
+          this.lidToPhone.set(lid, phone);
+          logger.info({ lid, phone }, "LID→phone mapping set");
+        }
+
         logger.info("WhatsApp connected");
       }
     });
@@ -106,7 +117,8 @@ export class WhatsAppAdapter implements ChannelAdapter {
         const text = extractText(msg.message);
         if (!text) continue;
 
-        const phone = jidToPhone(msg.key.remoteJid);
+        const jid = this.translateJid(msg.key.remoteJid);
+        const phone = jidToPhone(jid);
         await this.onMessage?.({
           recipientId: `whatsapp:${phone}`,
           text,
@@ -135,6 +147,14 @@ export class WhatsAppAdapter implements ChannelAdapter {
 
   isConnected(): boolean {
     return this.connected;
+  }
+
+  private translateJid(jid: string): string {
+    if (!jid.endsWith("@lid")) return jid;
+    const lidUser = jid.split("@")[0].split(":")[0];
+    const phone = this.lidToPhone.get(lidUser);
+    if (phone) return phoneToJid(phone);
+    return jid;
   }
 
   async stop(): Promise<void> {

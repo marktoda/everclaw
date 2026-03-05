@@ -150,6 +150,33 @@ describe("WhatsAppAdapter", () => {
     expect(onMessage).not.toHaveBeenCalled();
   });
 
+  it("translates LID JID to phone JID for self-chat", async () => {
+    const adapter = new WhatsAppAdapter();
+    const onMessage = vi.fn().mockResolvedValue(undefined);
+
+    await adapter.start(onMessage);
+
+    // Simulate connection open with user info containing LID mapping
+    mockSockInstance.user = { id: "15551234567:3@s.whatsapp.net", lid: "20000000000000:3@lid" };
+    await capturedHandlers["connection.update"]?.({ connection: "open" });
+
+    // Message arrives with LID JID
+    await capturedHandlers["messages.upsert"]?.({
+      messages: [
+        {
+          key: { id: "lid-msg-1", remoteJid: "20000000000000@lid", fromMe: true },
+          message: { conversation: "hello from self" },
+        },
+      ],
+      type: "notify",
+    });
+
+    expect(onMessage).toHaveBeenCalledWith({
+      recipientId: "whatsapp:15551234567",
+      text: "hello from self",
+    });
+  });
+
   it("ignores group messages", async () => {
     const adapter = new WhatsAppAdapter();
     const onMessage = vi.fn().mockResolvedValue(undefined);
