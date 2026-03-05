@@ -1,11 +1,11 @@
 ---
 name: setup
-description: Walk through first-time setup of absurdclaw — prerequisites, config, database, and verification
+description: Walk through first-time setup of everclaw — prerequisites, config, database, and verification
 ---
 
-# /setup — absurdclaw first-time setup
+# /setup — everclaw first-time setup
 
-Guide the developer through a complete, working absurdclaw setup. Be autonomous: detect what's already done, fix problems yourself, and only ask questions when a real choice is needed.
+Guide the developer through a complete, working everclaw setup. Be autonomous: detect what's already done, fix problems yourself, and only ask questions when a real choice is needed.
 
 ## Instructions
 
@@ -66,38 +66,35 @@ Check if `.env` already exists in the project root.
 
 **If creating/reconfiguring**, collect secrets using `AskUserQuestion` — one question per secret. NEVER echo secrets to the terminal or pass them as bash arguments. Write the file using the `Write` tool.
 
-1. **TELEGRAM_BOT_TOKEN** (required) — Ask the user to paste their token. Mention they can get one from [@BotFather on Telegram](https://t.me/botfather).
+1. **ANTHROPIC_API_KEY** (required) — Ask for their API key. Mention https://console.anthropic.com/settings/keys.
 
-2. **ANTHROPIC_API_KEY** (required) — Ask for their API key. Mention https://console.anthropic.com/settings/keys.
-
-3. **BRAVE_SEARCH_API_KEY** (optional) — Use `AskUserQuestion` to ask if they want web search:
+2. **BRAVE_SEARCH_API_KEY** (optional) — Use `AskUserQuestion` to ask if they want web search:
    > Enable web search? Requires a free Brave Search API key (2000 queries/month free).
    > - **Skip for now**
    > - **Add API key**
 
    If yes, ask for the key. Mention https://brave.com/search/api/.
 
-4. **OPENAI_API_KEY** (optional) — Use `AskUserQuestion` to ask if they want voice transcription:
-   > Enable voice message transcription? When configured, the bot transcribes voice messages sent on Telegram using OpenAI Whisper (~$0.006/min of audio).
+3. **OPENAI_API_KEY** (optional) — Use `AskUserQuestion` to ask if they want voice transcription:
+   > Enable voice message transcription? When configured, the bot transcribes voice messages (Telegram, WhatsApp) using OpenAI Whisper (~$0.006/min of audio).
    > - **Skip for now**
    > - **Add API key**
 
    If yes, ask for the key. Mention https://platform.openai.com/api-keys.
 
-Write the `.env` file with collected values. Include the comment about Brave being optional. Format:
+Write the `.env` file with collected values. No channel configuration here — that comes in Phase 8. Format:
 
 ```
-TELEGRAM_BOT_TOKEN=<token>
 ANTHROPIC_API_KEY=<key>
 # Optional: enables the web_search tool (free tier: 2000 queries/month)
 # BRAVE_SEARCH_API_KEY=BSA...
 # Optional: enables voice message transcription (~$0.006/min of audio)
 # OPENAI_API_KEY=sk-...
-# Chat ID allowlist — leave empty for now; discovery mode will reveal your ID
+# Chat ID allowlist — configured during channel setup
 # ALLOWED_CHAT_IDS=
 ```
 
-If Brave key was provided, uncomment that line. Leave `ALLOWED_CHAT_IDS` commented out for now — the discovery mode flow in Phase 9 will guide the user to fill it in.
+Uncomment lines for keys that were provided.
 
 ---
 
@@ -122,6 +119,7 @@ For bare metal:
    ```bash
    psql "$DATABASE_URL" -f sql/001-absurd.sql
    psql "$DATABASE_URL" -f sql/002-assistant.sql
+   psql "$DATABASE_URL" -f sql/003-channel-abstraction.sql
    ```
 
 4. Verify tables were created:
@@ -138,10 +136,10 @@ If any step fails, show the error and help diagnose (wrong credentials, Postgres
 Create these directories if they don't exist:
 
 ```bash
-mkdir -p data/notes skills tools
+mkdir -p data/notes data/auth skills scripts servers
 ```
 
-These are where the agent stores notes, skill files, and tool scripts at runtime.
+These are where the agent stores notes, auth state, skill files, tool scripts, and MCP server configs at runtime.
 
 ---
 
@@ -151,7 +149,7 @@ These are where the agent stores notes, skill files, and tool scripts at runtime
 pnpm test
 ```
 
-All tests should pass. They are pure unit tests — no database or network required. If tests fail:
+All tests should pass. If tests fail:
 - Read the test output carefully
 - Check if it's a dependency issue (re-run `pnpm install`)
 - Check if it's a TypeScript version issue
@@ -159,51 +157,47 @@ All tests should pass. They are pure unit tests — no database or network requi
 
 ---
 
-### Phase 8: First start
+### Phase 8: Pick first channel
 
-Based on deployment method:
+Use `AskUserQuestion` to ask:
 
-**Docker Compose:**
-```bash
-docker compose up --build
-```
-Run this in the background. Wait a few seconds, then check logs for errors. Look for signs the bot connected to Telegram (grammY startup log).
+> **Which messaging channel do you want to set up first?**
+>
+> - **Telegram** — Chat bot via BotFather. Simplest to set up.
+> - **Discord** — Server/DM bot via Discord Developer Portal.
+> - **Slack** — Workspace bot via Slack API (Socket Mode).
+> - **WhatsApp** — Personal messaging via QR code scan.
+> - **Gmail** — Email via Google OAuth2. Most complex setup.
+>
+> You can add more channels later with `/add-channel-*`.
 
-**Bare metal:**
-```bash
-node src/index.ts
-```
-Run this in the background. Check output for startup errors. Common issues:
-- `.env` missing or malformed — check Phase 4
-- Database connection refused — check Postgres is running
-- Invalid bot token — check with BotFather
+Based on their choice, tell the user:
+
+- **Telegram** → "Run `/add-channel-telegram` to set up Telegram."
+- **Discord** → "Run `/add-channel-discord` to set up Discord."
+- **Slack** → "Run `/add-channel-slack` to set up Slack."
+- **WhatsApp** → "Run `/add-channel-whatsapp` to set up WhatsApp."
+- **Gmail** → "Run `/add-channel-gmail` to set up Gmail."
 
 ---
 
-### Phase 9: Discover chat ID and enable allowlist
-
-The bot starts in **discovery mode** when `ALLOWED_CHAT_IDS` is not set. Walk the user through:
-
-1. Send any message to the Telegram bot
-2. The bot replies with their chat ID and instructions (it does NOT run the agent yet)
-3. Copy the chat ID from the reply
-4. Add it to `.env`: `ALLOWED_CHAT_IDS=telegram:<chat_id>` (use the full prefixed value shown by the bot)
-5. Restart the bot (Ctrl+C and re-run, or `docker compose restart`)
-6. Send another message — this time the agent will respond normally
-
-If the user wants to allow multiple accounts, they can comma-separate IDs: `ALLOWED_CHAT_IDS=123,456`.
-
-### Phase 10: Verify and wrap up
+### Phase 9: Wrap up
 
 Tell the user:
-1. Send a test message to their Telegram bot (after enabling the allowlist)
-2. Check the logs to see the message was received and a response was generated
+
+**Core setup is complete.** Run the channel setup command from Phase 8 to connect your first messaging channel. That skill will walk you through configuration, first start, and verification.
 
 Provide these useful commands:
-- **Docker logs:** `docker compose logs -f assistant`
-- **Stop (Docker):** `docker compose down`
-- **Stop (bare metal):** Ctrl+C in the terminal
 - **Run tests:** `pnpm test`
 - **Type check:** `npx tsc --noEmit`
+- **Start (Docker):** `docker compose up --build`
+- **Start (bare metal):** `node src/index.ts`
+- **Stop (Docker):** `docker compose down`
+- **Stop (bare metal):** Ctrl+C
 
-Congratulate them — setup is complete.
+**Adding more channels later:**
+- `/add-channel-telegram` — Telegram
+- `/add-channel-discord` — Discord
+- `/add-channel-slack` — Slack
+- `/add-channel-whatsapp` — WhatsApp
+- `/add-channel-gmail` — Gmail
