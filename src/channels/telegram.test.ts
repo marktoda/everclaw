@@ -87,14 +87,16 @@ describe("TelegramAdapter", () => {
     });
   });
 
-  it("sendMessage parses recipientId and calls bot.api.sendMessage", async () => {
+  it("sendMessage converts markdown to HTML and sends with parse_mode", async () => {
     const adapter = new TelegramAdapter("token");
-    await adapter.sendMessage("telegram:42", "hi");
+    await adapter.sendMessage("telegram:42", "**bold**");
 
-    expect(mockSendMessage).toHaveBeenCalledWith(42, "hi");
+    expect(mockSendMessage).toHaveBeenCalledWith(42, "<b>bold</b>", {
+      parse_mode: "HTML",
+    });
   });
 
-  it("sendMessage splits long messages", async () => {
+  it("sendMessage splits long messages with parse_mode", async () => {
     const adapter = new TelegramAdapter("token");
     const longText = "a".repeat(5000);
 
@@ -103,6 +105,32 @@ describe("TelegramAdapter", () => {
     expect(mockSendMessage).toHaveBeenCalledTimes(2);
     expect(mockSendMessage.mock.calls[0][1]).toHaveLength(4096);
     expect(mockSendMessage.mock.calls[1][1]).toHaveLength(904);
+    for (const call of mockSendMessage.mock.calls) {
+      expect(call[2]).toEqual({ parse_mode: "HTML" });
+    }
+  });
+
+  it("falls back to plain text on 400 error", async () => {
+    const adapter = new TelegramAdapter("token");
+    mockSendMessage
+      .mockRejectedValueOnce({ error_code: 400, description: "Bad Request: can't parse entities" })
+      .mockResolvedValueOnce(undefined);
+
+    await adapter.sendMessage("telegram:42", "hello");
+
+    expect(mockSendMessage).toHaveBeenCalledTimes(2);
+    expect(mockSendMessage.mock.calls[0][2]).toEqual({ parse_mode: "HTML" });
+    expect(mockSendMessage.mock.calls[1][2]).toBeUndefined();
+  });
+
+  it("rethrows non-400 errors", async () => {
+    const adapter = new TelegramAdapter("token");
+    mockSendMessage.mockRejectedValueOnce({ error_code: 429, description: "Too Many Requests" });
+
+    await expect(adapter.sendMessage("telegram:42", "hello")).rejects.toEqual({
+      error_code: 429,
+      description: "Too Many Requests",
+    });
   });
 
   it("stop calls bot.stop()", async () => {
