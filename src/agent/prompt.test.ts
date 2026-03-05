@@ -61,9 +61,7 @@ describe("buildSystemPrompt", () => {
       notes: "",
       skills: [],
       tools: [],
-      mcpServers: [
-        { name: "github", description: "GitHub tools" },
-      ],
+      mcpServers: [{ name: "github", description: "GitHub tools" }],
     });
     expect(p).toContain("MCP Servers");
     expect(p).toContain("github");

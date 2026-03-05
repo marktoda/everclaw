@@ -1,8 +1,8 @@
 import { execFile } from "node:child_process";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { syncSchedules } from "../../skills/manager.ts";
 import { validateServerConfig } from "../../servers/manager.ts";
+import { syncSchedules } from "../../skills/manager.ts";
 import type { ExecutorDeps, ToolHandler } from "./types.ts";
 import { defineTool } from "./types.ts";
 
@@ -44,7 +44,7 @@ function resolvePath(input: string, deps: ExecutorDeps): ResolvedPath | null {
   }
   // Check extra dirs
   for (const extra of deps.extraDirs) {
-    const prefix = extra.name + "/";
+    const prefix = `${extra.name}/`;
     if (clean.startsWith(prefix)) {
       const abs = path.resolve(extra.absPath, clean.slice(prefix.length));
       if (!isContainedIn(abs, extra.absPath)) return null;
@@ -64,8 +64,7 @@ function allDirPrefixes(deps: ExecutorDeps): string {
 async function validateRealPath(abs: string, baseDir: string): Promise<string | null> {
   try {
     const real = await fs.realpath(abs);
-    if (!isContainedIn(real, baseDir))
-      return "Error: path escapes allowed directory via symlink";
+    if (!isContainedIn(real, baseDir)) return "Error: path escapes allowed directory via symlink";
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === "ENOENT") {
       // File doesn't exist — check nearest existing ancestor
@@ -99,7 +98,7 @@ function getAllowedDirs(deps: ExecutorDeps): SearchDir[] {
     absPath: deps[m.dirKey],
   }));
   for (const extra of deps.extraDirs) {
-    dirs.push({ prefix: extra.name + "/", absPath: extra.absPath });
+    dirs.push({ prefix: `${extra.name}/`, absPath: extra.absPath });
   }
   return dirs;
 }
@@ -110,15 +109,18 @@ function resolveSearchDir(name: string, deps: ExecutorDeps): SearchDir[] | strin
   const mapping = DIR_MAPPINGS.find((m) => m.prefix.replace(/\/$/, "") === clean);
   if (mapping) return [{ prefix: mapping.prefix, absPath: deps[mapping.dirKey] }];
   const extra = deps.extraDirs.find((d) => d.name === clean);
-  if (extra) return [{ prefix: extra.name + "/", absPath: extra.absPath }];
-  const valid = [...DIR_MAPPINGS.map((m) => m.prefix.replace(/\/$/, "")), ...deps.extraDirs.map((d) => d.name)];
+  if (extra) return [{ prefix: `${extra.name}/`, absPath: extra.absPath }];
+  const valid = [
+    ...DIR_MAPPINGS.map((m) => m.prefix.replace(/\/$/, "")),
+    ...deps.extraDirs.map((d) => d.name),
+  ];
   return `Error: directory must be ${valid.join(", ")}`;
 }
 
 /** Convert an absolute path from rg output back to agent-relative form. */
 function absToRelative(abs: string, dirs: SearchDir[]): string | null {
   for (const { prefix, absPath } of dirs) {
-    if (abs === absPath || abs.startsWith(absPath + "/")) {
+    if (abs === absPath || abs.startsWith(`${absPath}/`)) {
       const rel = abs.slice(absPath.length + 1);
       return rel ? prefix + rel : prefix.replace(/\/$/, "");
     }
@@ -129,7 +131,7 @@ function absToRelative(abs: string, dirs: SearchDir[]): string | null {
 /** Replace leading absolute path in an rg output line with agent-relative form. */
 function transformOutputLine(line: string, dirs: SearchDir[]): string {
   for (const { prefix, absPath } of dirs) {
-    if (line.startsWith(absPath + "/")) {
+    if (line.startsWith(`${absPath}/`)) {
       return prefix + line.slice(absPath.length + 1);
     }
   }
@@ -139,13 +141,18 @@ function transformOutputLine(line: string, dirs: SearchDir[]): string {
 /** Run ripgrep with given args. Returns {stdout, error}. Exit 1 = no matches (empty stdout). */
 function runRg(args: string[]): Promise<{ stdout: string; error?: string }> {
   return new Promise((resolve) => {
-    execFile("rg", args, { timeout: 30_000, maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
-      if (!err) return resolve({ stdout });
-      // Exit code 1 = no matches; check .status (set by child_process on non-zero exit)
-      const exitCode = (err as any).status as number | undefined;
-      if (exitCode === 1) return resolve({ stdout: "" });
-      resolve({ stdout: "", error: `Error running rg: ${stderr || err.message}` });
-    });
+    execFile(
+      "rg",
+      args,
+      { timeout: 30_000, maxBuffer: 10 * 1024 * 1024 },
+      (err, stdout, stderr) => {
+        if (!err) return resolve({ stdout });
+        // Exit code 1 = no matches; check .status (set by child_process on non-zero exit)
+        const exitCode = (err as any).status as number | undefined;
+        if (exitCode === 1) return resolve({ stdout: "" });
+        resolve({ stdout: "", error: `Error running rg: ${stderr || err.message}` });
+      },
+    );
   });
 }
 
@@ -167,8 +174,8 @@ export const fileTools: ToolHandler[] = [
       const { path: filePath } = input as { path: string };
       const resolved = resolvePath(filePath, deps);
       if (!resolved) return `Error: path must start with ${allDirPrefixes(deps)}`;
-      const escape = await validateRealPath(resolved.abs, resolved.baseDir);
-      if (escape) return escape;
+      const escapeErr = await validateRealPath(resolved.abs, resolved.baseDir);
+      if (escapeErr) return escapeErr;
       try {
         return await fs.readFile(resolved.abs, "utf-8");
       } catch (err) {
@@ -192,11 +199,10 @@ export const fileTools: ToolHandler[] = [
       const resolved = resolvePath(filePath, deps);
       if (!resolved) return `Error: path must start with ${allDirPrefixes(deps)}`;
       if (resolved.mode === "ro") return `Error: ${resolved.dir}/ is read-only`;
-      const escape = await validateRealPath(resolved.abs, resolved.baseDir);
-      if (escape) return escape;
+      const escapeErr = await validateRealPath(resolved.abs, resolved.baseDir);
+      if (escapeErr) return escapeErr;
       if (resolved.dir === "servers") {
-        if (!filePath.endsWith(".json"))
-          return "Error: server configs must be .json files";
+        if (!filePath.endsWith(".json")) return "Error: server configs must be .json files";
         if (path.dirname(resolved.abs) !== resolved.baseDir)
           return "Error: server configs must be top-level files in servers/";
         const validation = validateServerConfig(content);
@@ -238,7 +244,11 @@ export const fileTools: ToolHandler[] = [
       ["pattern"],
     ),
     async execute(input, deps) {
-      const { pattern, directory, limit: rawLimit } = input as {
+      const {
+        pattern,
+        directory,
+        limit: rawLimit,
+      } = input as {
         pattern: string;
         directory?: string;
         limit?: number;
@@ -249,7 +259,14 @@ export const fileTools: ToolHandler[] = [
       if (typeof dirs === "string") return dirs; // error message
 
       // --no-ignore: agent-managed dirs typically lack .gitignore; extra dirs need full traversal
-      const args = ["--files", "--glob", pattern, "--no-ignore", "--", ...dirs.map((d) => d.absPath)];
+      const args = [
+        "--files",
+        "--glob",
+        pattern,
+        "--no-ignore",
+        "--",
+        ...dirs.map((d) => d.absPath),
+      ];
       const { stdout, error } = await runRg(args);
       if (error) return error;
       if (!stdout.trim()) return "(no matches found)";
@@ -263,7 +280,9 @@ export const fileTools: ToolHandler[] = [
       if (mapped.length === 0) return "(no matches found)";
       const truncated = mapped.length > cap;
       const result = mapped.slice(0, cap).join("\n");
-      return truncated ? `${result}\n\n(truncated — ${mapped.length} total, showing first ${cap})` : result;
+      return truncated
+        ? `${result}\n\n(truncated — ${mapped.length} total, showing first ${cap})`
+        : result;
     },
   },
   {
@@ -348,7 +367,9 @@ export const fileTools: ToolHandler[] = [
       const mapped = lines.map((line) => transformOutputLine(line, allDirs));
       const truncated = mapped.length > cap;
       const result = mapped.slice(0, cap).join("\n");
-      return truncated ? `${result}\n\n(truncated — ${mapped.length} total, showing first ${cap})` : result;
+      return truncated
+        ? `${result}\n\n(truncated — ${mapped.length} total, showing first ${cap})`
+        : result;
     },
   },
   {
@@ -365,8 +386,8 @@ export const fileTools: ToolHandler[] = [
       const resolved = resolvePath(filePath, deps);
       if (!resolved) return `Error: path must start with ${allDirPrefixes(deps)}`;
       if (resolved.mode === "ro") return `Error: ${resolved.dir}/ is read-only`;
-      const escape = await validateRealPath(resolved.abs, resolved.baseDir);
-      if (escape) return escape;
+      const escapeErr = await validateRealPath(resolved.abs, resolved.baseDir);
+      if (escapeErr) return escapeErr;
       try {
         await fs.unlink(resolved.abs);
       } catch (err) {

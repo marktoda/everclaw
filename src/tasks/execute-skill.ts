@@ -3,9 +3,8 @@ import * as path from "node:path";
 import type { Absurd, TaskContext } from "absurd-sdk";
 import { runAgentLoop } from "../agent/loop.ts";
 import { getState } from "../memory/state.ts";
-import { BACKGROUND_MAX_HISTORY } from "./shared.ts";
 import type { TaskDeps } from "./shared.ts";
-import { buildAgentDeps } from "./shared.ts";
+import { BACKGROUND_MAX_HISTORY, buildAgentDeps } from "./shared.ts";
 
 export function registerExecuteSkill(absurd: Absurd, deps: TaskDeps): void {
   absurd.registerTask(

@@ -103,7 +103,6 @@ export async function getScriptDescription(filePath: string): Promise<string> {
       if (line.startsWith("#")) {
         commentLines.push(line.replace(/^#\s?/, ""));
       } else if (line.trim() === "" && commentLines.length === 0) {
-        continue; // skip blank lines before first comment
       } else {
         break;
       }
@@ -114,7 +113,6 @@ export async function getScriptDescription(filePath: string): Promise<string> {
       if (line.startsWith("//")) {
         commentLines.push(line.replace(/^\/\/\s?/, ""));
       } else if (line.trim() === "" && commentLines.length === 0) {
-        continue;
       } else {
         break;
       }

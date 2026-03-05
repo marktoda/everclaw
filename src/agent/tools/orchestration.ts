@@ -3,10 +3,7 @@ import { TimeoutError } from "absurd-sdk";
 import type { ExecutorDeps, ToolHandler } from "./types.ts";
 import { defineTool } from "./types.ts";
 
-function resolveRecipient(
-  recipient: string | undefined,
-  deps: ExecutorDeps,
-): string {
+function resolveRecipient(recipient: string | undefined, deps: ExecutorDeps): string {
   const resolved = !recipient || recipient === "current" ? deps.recipientId : recipient;
   if (deps.allowedChatIds.size > 0 && !deps.allowedChatIds.has(resolved)) {
     return `Error: recipient "${resolved}" is not in the allowed list`;
@@ -50,7 +47,7 @@ export const orchestrationTools: ToolHandler[] = [
     async execute(input, deps) {
       const { step_name, wake_at } = input as { step_name: string; wake_at: string };
       const wakeAt = new Date(wake_at);
-      if (isNaN(wakeAt.getTime())) {
+      if (Number.isNaN(wakeAt.getTime())) {
         return `Error: invalid datetime "${wake_at}". Use ISO 8601 format, e.g. "2025-03-15T17:00:00Z"`;
       }
       await deps.ctx.sleepUntil(step_name, wakeAt);

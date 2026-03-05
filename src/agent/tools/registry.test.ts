@@ -91,9 +91,7 @@ describe("registry", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     // Default: realpath returns the input path (no symlinks)
-    vi.mocked(fs.realpath as (p: string) => Promise<string>).mockImplementation(
-      async (p) => p,
-    );
+    vi.mocked(fs.realpath as (p: string) => Promise<string>).mockImplementation(async (p) => p);
     deps = makeDeps();
     const registry = createToolRegistry(deps);
     exec = registry.execute;
@@ -198,9 +196,7 @@ describe("registry", () => {
   // =========================================================================
   describe("symlink escape protection", () => {
     it("rejects read_file through a symlink that escapes the sandbox", async () => {
-      vi.mocked(fs.realpath as (p: string) => Promise<string>).mockResolvedValue(
-        "/etc/passwd",
-      );
+      vi.mocked(fs.realpath as (p: string) => Promise<string>).mockResolvedValue("/etc/passwd");
       const result = await exec("read_file", { path: "data/notes/leaked.md" });
       expect(result).toMatch(/symlink/);
       expect(fs.readFile).not.toHaveBeenCalled();
@@ -208,9 +204,7 @@ describe("registry", () => {
 
     it("rejects write_file through a symlink that escapes the sandbox", async () => {
       vi.mocked(fs.mkdir).mockResolvedValue(undefined);
-      vi.mocked(fs.realpath as (p: string) => Promise<string>).mockResolvedValue(
-        "/etc/shadow",
-      );
+      vi.mocked(fs.realpath as (p: string) => Promise<string>).mockResolvedValue("/etc/shadow");
       const result = await exec("write_file", {
         path: "data/notes/evil.md",
         content: "payload",
@@ -220,9 +214,7 @@ describe("registry", () => {
     });
 
     it("rejects delete_file through a symlink that escapes the sandbox", async () => {
-      vi.mocked(fs.realpath as (p: string) => Promise<string>).mockResolvedValue(
-        "/etc/important",
-      );
+      vi.mocked(fs.realpath as (p: string) => Promise<string>).mockResolvedValue("/etc/important");
       const result = await exec("delete_file", { path: "data/notes/target.md" });
       expect(result).toMatch(/symlink/);
       expect(fs.unlink).not.toHaveBeenCalled();
@@ -239,13 +231,9 @@ describe("registry", () => {
 
     it("allows write when file does not exist and parent is contained", async () => {
       const enoent = Object.assign(new Error("ENOENT"), { code: "ENOENT" });
-      vi.mocked(fs.realpath as (p: string) => Promise<string>).mockRejectedValueOnce(
-        enoent,
-      );
+      vi.mocked(fs.realpath as (p: string) => Promise<string>).mockRejectedValueOnce(enoent);
       // Parent check succeeds — parent is contained
-      vi.mocked(fs.realpath as (p: string) => Promise<string>).mockResolvedValueOnce(
-        "/data/notes",
-      );
+      vi.mocked(fs.realpath as (p: string) => Promise<string>).mockResolvedValueOnce("/data/notes");
       vi.mocked(fs.mkdir).mockResolvedValue(undefined);
       vi.mocked(fs.writeFile).mockResolvedValue(undefined);
       const result = await exec("write_file", {
@@ -257,13 +245,9 @@ describe("registry", () => {
 
     it("rejects write when file does not exist but parent escapes", async () => {
       const enoent = Object.assign(new Error("ENOENT"), { code: "ENOENT" });
-      vi.mocked(fs.realpath as (p: string) => Promise<string>).mockRejectedValueOnce(
-        enoent,
-      );
+      vi.mocked(fs.realpath as (p: string) => Promise<string>).mockRejectedValueOnce(enoent);
       // Parent resolves outside sandbox
-      vi.mocked(fs.realpath as (p: string) => Promise<string>).mockResolvedValueOnce(
-        "/etc",
-      );
+      vi.mocked(fs.realpath as (p: string) => Promise<string>).mockResolvedValueOnce("/etc");
       vi.mocked(fs.mkdir).mockResolvedValue(undefined);
       const result = await exec("write_file", {
         path: "data/notes/sub/new.md",
@@ -511,7 +495,7 @@ describe("registry", () => {
 
     it("caps output at limit with truncation notice", async () => {
       const lines = Array.from({ length: 5 }, (_, i) => `/data/notes/file${i}.md`).join("\n");
-      mockRg(lines + "\n");
+      mockRg(`${lines}\n`);
       const result = await exec("glob_files", { pattern: "*.md", limit: 3 });
       expect(result).toContain("data/notes/file0.md");
       expect(result).toContain("data/notes/file2.md");
@@ -556,7 +540,10 @@ describe("registry", () => {
 
     it("supports files_with_matches output mode", async () => {
       mockRg("/data/notes/foo.md\n/data/skills/bar.md\n");
-      const result = await exec("grep_files", { pattern: "hello", output_mode: "files_with_matches" });
+      const result = await exec("grep_files", {
+        pattern: "hello",
+        output_mode: "files_with_matches",
+      });
       expect(result).toBe("data/notes/foo.md\nskills/bar.md");
       const callArgs = vi.mocked(execFile as any).mock.calls[0][1] as string[];
       expect(callArgs).toContain("-l");
@@ -594,8 +581,10 @@ describe("registry", () => {
     });
 
     it("caps output at limit with truncation notice", async () => {
-      const lines = Array.from({ length: 5 }, (_, i) => `/data/notes/f.md:${i}:line${i}`).join("\n");
-      mockRg(lines + "\n");
+      const lines = Array.from({ length: 5 }, (_, i) => `/data/notes/f.md:${i}:line${i}`).join(
+        "\n",
+      );
+      mockRg(`${lines}\n`);
       const result = await exec("grep_files", { pattern: "line", limit: 3 });
       expect(result).toContain("data/notes/f.md:0:line0");
       expect(result).toContain("data/notes/f.md:2:line2");
@@ -1291,9 +1280,7 @@ describe("registry", () => {
 
       expect(fetchSpy).toHaveBeenCalledOnce();
       const [url, opts] = fetchSpy.mock.calls[0];
-      expect(url).toBe(
-        "https://api.search.brave.com/res/v1/web/search?q=hello%20world&count=5",
-      );
+      expect(url).toBe("https://api.search.brave.com/res/v1/web/search?q=hello%20world&count=5");
       expect(opts.headers["X-Subscription-Token"]).toBe("brave-key-123");
       expect(opts.headers.Accept).toBe("application/json");
     });
@@ -1588,9 +1575,7 @@ describe("registry", () => {
 
     beforeEach(() => {
       vi.resetAllMocks();
-      vi.mocked(fs.realpath as (p: string) => Promise<string>).mockImplementation(
-        async (p) => p,
-      );
+      vi.mocked(fs.realpath as (p: string) => Promise<string>).mockImplementation(async (p) => p);
       depsWithExtra = makeDeps({
         extraDirs: [
           { name: "vaults", mode: "ro", absPath: "/mnt/vaults" },
@@ -1604,20 +1589,14 @@ describe("registry", () => {
     it("read_file resolves paths in an extra dir", async () => {
       vi.mocked(fs.readFile).mockResolvedValue("vault content");
       const result = await execExtra("read_file", { path: "vaults/note.md" });
-      expect(fs.readFile).toHaveBeenCalledWith(
-        path.resolve("/mnt/vaults", "note.md"),
-        "utf-8",
-      );
+      expect(fs.readFile).toHaveBeenCalledWith(path.resolve("/mnt/vaults", "note.md"), "utf-8");
       expect(result).toBe("vault content");
     });
 
     it("read_file works in rw extra dir", async () => {
       vi.mocked(fs.readFile).mockResolvedValue("project file");
       const result = await execExtra("read_file", { path: "projects/readme.md" });
-      expect(fs.readFile).toHaveBeenCalledWith(
-        path.resolve("/mnt/projects", "readme.md"),
-        "utf-8",
-      );
+      expect(fs.readFile).toHaveBeenCalledWith(path.resolve("/mnt/projects", "readme.md"), "utf-8");
       expect(result).toBe("project file");
     });
 
@@ -1679,9 +1658,7 @@ describe("registry", () => {
     });
 
     it("rejects symlink escape from extra dir", async () => {
-      vi.mocked(fs.realpath as (p: string) => Promise<string>).mockResolvedValue(
-        "/etc/passwd",
-      );
+      vi.mocked(fs.realpath as (p: string) => Promise<string>).mockResolvedValue("/etc/passwd");
       const result = await execExtra("read_file", { path: "vaults/sneaky.md" });
       expect(result).toMatch(/symlink/);
       expect(fs.readFile).not.toHaveBeenCalled();

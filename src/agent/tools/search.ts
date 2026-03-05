@@ -88,7 +88,8 @@ export const searchTools: ToolHandler[] = [
       const servers = data.servers ?? [];
       if (servers.length === 0) return `No servers found matching "${q}".`;
 
-      return `Found ${servers.length} server(s) matching "${q}":\n\n` +
+      return (
+        `Found ${servers.length} server(s) matching "${q}":\n\n` +
         servers
           .map((s, i) => {
             const lines = [`${i + 1}. ${s.name}`];
@@ -102,7 +103,8 @@ export const searchTools: ToolHandler[] = [
             }
             return lines.join("\n");
           })
-          .join("\n\n");
+          .join("\n\n")
+      );
     },
   },
 ];

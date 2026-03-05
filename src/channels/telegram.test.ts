@@ -30,7 +30,9 @@ vi.mock("grammy", () => {
     on(filter: string, handler: Handler) {
       capturedHandlers.set(filter, handler);
     }
-    start(_opts?: any) { return Promise.resolve(); }
+    start(_opts?: any) {
+      return Promise.resolve();
+    }
     stop() {
       mockStop();
       return Promise.resolve();

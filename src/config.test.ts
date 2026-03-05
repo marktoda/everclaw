@@ -43,19 +43,13 @@ describe("loadConfig", () => {
   });
 
   it("populates scriptEnv with TOOL_* keys from .env", () => {
-    fs.writeFileSync(
-      envPath,
-      "ANTHROPIC_API_KEY=sk\nTOOL_SOME_KEY=val1\nTOOL_OTHER=val2\n",
-    );
+    fs.writeFileSync(envPath, "ANTHROPIC_API_KEY=sk\nTOOL_SOME_KEY=val1\nTOOL_OTHER=val2\n");
     const c = loadConfig(envPath);
     expect(c.scriptEnv).toEqual({ TOOL_SOME_KEY: "val1", TOOL_OTHER: "val2" });
   });
 
   it("excludes non-TOOL keys from scriptEnv", () => {
-    fs.writeFileSync(
-      envPath,
-      "ANTHROPIC_API_KEY=sk\nBRAVE_SEARCH_API_KEY=brave\n",
-    );
+    fs.writeFileSync(envPath, "ANTHROPIC_API_KEY=sk\nBRAVE_SEARCH_API_KEY=brave\n");
     const c = loadConfig(envPath);
     expect(c.scriptEnv).toEqual({});
   });
@@ -70,10 +64,7 @@ describe("loadConfig", () => {
   });
 
   it("excludes non-SERVER keys from serverEnv", () => {
-    fs.writeFileSync(
-      envPath,
-      "ANTHROPIC_API_KEY=sk\nTOOL_X=val\nBRAVE_SEARCH_API_KEY=brave\n",
-    );
+    fs.writeFileSync(envPath, "ANTHROPIC_API_KEY=sk\nTOOL_X=val\nBRAVE_SEARCH_API_KEY=brave\n");
     const c = loadConfig(envPath);
     expect(c.serverEnv).toEqual({});
   });
@@ -157,7 +148,10 @@ describe("loadConfig", () => {
   });
 
   it("trims whitespace in ALLOWED_CHAT_IDS", () => {
-    fs.writeFileSync(envPath, "ANTHROPIC_API_KEY=sk\nALLOWED_CHAT_IDS= telegram:123 , telegram:456 \n");
+    fs.writeFileSync(
+      envPath,
+      "ANTHROPIC_API_KEY=sk\nALLOWED_CHAT_IDS= telegram:123 , telegram:456 \n",
+    );
     const c = loadConfig(envPath);
     expect(c.allowedChatIds).toEqual(new Set(["telegram:123", "telegram:456"]));
   });
@@ -169,7 +163,10 @@ describe("loadConfig", () => {
   });
 
   it("auto-detects multiple channels from *_BOT_TOKEN keys", () => {
-    fs.writeFileSync(envPath, "ANTHROPIC_API_KEY=sk\nTELEGRAM_BOT_TOKEN=tg\nDISCORD_BOT_TOKEN=dc\n");
+    fs.writeFileSync(
+      envPath,
+      "ANTHROPIC_API_KEY=sk\nTELEGRAM_BOT_TOKEN=tg\nDISCORD_BOT_TOKEN=dc\n",
+    );
     const c = loadConfig(envPath);
     expect(c.channels).toEqual(
       expect.arrayContaining([

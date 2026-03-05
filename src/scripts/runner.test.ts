@@ -65,7 +65,10 @@ describe("getScriptDescription", () => {
 
   it("extracts bash comment header after shebang", async () => {
     const file = path.join(tmpDir, "test.sh");
-    fs.writeFileSync(file, "#!/bin/bash\n# Search for flights\n# Input: JSON with origin, dest\nset -e\n");
+    fs.writeFileSync(
+      file,
+      "#!/bin/bash\n# Search for flights\n# Input: JSON with origin, dest\nset -e\n",
+    );
     const desc = await getScriptDescription(file);
     expect(desc).toBe("Search for flights\nInput: JSON with origin, dest");
   });
@@ -114,11 +117,9 @@ describe("getScriptDescription", () => {
   });
 
   it("listScripts includes descriptions", async () => {
-    fs.writeFileSync(
-      path.join(tmpDir, "search.sh"),
-      "#!/bin/bash\n# Search flights\necho ok\n",
-      { mode: 0o755 },
-    );
+    fs.writeFileSync(path.join(tmpDir, "search.sh"), "#!/bin/bash\n# Search flights\necho ok\n", {
+      mode: 0o755,
+    });
     fs.writeFileSync(path.join(tmpDir, "bare.sh"), "#!/bin/bash\necho ok\n", {
       mode: 0o755,
     });

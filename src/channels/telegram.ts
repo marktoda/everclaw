@@ -1,8 +1,8 @@
 import { Bot } from "grammy";
-import type { ChannelAdapter, InboundMessage } from "./adapter.ts";
-import { splitMessage } from "./split.ts";
 import { logger } from "../logger.ts";
 import { transcribeAudio } from "../transcription.ts";
+import type { ChannelAdapter, InboundMessage } from "./adapter.ts";
+import { splitMessage } from "./split.ts";
 
 export interface TelegramAdapterOptions {
   openaiApiKey?: string;

@@ -4,8 +4,8 @@ import * as pg from "pg";
 import { ChannelRegistry, createAdapter } from "./channels/index.ts";
 import { loadConfig } from "./config.ts";
 import { logger } from "./logger.ts";
-import { createMcpManager } from "./servers/manager.ts";
 import { getState, setState } from "./memory/state.ts";
+import { createMcpManager } from "./servers/manager.ts";
 import { syncSchedules } from "./skills/manager.ts";
 import { registerExecuteSkill } from "./tasks/execute-skill.ts";
 import { registerHandleMessage } from "./tasks/handle-message.ts";
@@ -27,13 +27,23 @@ async function main() {
 
   const channelRegistry = new ChannelRegistry();
   for (const ch of config.channels) {
-    channelRegistry.register(createAdapter(ch.type, ch.token, { openaiApiKey: config.openaiApiKey }));
+    channelRegistry.register(
+      createAdapter(ch.type, ch.token, { openaiApiKey: config.openaiApiKey }),
+    );
   }
 
   // Persist defaultRecipientId via state store
   let defaultRecipientId = ((await getState(pool, "system", "defaultRecipientId")) ?? "") as string;
 
-  const taskDeps = { anthropic, pool, channels: channelRegistry, config, startedAt, log: logger, mcp: mcpManager };
+  const taskDeps = {
+    anthropic,
+    pool,
+    channels: channelRegistry,
+    config,
+    startedAt,
+    log: logger,
+    mcp: mcpManager,
+  };
   registerHandleMessage(absurd, taskDeps);
   registerExecuteSkill(absurd, taskDeps);
   registerSendMessage(absurd, channelRegistry);

@@ -655,7 +655,12 @@ describe("runAgentLoop", () => {
       // 2. Assistant with tool_use block (no text block for "(tool use only)")
       expect(messages[1].role).toBe("assistant");
       expect(messages[1].content).toEqual([
-        { type: "tool_use", id: "tu-1", name: "spawn_workflow", input: { instructions: "do stuff" } },
+        {
+          type: "tool_use",
+          id: "tu-1",
+          name: "spawn_workflow",
+          input: { instructions: "do stuff" },
+        },
       ]);
 
       // 3. Tool result as user message

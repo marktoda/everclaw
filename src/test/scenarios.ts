@@ -197,7 +197,9 @@ export const EMIT_EVENT: Scenario = {
   name: "emit-event",
   turns: [
     {
-      content: [toolUse("emit_event", { event_name: "test-signal", payload: { ok: true } }, "tu-1")],
+      content: [
+        toolUse("emit_event", { event_name: "test-signal", payload: { ok: true } }, "tu-1"),
+      ],
       stop_reason: "tool_use",
     },
     {

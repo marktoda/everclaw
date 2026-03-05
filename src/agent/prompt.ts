@@ -138,10 +138,7 @@ Current date and time: ${new Date().toISOString()}`);
 
   if (ctx.mcpServers && ctx.mcpServers.length > 0) {
     const list = ctx.mcpServers
-      .map(
-        (s) =>
-          `- **${s.name}**: ${s.description ?? "MCP server"}`,
-      )
+      .map((s) => `- **${s.name}**: ${s.description ?? "MCP server"}`)
       .join("\n");
     parts.push(`## MCP Servers
 

@@ -8,7 +8,6 @@ const { mockCreate, mockToFile } = vi.hoisted(() => ({
 vi.mock("openai", () => ({
   default: class OpenAI {
     audio = { transcriptions: { create: mockCreate } };
-    constructor(_opts: any) {}
   },
   toFile: mockToFile,
 }));
@@ -19,18 +18,18 @@ describe("transcribeAudio", () => {
   beforeEach(() => {
     mockCreate.mockReset();
     mockToFile.mockReset();
-    mockToFile.mockImplementation(async (buf: Buffer, name: string, opts: any) => ({ buf, name, opts }));
+    mockToFile.mockImplementation(async (buf: Buffer, name: string, opts: any) => ({
+      buf,
+      name,
+      opts,
+    }));
   });
 
   it("returns transcript on success", async () => {
     mockCreate.mockResolvedValue("hello world");
     const result = await transcribeAudio(Buffer.from("audio-data"), "sk-key");
     expect(result).toBe("hello world");
-    expect(mockToFile).toHaveBeenCalledWith(
-      expect.any(Buffer),
-      "voice.ogg",
-      { type: "audio/ogg" },
-    );
+    expect(mockToFile).toHaveBeenCalledWith(expect.any(Buffer), "voice.ogg", { type: "audio/ogg" });
     expect(mockCreate).toHaveBeenCalledWith({
       file: expect.anything(),
       model: "whisper-1",

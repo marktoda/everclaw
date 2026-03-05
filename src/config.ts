@@ -3,10 +3,7 @@ import * as path from "node:path";
 
 /** Strip matching surrounding quotes (single or double) from a string. */
 export function stripQuotes(val: string): string {
-  if (
-    (val.startsWith('"') && val.endsWith('"')) ||
-    (val.startsWith("'") && val.endsWith("'"))
-  ) {
+  if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
     return val.slice(1, -1);
   }
   return val;
@@ -106,12 +103,15 @@ function parseExtraDirs(raw: string | undefined): ExtraDir[] {
 
 function parseAllowedChatIds(raw: string | undefined): Set<string> {
   if (!raw?.trim()) return new Set();
-  const ids = raw.split(",").map((s) => s.trim()).filter(Boolean);
+  const ids = raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
   const bare = ids.filter((id) => /^\d+$/.test(id));
   if (bare.length > 0) {
     console.warn(
       `[config] ALLOWED_CHAT_IDS contains bare numeric IDs (${bare.join(", ")}). ` +
-      `Use fully prefixed IDs like "telegram:${bare[0]}" instead.`,
+        `Use fully prefixed IDs like "telegram:${bare[0]}" instead.`,
     );
   }
   return new Set(ids);

@@ -48,7 +48,7 @@ vi.mock("@modelcontextprotocol/sdk/client/stdio.js", () => {
 /*  Import under test (after mocks)                                    */
 /* ------------------------------------------------------------------ */
 
-import { listServerConfigs, createMcpManager, validateServerConfig, ALLOWED_COMMANDS } from "./manager.ts";
+import { createMcpManager, listServerConfigs, validateServerConfig } from "./manager.ts";
 
 /* ================================================================== */
 /*  listServerConfigs                                                  */
@@ -66,9 +66,7 @@ describe("listServerConfigs", () => {
       .mockResolvedValueOnce(
         JSON.stringify({ command: "node", args: ["weather.js"], description: "Weather" }),
       )
-      .mockResolvedValueOnce(
-        JSON.stringify({ command: "python", args: ["cal.py"] }),
-      );
+      .mockResolvedValueOnce(JSON.stringify({ command: "python", args: ["cal.py"] }));
 
     const configs = await listServerConfigs("/servers");
 
@@ -430,9 +428,7 @@ describe("createMcpManager", () => {
       .mockResolvedValueOnce(JSON.stringify({ command: "npx", args: ["good-server"] }));
 
     // First server connect fails, second succeeds
-    mockConnect
-      .mockRejectedValueOnce(new Error("spawn failed"))
-      .mockResolvedValueOnce(undefined);
+    mockConnect.mockRejectedValueOnce(new Error("spawn failed")).mockResolvedValueOnce(undefined);
     mockListTools.mockResolvedValue({
       tools: [
         {
@@ -458,9 +454,7 @@ describe("createMcpManager", () => {
     await mgr.start("/servers", {});
 
     const summaries = mgr.serverSummaries();
-    expect(summaries).toEqual([
-      { name: "weather", description: "Weather API" },
-    ]);
+    expect(summaries).toEqual([{ name: "weather", description: "Weather API" }]);
   });
 
   it("returns server summaries without description when not set", async () => {

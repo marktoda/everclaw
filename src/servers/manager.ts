@@ -2,17 +2,17 @@ import { readdir, readFile } from "node:fs/promises";
 import * as path from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import { logger } from "../logger.ts";
 import type { ToolDef } from "../agent/tools/types.ts";
+import { logger } from "../logger.ts";
 
 /* ------------------------------------------------------------------ */
 /*  Server config                                                      */
 /* ------------------------------------------------------------------ */
 
 export interface ServerConfig {
-  name: string;        // filename minus .json
+  name: string; // filename minus .json
   description?: string;
-  command: string;     // required
+  command: string; // required
   args?: string[];
   env?: Record<string, string>;
 }
@@ -63,7 +63,10 @@ export function validateServerConfig(raw: string): { ok: true } | { ok: false; e
   }
 
   if (!ALLOWED_COMMANDS.has(obj.command)) {
-    return { ok: false, error: `command "${obj.command}" is not allowed (allowed: ${ALLOWED_COMMANDS_LIST})` };
+    return {
+      ok: false,
+      error: `command "${obj.command}" is not allowed (allowed: ${ALLOWED_COMMANDS_LIST})`,
+    };
   }
 
   if ("args" in obj) {
@@ -92,9 +95,7 @@ export function validateServerConfig(raw: string): { ok: true } | { ok: false; e
  * Returns `[]` when the directory does not exist.
  * Skips non-.json files, invalid JSON, and files missing `command`.
  */
-export async function listServerConfigs(
-  serversDir: string,
-): Promise<ServerConfig[]> {
+export async function listServerConfigs(serversDir: string): Promise<ServerConfig[]> {
   let entries: string[];
   try {
     entries = await readdir(serversDir);
@@ -127,9 +128,7 @@ export async function listServerConfigs(
     configs.push({
       name,
       command: obj.command as string,
-      ...(typeof obj.description === "string"
-        ? { description: obj.description }
-        : {}),
+      ...(typeof obj.description === "string" ? { description: obj.description } : {}),
       ...(Array.isArray(obj.args) ? { args: obj.args as string[] } : {}),
       ...(isStringRecord(obj.env) ? { env: obj.env } : {}),
     });
@@ -185,10 +184,7 @@ export function createMcpManager(): McpManager {
     toolDefs = [];
   }
 
-  async function start(
-    serversDir: string,
-    env: Record<string, string>,
-  ): Promise<void> {
+  async function start(serversDir: string, env: Record<string, string>): Promise<void> {
     storedServersDir = serversDir;
     storedEnv = env;
 
@@ -202,7 +198,7 @@ export function createMcpManager(): McpManager {
         const transport = new StdioClientTransport({
           command: config.command,
           args: config.args,
-          env: { ...process.env as Record<string, string>, ...env, ...(config.env ?? {}) },
+          env: { ...(process.env as Record<string, string>), ...env, ...(config.env ?? {}) },
         });
 
         const client = new Client({
@@ -230,15 +226,9 @@ export function createMcpManager(): McpManager {
           });
         }
 
-        logger.info(
-          { server: config.name, tools: tools.length },
-          "MCP server connected",
-        );
+        logger.info({ server: config.name, tools: tools.length }, "MCP server connected");
       } catch (err) {
-        logger.warn(
-          { server: config.name, err },
-          "Failed to connect MCP server, skipping",
-        );
+        logger.warn({ server: config.name, err }, "Failed to connect MCP server, skipping");
       }
     }
   }
@@ -254,10 +244,7 @@ export function createMcpManager(): McpManager {
     return toolDefs;
   }
 
-  async function execute(
-    toolName: string,
-    input: Record<string, unknown>,
-  ): Promise<string> {
+  async function execute(toolName: string, input: Record<string, unknown>): Promise<string> {
     const route = toolRoute.get(toolName);
     if (!route) {
       return `Error: unknown MCP tool "${toolName}"`;
