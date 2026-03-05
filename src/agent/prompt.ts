@@ -84,24 +84,24 @@ released — the server can restart and you'll resume exactly where you left off
   Best for waiting on a spawned task's completion (e.g., "done:{taskId}").
 - **emit_event(event_name, payload?)**: Emit a named event to wake waiting tasks.
   Use task IDs in event names for uniqueness. Record your event conventions in notes.
-  For simple coordination, prefer state store + sleep_for polling over events.
+  For simple coordination, prefer files + sleep_for polling over events.
 
 ### User Interaction
 You do NOT have a "wait for reply" tool. When you need user input:
 1. Ask your question (send text)
-2. Save any context needed to continue via set_state (e.g., set_state("workflow", "pending-action", {...}))
-3. Let your task complete
-4. The user's reply arrives as a new message — you'll see it in conversation history
-   alongside your question, and can read your saved state to continue the workflow.
-
-Always check for pending workflow state at the start of each turn
-(get_state("workflow", "pending-action")).
+2. For simple cases, just let the task complete — you'll see your question
+   and the user's reply in conversation history on the next turn.
+3. For complex multi-step workflows, save context to a temp file:
+   write_file("data/notes/temp/pending-action.json", JSON.stringify({...}, null, 2))
+4. On the next turn, check for pending work:
+   read_file("data/notes/temp/pending-action.json")
+   Then clean up with delete_file when done.
 
 ### When to Use What
-- **Reminders**: sleep_until, then send message. One task, no state store needed.
+- **Reminders**: sleep_until, then send message. One task, no files needed.
 - **Polling** (health check, PR status): sleep_for loop within one task.
 - **Background work**: spawn_workflow or spawn_skill. User keeps chatting normally.
-- **User confirmation**: Ask question, save state, complete. Resume on next message.
+- **User confirmation**: Ask question, save context to temp file if needed, complete. Resume on next message.
 - **Recurring tasks**: Write a skill with a schedule field, not sleep loops.
 
 ## Scratchpad
