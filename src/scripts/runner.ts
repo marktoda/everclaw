@@ -24,7 +24,9 @@ export function runScript(
       {
         timeout: timeoutSeconds * 1000,
         maxBuffer: 1024 * 1024, // 1MB
-        env: env ? { ...process.env, ...env } : undefined,
+        env: env
+          ? { PATH: process.env.PATH ?? "", HOME: process.env.HOME ?? "", ...env }
+          : undefined,
       },
       (err, stdout, stderr) => {
         if (err) {

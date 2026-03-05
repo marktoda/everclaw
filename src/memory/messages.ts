@@ -17,6 +17,16 @@ function isToolResult(b: ContentBlock): b is Anthropic.ToolResultBlockParam {
   return b.type === "tool_result";
 }
 
+/** Normalize ToolResultBlockParam.content (string | TextBlock[] | undefined) → string. */
+function toolResultText(content: Anthropic.ToolResultBlockParam["content"]): string {
+  if (typeof content === "string") return content;
+  if (!Array.isArray(content)) return "";
+  return content
+    .filter((b): b is Anthropic.TextBlockParam => b.type === "text")
+    .map((b) => b.text)
+    .join("\n");
+}
+
 /** Extract text from message content (handles both string and content block arrays). */
 function extractText(content: Anthropic.MessageParam["content"]): string {
   if (typeof content === "string") return content;
@@ -95,10 +105,10 @@ export function deconstructMessages(
         result.push({
           recipientId,
           role: "tool",
-          content: blocks.map((r) => `[${r.tool_use_id}]: ${r.content}`).join("\n"),
+          content: blocks.map((r) => `[${r.tool_use_id}]: ${toolResultText(r.content)}`).join("\n"),
           toolUse: blocks.map((r) => ({
             tool_use_id: r.tool_use_id,
-            content: r.content as string,
+            content: toolResultText(r.content),
           })),
         } satisfies ToolResultMessage);
       }
