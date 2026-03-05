@@ -21,7 +21,7 @@ import type { ToolRegistry } from "./tools/index.ts";
 
 const MAX_TURNS = 20;
 
-export interface Dirs {
+interface Dirs {
   notes: string;
   skills: string;
   scripts: string;

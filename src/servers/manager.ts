@@ -18,7 +18,7 @@ export interface ServerConfig {
   env?: Record<string, string>;
 }
 
-export const ALLOWED_COMMANDS = new Set(["npx", "uvx", "node", "python3", "python", "docker"]);
+const ALLOWED_COMMANDS = new Set(["npx", "uvx", "node", "python3", "python", "docker"]);
 const ALLOWED_COMMANDS_LIST = Array.from(ALLOWED_COMMANDS).join(", ");
 
 /** Check whether a value is a plain object where every value is a string. */

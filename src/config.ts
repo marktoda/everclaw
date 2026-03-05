@@ -9,7 +9,7 @@ export function stripQuotes(val: string): string {
   return val;
 }
 
-export interface ChannelConfig {
+interface ChannelConfig {
   type: string;
   token: string;
 }

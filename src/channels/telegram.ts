@@ -5,7 +5,7 @@ import type { ChannelAdapter, InboundMessage } from "./adapter.ts";
 import { markdownToTelegramHtml } from "./format-telegram.ts";
 import { splitMessage } from "./split.ts";
 
-export interface TelegramAdapterOptions {
+interface TelegramAdapterOptions {
   openaiApiKey?: string;
 }
 

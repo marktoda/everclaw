@@ -1,14 +1,14 @@
 // src/memory/history.ts
 import type { Pool } from "pg";
 
-export interface BaseMessage {
+interface BaseMessage {
   id?: number;
   recipientId: string;
   content: string;
   createdAt?: Date;
 }
 
-export interface UserMessage extends BaseMessage {
+interface UserMessage extends BaseMessage {
   role: "user";
 }
 
