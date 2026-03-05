@@ -198,7 +198,12 @@ export function createMcpManager(): McpManager {
         const transport = new StdioClientTransport({
           command: config.command,
           args: config.args,
-          env: { PATH: process.env.PATH ?? "", HOME: process.env.HOME ?? "", ...env, ...(config.env ?? {}) },
+          env: {
+            PATH: process.env.PATH ?? "",
+            HOME: process.env.HOME ?? "",
+            ...env,
+            ...(config.env ?? {}),
+          },
         });
 
         const client = new Client({

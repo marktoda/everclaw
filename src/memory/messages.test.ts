@@ -307,7 +307,10 @@ describe("sanitizeMessages", () => {
       { role: "assistant", content: "ok" },
       {
         role: "user",
-        content: [{ type: "text", text: "msg2" }, { type: "text", text: "msg3" }],
+        content: [
+          { type: "text", text: "msg2" },
+          { type: "text", text: "msg3" },
+        ],
       },
       { role: "assistant", content: "final" },
     ]);
@@ -410,7 +413,10 @@ describe("sanitizeMessages", () => {
     expect(result).toEqual([
       {
         role: "user",
-        content: [{ type: "text", text: "hi" }, { type: "text", text: "never mind" }],
+        content: [
+          { type: "text", text: "hi" },
+          { type: "text", text: "never mind" },
+        ],
       },
       { role: "assistant", content: "ok" },
     ]);
