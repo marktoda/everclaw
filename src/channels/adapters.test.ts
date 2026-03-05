@@ -24,6 +24,43 @@ vi.mock("@whiskeysockets/baileys", () => {
   };
 });
 
+vi.mock("googleapis", () => {
+  const gmail = {
+    users: {
+      messages: { list: vi.fn(), get: vi.fn(), send: vi.fn(), modify: vi.fn() },
+      getProfile: vi.fn(),
+    },
+  };
+  return {
+    google: {
+      gmail: vi.fn().mockReturnValue(gmail),
+      auth: {
+        OAuth2: class {
+          setCredentials = vi.fn();
+          generateAuthUrl = vi.fn();
+          on = vi.fn();
+        },
+      },
+    },
+  };
+});
+
+vi.mock("node:fs/promises", () => ({
+  readFile: vi.fn().mockImplementation((filePath: string) => {
+    if (filePath.includes("credentials.json")) {
+      return Promise.resolve(JSON.stringify({
+        installed: { client_id: "id", client_secret: "secret", redirect_uris: ["http://localhost"] },
+      }));
+    }
+    if (filePath.includes("token.json")) {
+      return Promise.resolve(JSON.stringify({ access_token: "at", refresh_token: "rt" }));
+    }
+    return Promise.reject(new Error("ENOENT"));
+  }),
+  writeFile: vi.fn().mockResolvedValue(undefined),
+  mkdir: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock("discord.js", () => {
   const GatewayIntentBits = { Guilds: 1, GuildMessages: 2, MessageContent: 4, DirectMessages: 8 };
   const Partials = { Channel: 0 };
@@ -58,6 +95,11 @@ describe("createAdapter", () => {
   it("creates a WhatsAppAdapter for type 'whatsapp'", () => {
     const adapter = createAdapter("whatsapp", "enabled");
     expect(adapter.name).toBe("whatsapp");
+  });
+
+  it("creates a GmailAdapter for type 'gmail'", () => {
+    const adapter = createAdapter("gmail", "enabled");
+    expect(adapter.name).toBe("gmail");
   });
 
   it("throws for unknown channel type", () => {

@@ -27,6 +27,7 @@
     "@whiskeysockets/baileys": "7.0.0-rc.9",
     "absurd-sdk": "github:marktoda/absurd#schedules&path:sdks/typescript",
     "discord.js": "^14.25.1",
+    "googleapis": "^171.4.0",
     "grammy": "^1.35.0",
     "marked": "^17.0.4",
     "openai": "^6.25.0",
