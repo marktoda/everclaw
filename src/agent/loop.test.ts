@@ -469,6 +469,28 @@ describe("runAgentLoop", () => {
       expect(result).toBe("finally");
       expect(create).toHaveBeenCalledTimes(50);
     });
+
+    it("retries on max_tokens instead of silently stopping", async () => {
+      const tb = toolUseBlock("write_file", { path: "test.md" }, "trunc-1");
+      const anthropic = createMockAnthropic([
+        // Turn 1: truncated (max_tokens)
+        apiResponse([tb], "max_tokens"),
+        // Turn 2: recovers with text
+        apiResponse([textBlock("recovered")]),
+      ]);
+      const deps = baseDeps({ anthropic });
+      const ctx = createMockCtx();
+
+      const result = await runAgentLoop(ctx, "telegram:1", "write big file", deps);
+
+      expect(result).toBe("recovered");
+      expect(anthropic.messages.create).toHaveBeenCalledTimes(2);
+      // Use snapshot to check the retry prompt was added
+      const snapshot = anthropic.snapshots[1];
+      const lastMsg = snapshot.messages[snapshot.messages.length - 1];
+      expect(lastMsg.role).toBe("user");
+      expect(lastMsg.content).toContain("cut off");
+    });
   });
 
   // ── 10. onText callback ────────────────────────────────────────────
@@ -874,7 +896,7 @@ describe("runAgentLoop", () => {
       // The create mock is still called with all args; we can read non-message args from calls
       const callArgs = anthropic.messages.create.mock.calls[0][0];
       expect(callArgs.model).toBe("claude-sonnet-4-20250514");
-      expect(callArgs.max_tokens).toBe(4096);
+      expect(callArgs.max_tokens).toBe(16384);
       expect(callArgs.system).toBe("custom-system-prompt");
       expect(callArgs.tools).toEqual(definitions);
     });

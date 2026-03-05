@@ -119,7 +119,7 @@ export async function runAgentLoop(
     const resp = await ctx.step(`agent-turn-${turn}`, async () => {
       const r = await deps.anthropic.messages.create({
         model: deps.model,
-        max_tokens: 4096,
+        max_tokens: 16384,
         system: systemPrompt,
         messages,
         tools: deps.registry.definitions,
@@ -144,6 +144,18 @@ export async function runAgentLoop(
         }
         return true;
       });
+    }
+
+    // max_tokens: response was truncated mid-output. Tell Claude so it can retry.
+    if ((resp.stopReason as string) === "max_tokens") {
+      log?.warn({ turn: turn + 1 }, "response truncated (max_tokens), continuing");
+      messages.push({
+        role: "user",
+        content:
+          "Your previous response was cut off (max_tokens). " +
+          "Please continue — if you were writing a file, try breaking it into smaller parts.",
+      });
+      continue;
     }
 
     if ((resp.stopReason as string) !== "tool_use") {
