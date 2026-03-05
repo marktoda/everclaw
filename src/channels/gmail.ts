@@ -2,7 +2,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { google } from "googleapis";
 import { logger } from "../logger.ts";
-import type { ChannelAdapter, InboundMessage } from "./adapter.ts";
+import { stripPrefix, type ChannelAdapter, type InboundMessage } from "./adapter.ts";
 import { authDir } from "./auth.ts";
 
 const AUTH_DIR = authDir("gmail");
@@ -147,6 +147,13 @@ export class GmailAdapter implements ChannelAdapter {
           if (val) this.processedIds.delete(val);
         }
       }
+      if (this.threadContext.size > 1000) {
+        const iter = this.threadContext.keys();
+        for (let i = 0; i < 200; i++) {
+          const key = iter.next().value;
+          if (key) this.threadContext.delete(key);
+        }
+      }
 
       const msg = await this.gmail.users.messages.get({
         userId: "me",
@@ -197,7 +204,7 @@ export class GmailAdapter implements ChannelAdapter {
   }
 
   async sendMessage(recipientId: string, text: string): Promise<void> {
-    const to = recipientId.slice(this.name.length + 1);
+    const to = stripPrefix(recipientId);
     const thread = this.threadContext.get(to);
     const subject = thread ? `Re: ${thread.subject.replace(/^Re:\s*/i, "")}` : "Message from assistant";
 

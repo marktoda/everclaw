@@ -3,6 +3,11 @@ export interface InboundMessage {
   text: string;
 }
 
+/** Strip the channel prefix from a recipientId (e.g. "telegram:123" → "123"). */
+export function stripPrefix(recipientId: string): string {
+  return recipientId.slice(recipientId.indexOf(":") + 1);
+}
+
 export interface ChannelAdapter {
   /** Channel name, used as recipientId prefix (e.g. "telegram") */
   name: string;

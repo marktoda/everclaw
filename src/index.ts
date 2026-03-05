@@ -27,7 +27,7 @@ async function main() {
   const channelRegistry = new ChannelRegistry();
   for (const ch of config.channels) {
     channelRegistry.register(
-      createAdapter(ch.type, ch.token, { openaiApiKey: config.openaiApiKey }),
+      await createAdapter(ch.type, ch.token, { openaiApiKey: config.openaiApiKey }),
     );
   }
 

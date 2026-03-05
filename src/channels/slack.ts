@@ -1,6 +1,6 @@
 import { App } from "@slack/bolt";
 import { logger } from "../logger.ts";
-import type { ChannelAdapter, InboundMessage } from "./adapter.ts";
+import { stripPrefix, type ChannelAdapter, type InboundMessage } from "./adapter.ts";
 import { splitMessage } from "./split.ts";
 
 export class SlackAdapter implements ChannelAdapter {
@@ -36,14 +36,11 @@ export class SlackAdapter implements ChannelAdapter {
   }
 
   async sendMessage(recipientId: string, text: string): Promise<void> {
-    const channel = recipientId.slice(this.name.length + 1);
+    const channel = stripPrefix(recipientId);
     for (const chunk of splitMessage(text, this.maxMessageLength)) {
       await this.app.client.chat.postMessage({ channel, text: chunk });
     }
   }
-
-  // Slack Bot API does not support typing indicators
-  async setTyping(_recipientId: string, _isTyping: boolean): Promise<void> {}
 
   async stop(): Promise<void> {
     await this.app.stop();

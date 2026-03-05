@@ -1,7 +1,7 @@
 import { Bot } from "grammy";
 import { logger } from "../logger.ts";
 import { transcribeAudio } from "../transcription.ts";
-import type { ChannelAdapter, InboundMessage } from "./adapter.ts";
+import { stripPrefix, type ChannelAdapter, type InboundMessage } from "./adapter.ts";
 import { markdownToEntities } from "./format-telegram.ts";
 import { splitWithEntities } from "./split.ts";
 
@@ -56,7 +56,7 @@ export class TelegramAdapter implements ChannelAdapter {
   }
 
   async sendMessage(recipientId: string, text: string): Promise<void> {
-    const chatId = Number(recipientId.slice(this.name.length + 1));
+    const chatId = Number(stripPrefix(recipientId));
     const formatted = markdownToEntities(text);
     for (const chunk of splitWithEntities(formatted, this.maxMessageLength)) {
       await this.bot.api.sendMessage(chatId, chunk.text, {

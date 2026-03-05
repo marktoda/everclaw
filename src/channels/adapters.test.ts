@@ -77,32 +77,32 @@ vi.mock("discord.js", () => {
 import { createAdapter } from "./adapters.ts";
 
 describe("createAdapter", () => {
-  it("creates a TelegramAdapter for type 'telegram'", () => {
-    const adapter = createAdapter("telegram", "fake-token");
+  it("creates a TelegramAdapter for type 'telegram'", async () => {
+    const adapter = await createAdapter("telegram", "fake-token");
     expect(adapter.name).toBe("telegram");
   });
 
-  it("creates a DiscordAdapter for type 'discord'", () => {
-    const adapter = createAdapter("discord", "fake-token");
+  it("creates a DiscordAdapter for type 'discord'", async () => {
+    const adapter = await createAdapter("discord", "fake-token");
     expect(adapter.name).toBe("discord");
   });
 
-  it("creates a SlackAdapter for type 'slack'", () => {
-    const adapter = createAdapter("slack", "xoxb-fake|xapp-fake");
+  it("creates a SlackAdapter for type 'slack'", async () => {
+    const adapter = await createAdapter("slack", "xoxb-fake|xapp-fake");
     expect(adapter.name).toBe("slack");
   });
 
-  it("creates a WhatsAppAdapter for type 'whatsapp'", () => {
-    const adapter = createAdapter("whatsapp", "enabled");
+  it("creates a WhatsAppAdapter for type 'whatsapp'", async () => {
+    const adapter = await createAdapter("whatsapp", "enabled");
     expect(adapter.name).toBe("whatsapp");
   });
 
-  it("creates a GmailAdapter for type 'gmail'", () => {
-    const adapter = createAdapter("gmail", "enabled");
+  it("creates a GmailAdapter for type 'gmail'", async () => {
+    const adapter = await createAdapter("gmail", "enabled");
     expect(adapter.name).toBe("gmail");
   });
 
-  it("throws for unknown channel type", () => {
-    expect(() => createAdapter("carrier-pigeon", "token")).toThrow("Unknown channel type");
+  it("rejects unknown channel type", async () => {
+    await expect(createAdapter("carrier-pigeon", "token")).rejects.toThrow("Unknown channel type");
   });
 });

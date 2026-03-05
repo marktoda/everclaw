@@ -4,7 +4,7 @@ import makeWASocket, {
   useMultiFileAuthState,
 } from "@whiskeysockets/baileys";
 import { logger } from "../logger.ts";
-import type { ChannelAdapter, InboundMessage } from "./adapter.ts";
+import { stripPrefix, type ChannelAdapter, type InboundMessage } from "./adapter.ts";
 import { authDir } from "./auth.ts";
 import { splitMessage } from "./split.ts";
 
@@ -34,6 +34,7 @@ export class WhatsAppAdapter implements ChannelAdapter {
   private sock: ReturnType<typeof makeWASocket> | undefined;
   private onMessage?: (msg: InboundMessage) => Promise<void>;
   private reconnectDelay = 1000;
+  private reconnectTimer?: ReturnType<typeof setTimeout>;
   private stopped = false;
 
   async start(onMessage: (msg: InboundMessage) => Promise<void>): Promise<void> {
@@ -68,7 +69,7 @@ export class WhatsAppAdapter implements ChannelAdapter {
         if (this.stopped) return;
 
         logger.warn({ statusCode, delay: this.reconnectDelay }, "WhatsApp disconnected, reconnecting...");
-        setTimeout(() => this.connect().catch((err) => {
+        this.reconnectTimer = setTimeout(() => this.connect().catch((err) => {
           logger.error({ err }, "WhatsApp reconnection failed");
         }), this.reconnectDelay);
         this.reconnectDelay = Math.min(this.reconnectDelay * 2, MAX_RECONNECT_DELAY);
@@ -100,7 +101,7 @@ export class WhatsAppAdapter implements ChannelAdapter {
 
   async sendMessage(recipientId: string, text: string): Promise<void> {
     if (!this.sock) throw new Error("WhatsApp not connected");
-    const phone = recipientId.slice(this.name.length + 1);
+    const phone = stripPrefix(recipientId);
     const jid = phoneToJid(phone);
 
     for (const chunk of splitMessage(text, 65536)) {
@@ -110,13 +111,14 @@ export class WhatsAppAdapter implements ChannelAdapter {
 
   async setTyping(recipientId: string, isTyping: boolean): Promise<void> {
     if (!this.sock) return;
-    const phone = recipientId.slice(this.name.length + 1);
+    const phone = stripPrefix(recipientId);
     const jid = phoneToJid(phone);
     await this.sock.sendPresenceUpdate(isTyping ? "composing" : "paused", jid);
   }
 
   async stop(): Promise<void> {
     this.stopped = true;
+    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     this.sock?.end(undefined);
   }
 }

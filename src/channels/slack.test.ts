@@ -101,10 +101,9 @@ describe("SlackAdapter", () => {
     });
   });
 
-  it("setTyping accepts correct signature but is a no-op", async () => {
-    const adapter = new SlackAdapter("xoxb-bot|xapp-app");
-    await adapter.setTyping("slack:C04ABC", true);
-    await adapter.setTyping("slack:C04ABC", false);
+  it("does not implement setTyping (Slack API limitation)", () => {
+    const adapter = new SlackAdapter("xoxb-bot|xapp-app") as any;
+    expect(adapter.setTyping).toBeUndefined();
   });
 
   it("stop stops the app", async () => {
