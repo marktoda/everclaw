@@ -1,6 +1,7 @@
 import { execFile } from "node:child_process";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
+import { baseChildEnv } from "../child-env.ts";
 
 const SCRIPT_EXTENSIONS = new Set([".sh", ".bash", ".py", ".js", ".ts"]);
 
@@ -24,9 +25,7 @@ export function runScript(
       {
         timeout: timeoutSeconds * 1000,
         maxBuffer: 1024 * 1024, // 1MB
-        env: env
-          ? { PATH: process.env.PATH ?? "", HOME: process.env.HOME ?? "", ...env }
-          : undefined,
+        env: env ? baseChildEnv(env) : undefined,
       },
       (err, stdout, stderr) => {
         if (err) {

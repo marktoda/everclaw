@@ -2,7 +2,8 @@ import { readdir, readFile } from "node:fs/promises";
 import * as path from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import type { ToolDef } from "../agent/tools/types.ts";
+import type Anthropic from "@anthropic-ai/sdk";
+import { baseChildEnv } from "../child-env.ts";
 import { logger } from "../logger.ts";
 
 /* ------------------------------------------------------------------ */
@@ -36,7 +37,9 @@ function isStringRecord(v: unknown): v is Record<string, string> {
  * Returns `{ ok: true }` when valid, or `{ ok: false, error }` with a
  * specific, actionable message describing the first problem found.
  */
-export function validateServerConfig(raw: string): { ok: true } | { ok: false; error: string } {
+export function validateServerConfig(
+  raw: string,
+): { ok: true; parsed: Record<string, unknown> } | { ok: false; error: string } {
   if (!raw || !raw.trim()) {
     return { ok: false, error: "content is empty" };
   }
@@ -87,7 +90,7 @@ export function validateServerConfig(raw: string): { ok: true } | { ok: false; e
     }
   }
 
-  return { ok: true };
+  return { ok: true, parsed: obj };
 }
 
 /**
@@ -121,8 +124,7 @@ export async function listServerConfigs(serversDir: string): Promise<ServerConfi
       continue;
     }
 
-    // Safe to parse — validateServerConfig already confirmed structure
-    const obj = JSON.parse(raw) as Record<string, unknown>;
+    const obj = validation.parsed;
     const name = path.basename(entry, ".json");
 
     configs.push({
@@ -149,7 +151,7 @@ export interface ServerSummary {
 export interface McpManager {
   start(serversDir: string, env: Record<string, string>): Promise<void>;
   reload(): Promise<void>;
-  definitions(): ToolDef[];
+  definitions(): Anthropic.Tool[];
   execute(toolName: string, input: Record<string, unknown>): Promise<string>;
   serverSummaries(): ServerSummary[];
   stop(): Promise<void>;
@@ -173,7 +175,7 @@ export function createMcpManager(): McpManager {
   /** namespaced tool name -> { server name, original tool name } */
   let toolRoute = new Map<string, { serverName: string; toolName: string }>();
   /** All discovered tool definitions (Anthropic format) */
-  let toolDefs: ToolDef[] = [];
+  let toolDefs: Anthropic.Tool[] = [];
   /** Stored args from last start() call, used by reload() */
   let storedServersDir: string | undefined;
   let storedEnv: Record<string, string> | undefined;
@@ -198,12 +200,7 @@ export function createMcpManager(): McpManager {
         const transport = new StdioClientTransport({
           command: config.command,
           args: config.args,
-          env: {
-            PATH: process.env.PATH ?? "",
-            HOME: process.env.HOME ?? "",
-            ...env,
-            ...(config.env ?? {}),
-          },
+          env: baseChildEnv({ ...env, ...(config.env ?? {}) }),
         });
 
         const client = new Client({
@@ -227,7 +224,7 @@ export function createMcpManager(): McpManager {
           toolDefs.push({
             name: namespacedName,
             description: tool.description ?? "",
-            input_schema: tool.inputSchema as ToolDef["input_schema"],
+            input_schema: tool.inputSchema as Anthropic.Tool["input_schema"],
           });
         }
 
@@ -245,7 +242,7 @@ export function createMcpManager(): McpManager {
     await start(storedServersDir, storedEnv);
   }
 
-  function definitions(): ToolDef[] {
+  function definitions(): Anthropic.Tool[] {
     return toolDefs;
   }
 

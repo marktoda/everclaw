@@ -67,10 +67,8 @@ export function buildAgentDeps(
     extraDirs: deps.config.dirs.extra,
     onText: opts?.silent
       ? undefined
-      : (text) => {
-          deps.channels.sendMessage(recipientId, text).catch((err) => {
-            log?.warn({ err, recipientId }, "failed to send message");
-          });
+      : async (text) => {
+          await deps.channels.sendMessage(recipientId, text);
         },
   };
 }

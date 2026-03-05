@@ -37,8 +37,8 @@ export interface AgentDeps {
   log?: Logger;
   mcpSummaries?: ServerSummary[];
   extraDirs?: ExtraDir[];
-  /** Called with filtered text as it becomes available. */
-  onText?: (text: string) => void;
+  /** Called with filtered text as it becomes available. Must be awaited for delivery. */
+  onText?: (text: string) => Promise<void>;
 }
 
 /** Read all .md files in the pinned notes directory and concatenate their contents. */
@@ -140,7 +140,7 @@ export async function runAgentLoop(
       await ctx.step(`send-text-${turn}`, async () => {
         for (const block of textBlocks) {
           const filtered = stripInternalTags(block.text);
-          if (filtered) deps.onText?.(filtered);
+          if (filtered) await deps.onText?.(filtered);
         }
         return true;
       });

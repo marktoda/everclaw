@@ -27,15 +27,6 @@ function toolResultText(content: Anthropic.ToolResultBlockParam["content"]): str
     .join("\n");
 }
 
-/** Extract text from message content (handles both string and content block arrays). */
-function extractText(content: Anthropic.MessageParam["content"]): string {
-  if (typeof content === "string") return content;
-  return content
-    .filter((b): b is Anthropic.TextBlockParam => b.type === "text")
-    .map((b) => b.text)
-    .join("\n");
-}
-
 /** Convert message content to block array form (wraps plain strings as text blocks). */
 function toBlocks(content: Anthropic.MessageParam["content"]): ContentBlock[] {
   if (typeof content === "string") return content ? [{ type: "text", text: content }] : [];
@@ -180,10 +171,9 @@ export function sanitizeMessages(messages: Anthropic.MessageParam[]): Anthropic.
   for (const msg of cleaned) {
     if (result.length > 0 && result[result.length - 1].role === msg.role) {
       const prev = result[result.length - 1];
-      result[result.length - 1] = {
-        role: msg.role,
-        content: [...toBlocks(prev.content), ...toBlocks(msg.content)],
-      };
+      const prevBlocks = toBlocks(prev.content);
+      prevBlocks.push(...toBlocks(msg.content));
+      prev.content = prevBlocks;
     } else {
       result.push(msg);
     }

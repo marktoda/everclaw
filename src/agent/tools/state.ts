@@ -44,13 +44,17 @@ export const stateTools: ToolHandler[] = [
     def: defineTool("get_status", "Get assistant uptime, file counts, and schedule count.", {}),
     async execute(_input, deps) {
       const uptime = Math.floor((Date.now() - deps.startedAt.getTime()) / 1000);
-      const skills = await listSkills(deps.dirs.skills);
-      const scripts = await listScripts(deps.dirs.scripts);
-      const schedules = await deps.absurd.listSchedules();
+      const [skills, scripts, schedules, pinnedEntries, noteEntries] = await Promise.all([
+        listSkills(deps.dirs.skills),
+        listScripts(deps.dirs.scripts),
+        deps.absurd.listSchedules(),
+        fs.readdir(path.join(deps.dirs.notes, "pinned")).catch(() => [] as string[]),
+        fs.readdir(deps.dirs.notes).catch(() => [] as string[]),
+      ]);
       return [
         `Uptime: ${uptime}s`,
-        `Pinned notes: ${(await fs.readdir(path.join(deps.dirs.notes, "pinned")).catch(() => [])).filter((e: string) => e.endsWith(".md")).length} files`,
-        `Available notes: ${(await fs.readdir(deps.dirs.notes).catch(() => [])).filter((e: string) => e.endsWith(".md")).length} files`,
+        `Pinned notes: ${pinnedEntries.filter((e) => e.endsWith(".md")).length} files`,
+        `Available notes: ${noteEntries.filter((e) => e.endsWith(".md")).length} files`,
         `Skills: ${skills.length}`,
         `Scripts: ${scripts.length}`,
         `Schedules: ${schedules.length}`,

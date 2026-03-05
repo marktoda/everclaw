@@ -3,16 +3,17 @@ import { orchestrationTools } from "./orchestration.ts";
 import { scriptTools } from "./scripts.ts";
 import { searchTools } from "./search.ts";
 import { stateTools } from "./state.ts";
-import type { ExecutorDeps, ToolDef, ToolHandler } from "./types.ts";
+import type Anthropic from "@anthropic-ai/sdk";
+import type { ExecutorDeps, ToolHandler } from "./types.ts";
 
 export interface ToolRegistry {
-  definitions: ToolDef[];
+  definitions: Anthropic.Tool[];
   execute(name: string, input: Record<string, any>): Promise<string>;
   isSuspending(name: string): boolean;
 }
 
 export interface McpToolSource {
-  definitions(): ToolDef[];
+  definitions(): Anthropic.Tool[];
   execute(toolName: string, input: Record<string, unknown>): Promise<string>;
 }
 
@@ -25,7 +26,7 @@ const allHandlers: ToolHandler[] = [
 ];
 
 const handlerMap = new Map(allHandlers.map((h) => [h.def.name, h]));
-const builtinDefinitions: ToolDef[] = allHandlers.map((h) => h.def);
+const builtinDefinitions: Anthropic.Tool[] = allHandlers.map((h) => h.def);
 
 export function createToolRegistry(deps: ExecutorDeps, mcp?: McpToolSource): ToolRegistry {
   return {

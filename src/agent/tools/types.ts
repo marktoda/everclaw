@@ -3,8 +3,6 @@ import type { Absurd, TaskContext } from "absurd-sdk";
 import type { Pool } from "pg";
 import type { ExtraDir } from "../../config.ts";
 
-export type ToolDef = Anthropic.Tool;
-
 export interface ExecutorDeps {
   absurd: Absurd;
   pool: Pool;
@@ -29,7 +27,7 @@ export interface ExecutorDeps {
 }
 
 export interface ToolHandler {
-  def: ToolDef;
+  def: Anthropic.Tool;
   suspends?: boolean;
   execute(input: Record<string, unknown>, deps: ExecutorDeps): Promise<string>;
 }
@@ -39,7 +37,7 @@ export function defineTool(
   description: string,
   properties: Record<string, { type?: string; description?: string; enum?: string[] }> = {},
   required: string[] = [],
-): ToolDef {
+): Anthropic.Tool {
   return {
     name,
     description,
