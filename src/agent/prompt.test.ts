@@ -132,6 +132,6 @@ describe("buildSystemPrompt", () => {
     const p = buildSystemPrompt(base);
     expect(p).toContain("data/notes/pinned/");
     expect(p).toContain("data/notes/temp/");
-    expect(p).toContain("Scratch space");
+    expect(p).toContain("Agent scratch space");
   });
 });
