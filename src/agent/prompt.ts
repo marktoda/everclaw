@@ -6,6 +6,28 @@ export interface PromptContext {
   extraDirs?: Array<{ name: string; mode: "ro" | "rw"; absPath: string }>;
 }
 
+/**
+ * Format a Date as a human-readable string including day of week and timezone,
+ * so the LLM can reason about time correctly.
+ * Example: "Wednesday, March 5, 2026, 3:45 PM EST (2026-03-05T20:45:00.000Z)"
+ */
+export function formatDateTime(now: Date): string {
+  const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const months = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
+  ];
+  const dayName = days[now.getUTCDay()];
+  const month = months[now.getUTCMonth()];
+  const date = now.getUTCDate();
+  const year = now.getUTCFullYear();
+  const hours = now.getUTCHours();
+  const minutes = now.getUTCMinutes().toString().padStart(2, "0");
+  const ampm = hours >= 12 ? "PM" : "AM";
+  const hour12 = hours % 12 || 12;
+  return `${dayName}, ${month} ${date}, ${year}, ${hour12}:${minutes} ${ampm} UTC (${now.toISOString()})`;
+}
+
 export function buildSystemPrompt(ctx: PromptContext): string {
   const parts: string[] = [];
 
@@ -103,7 +125,7 @@ not be shown to the user. Everything inside these tags is stripped before
 sending. Use this for planning, thinking through tool sequences, or notes
 to yourself.
 
-Current date and time: ${new Date().toISOString()}`);
+Current date and time: ${formatDateTime(new Date())}`);
 
   if (ctx.extraDirs && ctx.extraDirs.length > 0) {
     const extraList = ctx.extraDirs

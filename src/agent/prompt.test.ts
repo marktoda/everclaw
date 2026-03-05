@@ -1,5 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { buildSystemPrompt } from "./prompt.ts";
+import { buildSystemPrompt, formatDateTime } from "./prompt.ts";
+
+describe("formatDateTime", () => {
+  it("formats a known date with day of week, readable date, time, and ISO", () => {
+    // 2026-03-05T14:30:00Z is a Thursday
+    const d = new Date("2026-03-05T14:30:00Z");
+    const result = formatDateTime(d);
+    expect(result).toBe("Thursday, March 5, 2026, 2:30 PM UTC (2026-03-05T14:30:00.000Z)");
+  });
+
+  it("handles midnight correctly", () => {
+    const d = new Date("2026-01-01T00:00:00Z");
+    const result = formatDateTime(d);
+    expect(result).toContain("12:00 AM UTC");
+    expect(result).toContain("Thursday");
+  });
+});
 
 describe("buildSystemPrompt", () => {
   it("includes base instructions", () => {
@@ -22,9 +38,11 @@ describe("buildSystemPrompt", () => {
     expect(p).toContain("Manage TODOs");
   });
 
-  it("includes date", () => {
+  it("includes date with day of week and timezone", () => {
     const p = buildSystemPrompt({ notes: "", skills: [], tools: [] });
     expect(p).toMatch(/\d{4}-\d{2}-\d{2}/);
+    expect(p).toMatch(/(Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday)/);
+    expect(p).toContain("UTC");
   });
 
   it("includes workflow capabilities", () => {
