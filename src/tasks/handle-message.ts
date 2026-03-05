@@ -6,7 +6,7 @@ export type { TaskDeps } from "./shared.ts";
 
 export function registerHandleMessage(absurd: Absurd, deps: TaskDeps): void {
   absurd.registerTask(
-    { name: "handle-message" },
+    { name: "handle-message", defaultMaxAttempts: 3 },
     async (params: { recipientId: string; text: string }, ctx: TaskContext) => {
       const agentDeps = buildAgentDeps(deps, absurd, ctx, params.recipientId, {
         taskName: "handle-message",

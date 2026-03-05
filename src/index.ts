@@ -17,7 +17,7 @@ async function main() {
   const startedAt = new Date();
 
   const pool = new pg.Pool({ connectionString: config.worker.databaseUrl });
-  const anthropic = new Anthropic({ apiKey: config.anthropicApiKey });
+  const anthropic = new Anthropic({ apiKey: config.anthropicApiKey, timeout: 120_000 });
   const absurd = new Absurd({ db: pool, queueName: config.worker.queueName });
 
   await absurd.createQueue();

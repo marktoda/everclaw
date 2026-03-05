@@ -5,7 +5,7 @@ import { BACKGROUND_MAX_HISTORY, buildAgentDeps } from "./shared.ts";
 
 export function registerWorkflow(absurd: Absurd, deps: TaskDeps): void {
   absurd.registerTask(
-    { name: "workflow" },
+    { name: "workflow", defaultMaxAttempts: 3 },
     async (
       params: { recipientId: string; instructions: string; context?: unknown },
       ctx: TaskContext,
