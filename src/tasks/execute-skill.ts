@@ -3,7 +3,7 @@ import * as path from "node:path";
 import type { Absurd, TaskContext } from "absurd-sdk";
 import { runAgentLoop } from "../agent/loop.ts";
 import type { TaskDeps } from "./shared.ts";
-import { BACKGROUND_MAX_HISTORY, buildAgentDeps } from "./shared.ts";
+import { BACKGROUND_MAX_HISTORY, buildAgentDeps, defaultRecipientFile } from "./shared.ts";
 
 export function registerExecuteSkill(absurd: Absurd, deps: TaskDeps): void {
   absurd.registerTask(
@@ -16,10 +16,7 @@ export function registerExecuteSkill(absurd: Absurd, deps: TaskDeps): void {
         ((await ctx.step("resolve-recipient", async () => {
           try {
             return JSON.parse(
-              await fs.readFile(
-                path.join(deps.config.dirs.notes, "temp", "default-recipient.json"),
-                "utf-8",
-              ),
+              await fs.readFile(defaultRecipientFile(deps.config.dirs.notes), "utf-8"),
             );
           } catch {
             return null;

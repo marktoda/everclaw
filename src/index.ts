@@ -11,6 +11,7 @@ import { syncSchedules } from "./skills/manager.ts";
 import { registerExecuteSkill } from "./tasks/execute-skill.ts";
 import { registerHandleMessage } from "./tasks/handle-message.ts";
 import { registerSendMessage } from "./tasks/send-message.ts";
+import { defaultRecipientFile } from "./tasks/shared.ts";
 import { registerWorkflow } from "./tasks/workflow.ts";
 
 async function main() {
@@ -34,7 +35,7 @@ async function main() {
   }
 
   // Persist defaultRecipientId via file
-  const recipientFile = path.join(config.dirs.notes, "temp", "default-recipient.json");
+  const recipientFile = defaultRecipientFile(config.dirs.notes);
   let defaultRecipientId = "";
   try {
     defaultRecipientId = JSON.parse(await fs.readFile(recipientFile, "utf-8"));
