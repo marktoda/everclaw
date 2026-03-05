@@ -305,12 +305,15 @@ describe("sanitizeMessages", () => {
     expect(result).toEqual([
       { role: "user", content: "msg1" },
       { role: "assistant", content: "ok" },
-      { role: "user", content: "msg2\n\nmsg3" },
+      {
+        role: "user",
+        content: [{ type: "text", text: "msg2" }, { type: "text", text: "msg3" }],
+      },
       { role: "assistant", content: "final" },
     ]);
   });
 
-  it("extracts text from content block arrays when merging same-role messages", () => {
+  it("preserves content blocks when merging same-role messages", () => {
     // Two assistant messages with array content become adjacent after an
     // orphaned tool_result between them is dropped in Pass 1.
     const messages = [
@@ -331,8 +334,11 @@ describe("sanitizeMessages", () => {
     const result = sanitizeMessages(messages as any);
     expect(result).toHaveLength(2);
     expect(result[0]).toEqual({ role: "user", content: "question" });
-    // Text extracted from content block arrays, not silently dropped
-    expect(result[1].content).toBe("part one\n\npart two");
+    // Block arrays are concatenated, preserving all block types
+    expect(result[1].content).toEqual([
+      { type: "text", text: "part one" },
+      { type: "text", text: "part two" },
+    ]);
   });
 
   it("drops tool_use at the very end with no following message", () => {
@@ -373,7 +379,14 @@ describe("sanitizeMessages", () => {
     ];
     const result = sanitizeMessages(messages as any);
     expect(result).toEqual([
-      { role: "user", content: "msg1\n\nmsg2\n\nmsg3" },
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "msg1" },
+          { type: "text", text: "msg2" },
+          { type: "text", text: "msg3" },
+        ],
+      },
       { role: "assistant", content: "final" },
     ]);
   });
@@ -395,7 +408,10 @@ describe("sanitizeMessages", () => {
     ];
     const result = sanitizeMessages(messages as any);
     expect(result).toEqual([
-      { role: "user", content: "hi\n\nnever mind" },
+      {
+        role: "user",
+        content: [{ type: "text", text: "hi" }, { type: "text", text: "never mind" }],
+      },
       { role: "assistant", content: "ok" },
     ]);
   });
@@ -414,6 +430,53 @@ describe("sanitizeMessages", () => {
 
   it("handles empty messages array", () => {
     expect(sanitizeMessages([])).toEqual([]);
+  });
+
+  it("preserves tool_result blocks when merging with following user text", () => {
+    // Bug scenario: valid tool pair followed by user text message.
+    // The merge must preserve tool_result blocks, not destroy them.
+    const messages = [
+      { role: "user" as const, content: "hello" },
+      {
+        role: "assistant" as const,
+        content: [
+          { type: "text", text: "let me check" },
+          { type: "tool_use", id: "tu-1", name: "read_file", input: {} },
+          { type: "tool_use", id: "tu-2", name: "get_state", input: {} },
+        ],
+      },
+      {
+        role: "user" as const,
+        content: [
+          { type: "tool_result", tool_use_id: "tu-1", content: "file contents" },
+          { type: "tool_result", tool_use_id: "tu-2", content: "state value" },
+        ],
+      },
+      { role: "user" as const, content: "ok thanks" },
+      { role: "assistant" as const, content: "you're welcome" },
+    ];
+    const result = sanitizeMessages(messages as any);
+    // tool_result blocks must survive the merge with the following user text
+    expect(result).toEqual([
+      { role: "user", content: "hello" },
+      {
+        role: "assistant",
+        content: [
+          { type: "text", text: "let me check" },
+          { type: "tool_use", id: "tu-1", name: "read_file", input: {} },
+          { type: "tool_use", id: "tu-2", name: "get_state", input: {} },
+        ],
+      },
+      {
+        role: "user",
+        content: [
+          { type: "tool_result", tool_use_id: "tu-1", content: "file contents" },
+          { type: "tool_result", tool_use_id: "tu-2", content: "state value" },
+          { type: "text", text: "ok thanks" },
+        ],
+      },
+      { role: "assistant", content: "you're welcome" },
+    ]);
   });
 
   it("keeps valid parallel tool calls with matching IDs", () => {

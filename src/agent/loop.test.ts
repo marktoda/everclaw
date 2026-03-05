@@ -997,7 +997,10 @@ describe("runAgentLoop", () => {
       expect(messages).toHaveLength(5);
       expect(messages[0]).toEqual({ role: "user", content: "msg1" });
       expect(messages[1]).toEqual({ role: "assistant", content: "ok" });
-      expect(messages[2]).toEqual({ role: "user", content: "msg2\n\nmsg3" });
+      expect(messages[2]).toEqual({
+        role: "user",
+        content: [{ type: "text", text: "msg2" }, { type: "text", text: "msg3" }],
+      });
       expect(messages[3]).toEqual({ role: "assistant", content: "reply3" });
       expect(messages[4]).toEqual({ role: "user", content: "hello" });
     });
