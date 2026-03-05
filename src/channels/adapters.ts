@@ -1,11 +1,14 @@
-import type { ChannelAdapter } from "./adapter.ts";
 import { FLAG_CHANNELS } from "../config.ts";
+import type { ChannelAdapter } from "./adapter.ts";
 
 export interface AdapterOptions {
   openaiApiKey?: string;
 }
 
-const ADAPTER_FACTORIES: Record<string, (token: string, opts: AdapterOptions) => ChannelAdapter | Promise<ChannelAdapter>> = {
+const ADAPTER_FACTORIES: Record<
+  string,
+  (token: string, opts: AdapterOptions) => ChannelAdapter | Promise<ChannelAdapter>
+> = {
   discord: async (token) => {
     const { DiscordAdapter } = await import("./discord.ts");
     return new DiscordAdapter(token);

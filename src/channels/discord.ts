@@ -1,7 +1,7 @@
-import { Client, GatewayIntentBits, Partials } from "discord.js";
 import type { TextChannel } from "discord.js";
+import { Client, GatewayIntentBits, Partials } from "discord.js";
 import { logger } from "../logger.ts";
-import { stripPrefix, type ChannelAdapter, type InboundMessage } from "./adapter.ts";
+import { type ChannelAdapter, type InboundMessage, stripPrefix } from "./adapter.ts";
 import { splitMessage } from "./split.ts";
 
 export class DiscordAdapter implements ChannelAdapter {

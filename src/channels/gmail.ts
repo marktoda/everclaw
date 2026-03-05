@@ -2,7 +2,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { google } from "googleapis";
 import { logger } from "../logger.ts";
-import { stripPrefix, type ChannelAdapter, type InboundMessage } from "./adapter.ts";
+import { type ChannelAdapter, type InboundMessage, stripPrefix } from "./adapter.ts";
 import { authDir } from "./auth.ts";
 
 const AUTH_DIR = authDir("gmail");
@@ -53,9 +53,7 @@ function buildRawEmail(
   ];
   if (thread?.messageId) {
     lines.push(`In-Reply-To: ${thread.messageId}`);
-    const refs = thread.references
-      ? `${thread.references} ${thread.messageId}`
-      : thread.messageId;
+    const refs = thread.references ? `${thread.references} ${thread.messageId}` : thread.messageId;
     lines.push(`References: ${refs}`);
   }
   lines.push("", body);
@@ -84,12 +82,14 @@ export class GmailAdapter implements ChannelAdapter {
       this.auth.setCredentials(token);
     } catch {
       logger.info("Gmail: No saved token. Run the OAuth2 flow first.");
-      logger.info(`Visit: ${this.auth.generateAuthUrl({ access_type: "offline", scope: ["https://www.googleapis.com/auth/gmail.modify"] })}`);
+      logger.info(
+        `Visit: ${this.auth.generateAuthUrl({ access_type: "offline", scope: ["https://www.googleapis.com/auth/gmail.modify"] })}`,
+      );
       throw new Error(
         "Gmail OAuth2 token not found. Complete the OAuth2 flow and save the token to data/auth/gmail/token.json.\n" +
-        "Steps: 1) Visit the URL above  2) Authorize  3) Copy the auth code  " +
-        "4) Exchange it: curl -d 'code=AUTH_CODE&client_id=ID&client_secret=SECRET&redirect_uri=URI&grant_type=authorization_code' https://oauth2.googleapis.com/token  " +
-        "5) Save the JSON response to data/auth/gmail/token.json",
+          "Steps: 1) Visit the URL above  2) Authorize  3) Copy the auth code  " +
+          "4) Exchange it: curl -d 'code=AUTH_CODE&client_id=ID&client_secret=SECRET&redirect_uri=URI&grant_type=authorization_code' https://oauth2.googleapis.com/token  " +
+          "5) Save the JSON response to data/auth/gmail/token.json",
       );
     }
 
@@ -123,9 +123,13 @@ export class GmailAdapter implements ChannelAdapter {
     }
 
     // Start polling
-    this.pollTimer = setInterval(() => this.poll().catch((err: any) => {
-      logger.error({ err }, "Gmail poll error");
-    }), POLL_INTERVAL);
+    this.pollTimer = setInterval(
+      () =>
+        this.poll().catch((err: any) => {
+          logger.error({ err }, "Gmail poll error");
+        }),
+      POLL_INTERVAL,
+    );
   }
 
   private async poll(): Promise<void> {
@@ -195,9 +199,12 @@ export class GmailAdapter implements ChannelAdapter {
 
   private async saveState(): Promise<void> {
     try {
-      await fs.writeFile(STATE_PATH, JSON.stringify({
-        processedIds: [...this.processedIds],
-      }));
+      await fs.writeFile(
+        STATE_PATH,
+        JSON.stringify({
+          processedIds: [...this.processedIds],
+        }),
+      );
     } catch (err) {
       logger.warn({ err }, "Failed to save Gmail state");
     }
@@ -206,7 +213,9 @@ export class GmailAdapter implements ChannelAdapter {
   async sendMessage(recipientId: string, text: string): Promise<void> {
     const to = stripPrefix(recipientId);
     const thread = this.threadContext.get(to);
-    const subject = thread ? `Re: ${thread.subject.replace(/^Re:\s*/i, "")}` : "Message from assistant";
+    const subject = thread
+      ? `Re: ${thread.subject.replace(/^Re:\s*/i, "")}`
+      : "Message from assistant";
 
     const raw = buildRawEmail(to, this.myEmail || "me", subject, text, thread);
     await this.gmail.users.messages.send({

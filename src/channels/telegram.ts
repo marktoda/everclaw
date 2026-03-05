@@ -1,7 +1,7 @@
 import { Bot } from "grammy";
 import { logger } from "../logger.ts";
 import { transcribeAudio } from "../transcription.ts";
-import { stripPrefix, type ChannelAdapter, type InboundMessage } from "./adapter.ts";
+import { type ChannelAdapter, type InboundMessage, stripPrefix } from "./adapter.ts";
 import { markdownToEntities, splitWithEntities } from "./format-telegram.ts";
 
 interface TelegramAdapterOptions {

@@ -1,5 +1,5 @@
-import type { ChannelAdapter, InboundMessage } from "./adapter.ts";
 import { logger } from "../logger.ts";
+import type { ChannelAdapter, InboundMessage } from "./adapter.ts";
 
 export class ChannelRegistry {
   private adapters = new Map<string, ChannelAdapter>();
@@ -39,9 +39,7 @@ export class ChannelRegistry {
   }
 
   async stopAll(): Promise<void> {
-    const results = await Promise.allSettled(
-      [...this.adapters.values()].map((a) => a.stop()),
-    );
+    const results = await Promise.allSettled([...this.adapters.values()].map((a) => a.stop()));
     for (const r of results) {
       if (r.status === "rejected") {
         logger.error({ err: r.reason }, "failed to stop channel adapter");

@@ -11,49 +11,37 @@ describe("markdownToEntities", () => {
   it("converts bold to bold entity", () => {
     const result = markdownToEntities("**bold**");
     expect(result.text).toBe("bold");
-    expect(result.entities).toEqual([
-      { type: "bold", offset: 0, length: 4 },
-    ]);
+    expect(result.entities).toEqual([{ type: "bold", offset: 0, length: 4 }]);
   });
 
   it("converts italic to italic entity", () => {
     const result = markdownToEntities("*italic*");
     expect(result.text).toBe("italic");
-    expect(result.entities).toEqual([
-      { type: "italic", offset: 0, length: 6 },
-    ]);
+    expect(result.entities).toEqual([{ type: "italic", offset: 0, length: 6 }]);
   });
 
   it("converts strikethrough to strikethrough entity", () => {
     const result = markdownToEntities("~~strike~~");
     expect(result.text).toBe("strike");
-    expect(result.entities).toEqual([
-      { type: "strikethrough", offset: 0, length: 6 },
-    ]);
+    expect(result.entities).toEqual([{ type: "strikethrough", offset: 0, length: 6 }]);
   });
 
   it("converts inline code to code entity", () => {
     const result = markdownToEntities("use `foo()` here");
     expect(result.text).toBe("use foo() here");
-    expect(result.entities).toEqual([
-      { type: "code", offset: 4, length: 5 },
-    ]);
+    expect(result.entities).toEqual([{ type: "code", offset: 4, length: 5 }]);
   });
 
   it("converts fenced code block to pre entity with language", () => {
     const result = markdownToEntities("```ts\nconst x = 1;\n```");
     expect(result.text).toBe("const x = 1;");
-    expect(result.entities).toEqual([
-      { type: "pre", offset: 0, length: 12, language: "ts" },
-    ]);
+    expect(result.entities).toEqual([{ type: "pre", offset: 0, length: 12, language: "ts" }]);
   });
 
   it("converts fenced code block without language", () => {
     const result = markdownToEntities("```\nhello\n```");
     expect(result.text).toBe("hello");
-    expect(result.entities).toEqual([
-      { type: "pre", offset: 0, length: 5 },
-    ]);
+    expect(result.entities).toEqual([{ type: "pre", offset: 0, length: 5 }]);
   });
 
   it("converts links to text_link entity", () => {
@@ -75,26 +63,20 @@ describe("markdownToEntities", () => {
   it("converts headings to bold entity", () => {
     const result = markdownToEntities("# Title");
     expect(result.text).toBe("Title");
-    expect(result.entities).toEqual([
-      { type: "bold", offset: 0, length: 5 },
-    ]);
+    expect(result.entities).toEqual([{ type: "bold", offset: 0, length: 5 }]);
   });
 
   it("does not produce nested bold for bold text inside heading", () => {
     const result = markdownToEntities("## **Bold Heading**");
     expect(result.text).toBe("Bold Heading");
     // Should be a single bold entity, not two nested ones
-    expect(result.entities).toEqual([
-      { type: "bold", offset: 0, length: 12 },
-    ]);
+    expect(result.entities).toEqual([{ type: "bold", offset: 0, length: 12 }]);
   });
 
   it("converts blockquotes to blockquote entity", () => {
     const result = markdownToEntities("> quoted text");
     expect(result.text).toBe("quoted text");
-    expect(result.entities).toEqual([
-      { type: "blockquote", offset: 0, length: 11 },
-    ]);
+    expect(result.entities).toEqual([{ type: "blockquote", offset: 0, length: 11 }]);
   });
 
   it("converts unordered list items to bullets", () => {

@@ -37,9 +37,15 @@ vi.mock("googleapis", () => {
 vi.mock("node:fs/promises", () => ({
   readFile: vi.fn().mockImplementation((filePath: string) => {
     if (filePath.includes("credentials.json")) {
-      return Promise.resolve(JSON.stringify({
-        installed: { client_id: "id", client_secret: "secret", redirect_uris: ["http://localhost"] },
-      }));
+      return Promise.resolve(
+        JSON.stringify({
+          installed: {
+            client_id: "id",
+            client_secret: "secret",
+            redirect_uris: ["http://localhost"],
+          },
+        }),
+      );
     }
     if (filePath.includes("token.json")) {
       return Promise.resolve(JSON.stringify({ access_token: "at", refresh_token: "rt" }));

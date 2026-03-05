@@ -65,10 +65,12 @@ describe("WhatsAppAdapter", () => {
     await adapter.start(onMessage);
 
     await capturedHandlers["messages.upsert"]?.({
-      messages: [{
-        key: { remoteJid: "5551234567@s.whatsapp.net", fromMe: false },
-        message: { conversation: "hello" },
-      }],
+      messages: [
+        {
+          key: { remoteJid: "5551234567@s.whatsapp.net", fromMe: false },
+          message: { conversation: "hello" },
+        },
+      ],
       type: "notify",
     });
 
@@ -85,10 +87,12 @@ describe("WhatsAppAdapter", () => {
     await adapter.start(onMessage);
 
     await capturedHandlers["messages.upsert"]?.({
-      messages: [{
-        key: { remoteJid: "5551234567@s.whatsapp.net", fromMe: false },
-        message: { extendedTextMessage: { text: "extended hello" } },
-      }],
+      messages: [
+        {
+          key: { remoteJid: "5551234567@s.whatsapp.net", fromMe: false },
+          message: { extendedTextMessage: { text: "extended hello" } },
+        },
+      ],
       type: "notify",
     });
 
@@ -105,10 +109,12 @@ describe("WhatsAppAdapter", () => {
     await adapter.start(onMessage);
 
     await capturedHandlers["messages.upsert"]?.({
-      messages: [{
-        key: { remoteJid: "5551234567@s.whatsapp.net", fromMe: true },
-        message: { conversation: "hello" },
-      }],
+      messages: [
+        {
+          key: { remoteJid: "5551234567@s.whatsapp.net", fromMe: true },
+          message: { conversation: "hello" },
+        },
+      ],
       type: "notify",
     });
 
@@ -122,10 +128,12 @@ describe("WhatsAppAdapter", () => {
     await adapter.start(onMessage);
 
     await capturedHandlers["messages.upsert"]?.({
-      messages: [{
-        key: { remoteJid: "123456789@g.us", fromMe: false },
-        message: { conversation: "group msg" },
-      }],
+      messages: [
+        {
+          key: { remoteJid: "123456789@g.us", fromMe: false },
+          message: { conversation: "group msg" },
+        },
+      ],
       type: "notify",
     });
 
@@ -139,10 +147,7 @@ describe("WhatsAppAdapter", () => {
 
     await adapter.sendMessage("whatsapp:5551234567", "hello");
 
-    expect(mockSendMessage).toHaveBeenCalledWith(
-      "5551234567@s.whatsapp.net",
-      { text: "hello" },
-    );
+    expect(mockSendMessage).toHaveBeenCalledWith("5551234567@s.whatsapp.net", { text: "hello" });
   });
 
   it("setTyping sends composing presence", async () => {

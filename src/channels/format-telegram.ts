@@ -1,5 +1,5 @@
-import { marked } from "marked";
 import type { Token, Tokens } from "marked";
+import { marked } from "marked";
 import { findSplitPoint } from "./split.ts";
 
 export interface FormattedMessage {
@@ -8,7 +8,11 @@ export interface FormattedMessage {
 }
 
 export type TelegramEntity =
-  | { type: "bold" | "italic" | "strikethrough" | "code" | "blockquote"; offset: number; length: number }
+  | {
+      type: "bold" | "italic" | "strikethrough" | "code" | "blockquote";
+      offset: number;
+      length: number;
+    }
   | { type: "pre"; offset: number; length: number; language?: string }
   | { type: "text_link"; offset: number; length: number; url: string };
 
@@ -39,7 +43,7 @@ export function markdownToEntities(md: string): FormattedMessage {
 
   walkBlocks(tokens, w, entities, new Set());
 
-  let text = w.buf.join("").replace(/\n+$/, "");
+  const text = w.buf.join("").replace(/\n+$/, "");
 
   // Clamp entity lengths to not exceed text length
   for (const e of entities) {
@@ -70,7 +74,12 @@ function emitFormatted(
   }
 }
 
-function walkBlocks(tokens: Token[], w: Writer, entities: TelegramEntity[], activeTypes: Set<EntityType>): void {
+function walkBlocks(
+  tokens: Token[],
+  w: Writer,
+  entities: TelegramEntity[],
+  activeTypes: Set<EntityType>,
+): void {
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i];
 
@@ -156,7 +165,12 @@ function walkBlocks(tokens: Token[], w: Writer, entities: TelegramEntity[], acti
   }
 }
 
-function walkInline(tokens: Token[], w: Writer, entities: TelegramEntity[], activeTypes: Set<EntityType>): void {
+function walkInline(
+  tokens: Token[],
+  w: Writer,
+  entities: TelegramEntity[],
+  activeTypes: Set<EntityType>,
+): void {
   for (const token of tokens) {
     switch (token.type) {
       case "text": {
@@ -177,7 +191,13 @@ function walkInline(tokens: Token[], w: Writer, entities: TelegramEntity[], acti
         break;
       }
       case "del": {
-        emitFormatted("strikethrough", (token as Tokens.Del).tokens ?? [], w, entities, activeTypes);
+        emitFormatted(
+          "strikethrough",
+          (token as Tokens.Del).tokens ?? [],
+          w,
+          entities,
+          activeTypes,
+        );
         break;
       }
       case "codespan": {
@@ -193,7 +213,12 @@ function walkInline(tokens: Token[], w: Writer, entities: TelegramEntity[], acti
         const linkToken = token as Tokens.Link;
         const start = w.offset;
         walkInline(linkToken.tokens ?? [], w, entities, activeTypes);
-        entities.push({ type: "text_link", offset: start, length: w.offset - start, url: linkToken.href });
+        entities.push({
+          type: "text_link",
+          offset: start,
+          length: w.offset - start,
+          url: linkToken.href,
+        });
         break;
       }
       case "image": {

@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import * as path from "node:path";
+import { describe, expect, it } from "vitest";
 import { authDir } from "./auth.ts";
 
 describe("authDir", () => {
