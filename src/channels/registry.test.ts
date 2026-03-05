@@ -7,6 +7,7 @@ function fakeAdapter(name: string): ChannelAdapter {
     name,
     start: vi.fn().mockResolvedValue(undefined),
     sendMessage: vi.fn().mockResolvedValue(undefined),
+    isConnected: vi.fn().mockReturnValue(true),
     stop: vi.fn().mockResolvedValue(undefined),
   };
 }

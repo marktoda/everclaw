@@ -62,6 +62,10 @@ export class DiscordAdapter implements ChannelAdapter {
     }
   }
 
+  isConnected(): boolean {
+    return this.client.isReady();
+  }
+
   async setTyping(recipientId: string, isTyping: boolean): Promise<void> {
     if (!isTyping) return;
     const channelId = stripPrefix(recipientId);

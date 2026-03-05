@@ -13,6 +13,7 @@ export class TelegramAdapter implements ChannelAdapter {
   private maxMessageLength = 4096;
   private bot: Bot;
   private openaiApiKey?: string;
+  private connected = false;
 
   constructor(token: string, options?: TelegramAdapterOptions) {
     this.bot = new Bot(token);
@@ -48,7 +49,9 @@ export class TelegramAdapter implements ChannelAdapter {
       });
     }
 
+    this.connected = true;
     this.bot.start({ onStart: () => {} }).catch((err) => {
+      this.connected = false;
       logger.error({ err }, "Telegram bot polling crashed");
     });
   }
@@ -63,7 +66,12 @@ export class TelegramAdapter implements ChannelAdapter {
     }
   }
 
+  isConnected(): boolean {
+    return this.connected;
+  }
+
   async stop(): Promise<void> {
+    this.connected = false;
     await this.bot.stop();
   }
 }

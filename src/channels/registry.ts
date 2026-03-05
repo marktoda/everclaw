@@ -22,6 +22,9 @@ export class ChannelRegistry {
 
   async sendMessage(recipientId: string, text: string): Promise<void> {
     const adapter = this.resolve(recipientId);
+    if (!adapter.isConnected()) {
+      logger.warn({ recipientId, channel: adapter.name }, "adapter disconnected — send may fail");
+    }
     await adapter.sendMessage(recipientId, text);
   }
 

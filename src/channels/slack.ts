@@ -7,6 +7,7 @@ export class SlackAdapter implements ChannelAdapter {
   name = "slack" as const;
   private maxMessageLength = 4000;
   private app: App;
+  private connected = false;
 
   constructor(token: string) {
     const [botToken, appToken] = token.split("|");
@@ -37,6 +38,7 @@ export class SlackAdapter implements ChannelAdapter {
     });
 
     await this.app.start();
+    this.connected = true;
   }
 
   async sendMessage(recipientId: string, text: string): Promise<void> {
@@ -46,7 +48,12 @@ export class SlackAdapter implements ChannelAdapter {
     }
   }
 
+  isConnected(): boolean {
+    return this.connected;
+  }
+
   async stop(): Promise<void> {
+    this.connected = false;
     await this.app.stop();
   }
 }

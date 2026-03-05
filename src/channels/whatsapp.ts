@@ -36,6 +36,7 @@ export class WhatsAppAdapter implements ChannelAdapter {
   private reconnectDelay = 1000;
   private reconnectTimer?: ReturnType<typeof setTimeout>;
   private stopped = false;
+  private connected = false;
 
   async start(onMessage: (msg: InboundMessage) => Promise<void>): Promise<void> {
     this.onMessage = onMessage;
@@ -61,6 +62,7 @@ export class WhatsAppAdapter implements ChannelAdapter {
     this.sock.ev.on("connection.update", (update: any) => {
       const { connection, lastDisconnect } = update;
       if (connection === "close") {
+        this.connected = false;
         const statusCode = (lastDisconnect?.error as any)?.output?.statusCode;
         if (statusCode === DisconnectReason.loggedOut) {
           logger.error("WhatsApp logged out — delete data/auth/whatsapp and re-scan QR");
@@ -74,6 +76,7 @@ export class WhatsAppAdapter implements ChannelAdapter {
         }), this.reconnectDelay);
         this.reconnectDelay = Math.min(this.reconnectDelay * 2, MAX_RECONNECT_DELAY);
       } else if (connection === "open") {
+        this.connected = true;
         this.reconnectDelay = 1000;
         logger.info("WhatsApp connected");
       }
@@ -116,8 +119,13 @@ export class WhatsAppAdapter implements ChannelAdapter {
     await this.sock.sendPresenceUpdate(isTyping ? "composing" : "paused", jid);
   }
 
+  isConnected(): boolean {
+    return this.connected;
+  }
+
   async stop(): Promise<void> {
     this.stopped = true;
+    this.connected = false;
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     this.sock?.end(undefined);
   }

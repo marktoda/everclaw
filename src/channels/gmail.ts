@@ -215,8 +215,13 @@ export class GmailAdapter implements ChannelAdapter {
     });
   }
 
+  isConnected(): boolean {
+    return this.pollTimer !== undefined;
+  }
+
   async stop(): Promise<void> {
     if (this.pollTimer) clearInterval(this.pollTimer);
+    this.pollTimer = undefined;
     await this.saveState();
   }
 }

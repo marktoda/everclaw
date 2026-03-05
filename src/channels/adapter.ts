@@ -17,6 +17,8 @@ export interface ChannelAdapter {
   sendMessage(recipientId: string, text: string): Promise<void>;
   /** Optional typing indicator. */
   setTyping?(recipientId: string, isTyping: boolean): Promise<void>;
+  /** Whether the adapter is currently connected and able to send/receive. */
+  isConnected(): boolean;
   /** Graceful shutdown. */
   stop(): Promise<void>;
 }
