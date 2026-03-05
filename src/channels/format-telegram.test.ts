@@ -37,6 +37,17 @@ describe("markdownToTelegramHtml", () => {
       expect(markdownToTelegramHtml("### Sub")).toBe("<b>Sub</b>");
     });
 
+    it("strips bold markers inside headings to avoid nested <b> tags", () => {
+      expect(markdownToTelegramHtml("## **Bold Heading**")).toBe("<b>Bold Heading</b>");
+      expect(markdownToTelegramHtml("## **Multi-Tenant SaaS Model**")).toBe(
+        "<b>Multi-Tenant SaaS Model</b>",
+      );
+    });
+
+    it("strips italic markers inside headings", () => {
+      expect(markdownToTelegramHtml("## *Italic Heading*")).toBe("<b>Italic Heading</b>");
+    });
+
     it("removes horizontal rules", () => {
       expect(markdownToTelegramHtml("above\n\n---\n\nbelow")).toBe("above\n\nbelow");
     });

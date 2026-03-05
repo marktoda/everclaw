@@ -27,9 +27,12 @@ export function markdownToTelegramHtml(md: string): string {
   text = text
     .split("\n")
     .map((line) => {
-      // Headings → bold
+      // Headings → bold (strip nested bold/italic markers since heading is already bold)
       const heading = line.match(/^(#{1,6})\s+(.+)$/);
-      if (heading) return `<b>${heading[2]}</b>`;
+      if (heading) {
+        const inner = heading[2].replace(/\*{1,3}(.+?)\*{1,3}/g, "$1");
+        return `<b>${inner}</b>`;
+      }
 
       // Horizontal rules → empty line
       if (/^(-{3,}|_{3,}|\*{3,})$/.test(line.trim())) return "";
@@ -62,6 +65,9 @@ export function markdownToTelegramHtml(md: string): string {
   text = text.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
   // Links: [text](url)
   text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+
+  // 5b. Collapse nested identical tags (e.g. <b><b>x</b></b> → <b>x</b>)
+  text = text.replace(/<(b|i|s|u)><\1>([\s\S]*?)<\/\1><\/\1>/g, "<$1>$2</$1>");
 
   // 6. Restore placeholders
   // biome-ignore lint/complexity/useRegexLiterals: NUL placeholders require RegExp constructor to avoid noControlCharactersInRegex
