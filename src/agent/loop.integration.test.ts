@@ -11,11 +11,7 @@ import type { Scenario } from "../test/fake-anthropic.ts";
 import { FakeAnthropic } from "../test/fake-anthropic.ts";
 import type { TestDb } from "../test/harness.ts";
 import { setupTestDb } from "../test/harness.ts";
-import {
-  SIMPLE_TEXT_REPLY,
-  SINGLE_TOOL_USE,
-  WRITE_AND_READ,
-} from "../test/scenarios.ts";
+import { SIMPLE_TEXT_REPLY, SINGLE_TOOL_USE, WRITE_AND_READ } from "../test/scenarios.ts";
 import type { AgentDeps } from "./loop.ts";
 import { runAgentLoop } from "./loop.ts";
 import { createToolRegistry } from "./tools/index.ts";

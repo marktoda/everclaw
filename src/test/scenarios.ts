@@ -78,10 +78,7 @@ export const TEXT_PLUS_TOOL: Scenario = {
   name: "text-plus-tool",
   turns: [
     {
-      content: [
-        text("Let me check..."),
-        toolUse("glob_files", { pattern: "*.md" }, "tu-1"),
-      ],
+      content: [text("Let me check..."), toolUse("glob_files", { pattern: "*.md" }, "tu-1")],
       stop_reason: "tool_use",
     },
     {
@@ -125,7 +122,6 @@ export const WRITE_AND_READ: Scenario = {
     },
   ],
 };
-
 
 // ── Orchestration scenarios ──────────────────────────────────────────
 

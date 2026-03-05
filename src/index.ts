@@ -1,7 +1,7 @@
-import Anthropic from "@anthropic-ai/sdk";
-import { Absurd } from "absurd-sdk";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
+import Anthropic from "@anthropic-ai/sdk";
+import { Absurd } from "absurd-sdk";
 import * as pg from "pg";
 import { ChannelRegistry, createAdapter } from "./channels/index.ts";
 import { loadConfig } from "./config.ts";

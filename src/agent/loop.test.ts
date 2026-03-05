@@ -285,7 +285,11 @@ describe("runAgentLoop", () => {
     it("sends all tool results back in a single user message", async () => {
       const executeTool = vi.fn().mockResolvedValueOnce("r1").mockResolvedValueOnce("r2");
       const tb1 = toolUseBlock("read_file", { path: "data/notes/test.md" }, "id-1");
-      const tb2 = toolUseBlock("write_file", { path: "data/notes/test.md", content: "test" }, "id-2");
+      const tb2 = toolUseBlock(
+        "write_file",
+        { path: "data/notes/test.md", content: "test" },
+        "id-2",
+      );
       const anthropic = createMockAnthropic([
         apiResponse([tb1, tb2], "tool_use"),
         apiResponse([textBlock("ok")]),

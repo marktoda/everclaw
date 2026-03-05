@@ -156,7 +156,11 @@ describe("contract tests — API-valid message arrays", () => {
         role: "assistant",
         content: "(tool use only)",
         toolUse: [
-          { id: "tu-hist-1", name: "write_file", input: { path: "data/notes/test.md", content: "v" } },
+          {
+            id: "tu-hist-1",
+            name: "write_file",
+            input: { path: "data/notes/test.md", content: "v" },
+          },
         ],
       },
       {
