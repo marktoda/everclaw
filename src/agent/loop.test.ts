@@ -428,7 +428,7 @@ describe("runAgentLoop", () => {
   // ── 9. Max turns limit ─────────────────────────────────────────────
 
   describe("max turns", () => {
-    it("stops after 20 turns and returns empty string if only tool_use", async () => {
+    it("stops after 50 turns and returns empty string if only tool_use", async () => {
       // Create an anthropic mock that always returns tool_use
       const tb = toolUseBlock("read_file", {}, "loop-1");
       const create = vi.fn().mockResolvedValue(apiResponse([tb], "tool_use"));
@@ -439,8 +439,8 @@ describe("runAgentLoop", () => {
 
       const result = await runAgentLoop(ctx, "telegram:1", "infinite", deps);
 
-      // messages.create is called once per turn => exactly 20 calls
-      expect(create).toHaveBeenCalledTimes(20);
+      // messages.create is called once per turn => exactly 50 calls
+      expect(create).toHaveBeenCalledTimes(50);
       // The reply variable starts as "" and never gets set to text
       // (since every response is tool_use), so the final return is "".
       expect(result).toBe("");
@@ -449,8 +449,8 @@ describe("runAgentLoop", () => {
     it("returns text from the last turn if Claude responds with text on the final turn", async () => {
       const tb = toolUseBlock("read_file", {}, "loop-1");
       const create = vi.fn();
-      // 19 tool_use turns, then text on turn 20 (index 19)
-      for (let i = 0; i < 19; i++) {
+      // 49 tool_use turns, then text on turn 50 (index 49)
+      for (let i = 0; i < 49; i++) {
         create.mockResolvedValueOnce(apiResponse([tb], "tool_use"));
       }
       create.mockResolvedValueOnce(apiResponse([textBlock("finally")]));
@@ -463,7 +463,7 @@ describe("runAgentLoop", () => {
       const result = await runAgentLoop(ctx, "telegram:1", "loops", deps);
 
       expect(result).toBe("finally");
-      expect(create).toHaveBeenCalledTimes(20);
+      expect(create).toHaveBeenCalledTimes(50);
     });
   });
 
