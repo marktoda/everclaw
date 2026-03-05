@@ -1,6 +1,6 @@
 # CLAUDE.md - everclaw
 
-AI personal assistant built on the Absurd durable task queue. Communicates via pluggable messaging channels (Telegram by default), reasons with Claude (Anthropic), and extends itself through markdown skill files and tool scripts.
+AI personal assistant built on the Absurd durable task queue. Communicates via pluggable messaging channels (Telegram, Discord, Slack, WhatsApp, Gmail), reasons with Claude (Anthropic), and extends itself through markdown skill files and tool scripts.
 
 ## Commands
 
@@ -21,10 +21,15 @@ src/
   index.ts              Entry point: creates Pool, Anthropic, Absurd, ChannelRegistry; registers tasks; starts worker
   config.ts             Config: secrets from .env file, non-secrets from process.env
   channels/
-    adapter.ts          ChannelAdapter interface & InboundMessage type
-    registry.ts         ChannelRegistry: routes messages by recipientId prefix
+    adapter.ts          ChannelAdapter interface (start, sendMessage, stop, setTyping?) & InboundMessage type
+    registry.ts         ChannelRegistry: routes messages by recipientId prefix, setTyping passthrough
     telegram.ts         TelegramAdapter: grammY-based Telegram implementation
+    discord.ts          DiscordAdapter: discord.js, 2000 char limit, typing indicators
+    slack.ts            SlackAdapter: @slack/bolt Socket Mode, pipe-delimited tokens, 4000 char limit
+    whatsapp.ts         WhatsAppAdapter: Baileys, QR auth, reconnection with backoff, typing
+    gmail.ts            GmailAdapter: googleapis OAuth2, email polling, threaded replies
     adapters.ts         Adapter factory: maps channel type → adapter constructor
+    auth.ts             Shared authDir() helper — resolves data/auth/{adapter}/
     split.ts            Generic message splitting utility (paragraph → line → hard split)
     index.ts            Barrel export
   transcription.ts      Shared audio transcription via OpenAI Whisper
@@ -70,11 +75,15 @@ docs/plans/             Design and implementation documents
 
 ## Key Patterns
 
-**Channel abstraction.** Messaging channels implement the `ChannelAdapter` interface (`start`, `sendMessage`, `stop`). A `ChannelRegistry` routes outbound messages by parsing the prefix from `recipientId` strings (e.g. `telegram:123456789`). Each adapter owns message splitting via the generic `splitMessage` utility. Adding a new channel means writing a single adapter file.
+**Channel abstraction.** Messaging channels implement the `ChannelAdapter` interface (`start`, `sendMessage`, `stop`, optional `setTyping`). Five adapters: Telegram, Discord, Slack, WhatsApp, Gmail. A `ChannelRegistry` routes outbound messages by parsing the prefix from `recipientId` strings (e.g. `telegram:123456789`, `discord:123`, `whatsapp:1234567890`). Each adapter owns message splitting via the generic `splitMessage` utility. Adding a new channel means writing a single adapter file and one factory entry.
 
-**Pluggable channels.** Channels are auto-detected from `CHANNEL_*` secrets in `.env` (e.g. `CHANNEL_TELEGRAM` → telegram adapter). The adapter factory in `channels/adapters.ts` maps type strings to constructors. Adding a new channel means writing an adapter file and adding one line to the factory map.
+**Pluggable channels.** Channels are auto-detected from `CHANNEL_*` secrets in `.env` (e.g. `CHANNEL_TELEGRAM` → telegram adapter, `CHANNEL_DISCORD` → discord). The adapter factory in `channels/adapters.ts` maps type strings to constructors. WhatsApp and Gmail use truthy flags (`CHANNEL_WHATSAPP=1`, `CHANNEL_GMAIL=1`) since they authenticate interactively. Slack uses a pipe-delimited `bot_token|app_token` value.
 
-**Voice transcription.** When `OPENAI_API_KEY` is set, the Telegram adapter transcribes voice messages via OpenAI Whisper and delivers them as `[Voice: transcript]`. The shared `transcription.ts` module can be used by any adapter. Without the key, voice messages are silently ignored.
+**Channel auth state.** Adapters requiring persistent auth (WhatsApp, Gmail) store state under `data/auth/{adapter}/` via the shared `authDir()` helper in `channels/auth.ts`. WhatsApp stores Baileys session files; Gmail stores OAuth2 credentials, token cache, and polling state. The `data/` directory is fully gitignored.
+
+**Typing indicators.** `ChannelAdapter.setTyping?(recipientId, isTyping)` is optional. `handle-message.ts` calls `setTyping(recipientId, true)` before the agent loop (fire-and-forget with `.catch(() => {})`). Discord and WhatsApp implement it; Slack's is a no-op; Gmail omits it entirely.
+
+**Voice transcription.** When `OPENAI_API_KEY` is set, adapters can transcribe voice messages via OpenAI Whisper (shared `transcription.ts` module) and deliver them as `[Voice: transcript]`. Currently used by Telegram and WhatsApp adapters. Without the key, voice messages are silently ignored.
 
 **Stateless message handling.** Every inbound message spawns a fresh `handle-message` task. There is no "wait for reply" — the agent saves context to files, completes, and picks up context on the next message from conversation history.
 
@@ -84,7 +93,7 @@ docs/plans/             Design and implementation documents
 
 **Extra directories.** Users can mount additional directories via the `EXTRA_DIRS` env var (`name:mode:path` comma-separated, e.g. `vaults:ro:/mnt/vaults`). Each gets read-only or read-write access through the same file tools, with the same path containment and symlink protection as built-in dirs. No side-effects (no schedule sync, chmod, etc.).
 
-**Config: secrets vs env.** Secrets (`CHANNEL_TELEGRAM`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`) are read from `.env` file only and never set in `process.env`. Non-secret config (`DATABASE_URL`, `QUEUE_NAME`, `CLAUDE_MODEL`, etc.) comes from `process.env` with defaults. Three prefix conventions route secrets to subsystems: `CHANNEL_*` (channel tokens, prefix stripped to get type), `SCRIPT_*` (passed to tool scripts, prefix stripped), `SERVER_*` (passed to MCP servers, prefix stripped). `SCRIPT_*` and `SERVER_*` use the shared `parsePrefixedEnv` helper; channels use a similar prefix-based parser that returns `ChannelConfig[]`. The Config type groups related fields: `config.agent` (model, history), `config.worker` (database, queue, concurrency), `config.dirs` (notes, skills, scripts, servers, extra). Queue name is validated as a safe SQL identifier at load time.
+**Config: secrets vs env.** Secrets (`CHANNEL_TELEGRAM`, `CHANNEL_DISCORD`, `CHANNEL_SLACK`, `CHANNEL_WHATSAPP`, `CHANNEL_GMAIL`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`) are read from `.env` file only and never set in `process.env`. Non-secret config (`DATABASE_URL`, `QUEUE_NAME`, `CLAUDE_MODEL`, etc.) comes from `process.env` with defaults. Three prefix conventions route secrets to subsystems: `CHANNEL_*` (channel tokens, prefix stripped to get type), `SCRIPT_*` (passed to tool scripts, prefix stripped), `SERVER_*` (passed to MCP servers, prefix stripped). `SCRIPT_*` and `SERVER_*` use the shared `parsePrefixedEnv` helper; channels use a similar prefix-based parser that returns `ChannelConfig[]`. The Config type groups related fields: `config.agent` (model, history), `config.worker` (database, queue, concurrency), `config.dirs` (notes, skills, scripts, servers, extra). Queue name is validated as a safe SQL identifier at load time.
 
 **Chat ID allowlist.** `ALLOWED_CHAT_IDS` in `.env` (comma-separated, fully prefixed IDs like `telegram:123456789`) restricts which users can interact with the agent. When unset/empty the bot runs in **discovery mode** — it replies with the sender's chat ID and setup instructions instead of running the agent. When set, unauthorized messages are silently ignored (logged at warn). Filtering happens in `index.ts` before any task is spawned.
 
@@ -129,3 +138,8 @@ Three layers: unit tests (mocked, fast), contract tests (FakeAnthropic validates
 - **`ALLOWED_CHAT_IDS` format**: Uses fully prefixed IDs (e.g. `telegram:123456789`, not bare `123456789`). Discovery mode shows the correct format.
 - **`SCRIPT_*` prefix stripping**: Script env vars use the `SCRIPT_` prefix in `.env`, but the prefix is stripped before passing to scripts. Scripts see `MY_KEY`, not `SCRIPT_MY_KEY`.
 - **`CHANNEL_*` convention**: Channel tokens use `CHANNEL_<TYPE>` in `.env` (e.g. `CHANNEL_TELEGRAM`). The type is extracted from the key name after the prefix.
+- **Slack dual tokens**: `CHANNEL_SLACK` is pipe-delimited `bot_token|app_token`. Both are required for Socket Mode.
+- **WhatsApp QR auth**: WhatsApp uses QR code authentication on first run (printed to terminal). Session files persist in `data/auth/whatsapp/`. The adapter reconnects with exponential backoff (1s→60s cap) and cleans up event listeners before each reconnect.
+- **Gmail OAuth2 + initial sync**: Gmail requires OAuth2 interactive auth on first run. On startup, existing unread emails are marked as seen without processing to avoid a flood of old messages. Per-sender thread context is tracked for proper `In-Reply-To`/`References` headers.
+- **WhatsApp message containers**: WhatsApp messages are wrapped in various container types (conversation, extendedTextMessage, ephemeral, viewOnce, editedMessage). The adapter unwraps all of these to extract text.
+- **Discord Gateway Intents**: The Discord adapter requires MessageContent, GuildMessages, and DirectMessages gateway intents to be enabled in the Discord Developer Portal.
