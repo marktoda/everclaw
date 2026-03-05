@@ -156,7 +156,7 @@ describe("contract tests — API-valid message arrays", () => {
         role: "assistant",
         content: "(tool use only)",
         toolUse: [
-          { id: "tu-hist-1", name: "set_state", input: { namespace: "n", key: "k", value: "v" } },
+          { id: "tu-hist-1", name: "write_file", input: { path: "data/notes/test.md", content: "v" } },
         ],
       },
       {
@@ -165,7 +165,7 @@ describe("contract tests — API-valid message arrays", () => {
         content: "[tu-hist-1]: OK",
         toolUse: [{ tool_use_id: "tu-hist-1", content: "OK" }],
       },
-      { recipientId: "telegram:1", role: "assistant", content: "Done setting state." },
+      { recipientId: "telegram:1", role: "assistant", content: "Done writing file." },
     ] as any);
 
     const fake = new FakeAnthropic(SIMPLE_TEXT_REPLY);

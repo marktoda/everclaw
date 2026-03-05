@@ -135,7 +135,7 @@ describe("deconstructMessages", () => {
     const messages = [
       {
         role: "assistant" as const,
-        content: [{ type: "tool_use" as const, id: "tu-1", name: "get_state", input: {} }],
+        content: [{ type: "tool_use" as const, id: "tu-1", name: "read_file", input: {} }],
       },
     ];
     const result = deconstructMessages("telegram:1", messages as any);
@@ -269,7 +269,7 @@ describe("sanitizeMessages", () => {
         role: "assistant" as const,
         content: [
           { type: "tool_use", id: "tu-A", name: "read_file", input: {} },
-          { type: "tool_use", id: "tu-B", name: "get_state", input: {} },
+          { type: "tool_use", id: "tu-B", name: "read_file", input: {} },
         ],
       },
       {
@@ -371,7 +371,7 @@ describe("sanitizeMessages", () => {
       { role: "user" as const, content: "msg2" },
       {
         role: "assistant" as const,
-        content: [{ type: "tool_use", id: "tu-B", name: "get_state", input: {} }],
+        content: [{ type: "tool_use", id: "tu-B", name: "read_file", input: {} }],
       },
       {
         role: "user" as const,
@@ -403,7 +403,7 @@ describe("sanitizeMessages", () => {
         role: "assistant" as const,
         content: [
           { type: "text", text: "Let me check..." },
-          { type: "tool_use", id: "tu-1", name: "get_state", input: {} },
+          { type: "tool_use", id: "tu-1", name: "read_file", input: {} },
         ],
       },
       { role: "user" as const, content: "never mind" },
@@ -448,14 +448,14 @@ describe("sanitizeMessages", () => {
         content: [
           { type: "text", text: "let me check" },
           { type: "tool_use", id: "tu-1", name: "read_file", input: {} },
-          { type: "tool_use", id: "tu-2", name: "get_state", input: {} },
+          { type: "tool_use", id: "tu-2", name: "read_file", input: {} },
         ],
       },
       {
         role: "user" as const,
         content: [
           { type: "tool_result", tool_use_id: "tu-1", content: "file contents" },
-          { type: "tool_result", tool_use_id: "tu-2", content: "state value" },
+          { type: "tool_result", tool_use_id: "tu-2", content: "file content" },
         ],
       },
       { role: "user" as const, content: "ok thanks" },
@@ -470,14 +470,14 @@ describe("sanitizeMessages", () => {
         content: [
           { type: "text", text: "let me check" },
           { type: "tool_use", id: "tu-1", name: "read_file", input: {} },
-          { type: "tool_use", id: "tu-2", name: "get_state", input: {} },
+          { type: "tool_use", id: "tu-2", name: "read_file", input: {} },
         ],
       },
       {
         role: "user",
         content: [
           { type: "tool_result", tool_use_id: "tu-1", content: "file contents" },
-          { type: "tool_result", tool_use_id: "tu-2", content: "state value" },
+          { type: "tool_result", tool_use_id: "tu-2", content: "file content" },
           { type: "text", text: "ok thanks" },
         ],
       },
@@ -492,14 +492,14 @@ describe("sanitizeMessages", () => {
         role: "assistant" as const,
         content: [
           { type: "tool_use", id: "tu-1", name: "read_file", input: {} },
-          { type: "tool_use", id: "tu-2", name: "get_state", input: {} },
+          { type: "tool_use", id: "tu-2", name: "read_file", input: {} },
         ],
       },
       {
         role: "user" as const,
         content: [
           { type: "tool_result", tool_use_id: "tu-1", content: "file" },
-          { type: "tool_result", tool_use_id: "tu-2", content: "state" },
+          { type: "tool_result", tool_use_id: "tu-2", content: "file content" },
         ],
       },
       { role: "assistant" as const, content: "done" },

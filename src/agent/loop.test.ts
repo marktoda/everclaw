@@ -235,7 +235,7 @@ describe("runAgentLoop", () => {
 
     it("sends tool_result back with the correct tool_use_id", async () => {
       const executeTool = vi.fn().mockResolvedValue("result-123");
-      const tb = toolUseBlock("get_state", { namespace: "n", key: "k" }, "tool-abc");
+      const tb = toolUseBlock("read_file", { path: "data/notes/test.md" }, "tool-abc");
       const anthropic = createMockAnthropic([
         apiResponse([tb], "tool_use"),
         apiResponse([textBlock("final")]),
@@ -243,7 +243,7 @@ describe("runAgentLoop", () => {
       const deps = baseDeps({ anthropic, executeTool });
       const ctx = createMockCtx();
 
-      await runAgentLoop(ctx, "telegram:1", "get state", deps);
+      await runAgentLoop(ctx, "telegram:1", "read file", deps);
 
       // Use the snapshot captured at call-time (avoids mutation issues)
       const snapshot = anthropic.snapshots[1];
@@ -284,8 +284,8 @@ describe("runAgentLoop", () => {
 
     it("sends all tool results back in a single user message", async () => {
       const executeTool = vi.fn().mockResolvedValueOnce("r1").mockResolvedValueOnce("r2");
-      const tb1 = toolUseBlock("get_state", {}, "id-1");
-      const tb2 = toolUseBlock("set_state", {}, "id-2");
+      const tb1 = toolUseBlock("read_file", { path: "data/notes/test.md" }, "id-1");
+      const tb2 = toolUseBlock("write_file", { path: "data/notes/test.md", content: "test" }, "id-2");
       const anthropic = createMockAnthropic([
         apiResponse([tb1, tb2], "tool_use"),
         apiResponse([textBlock("ok")]),
@@ -352,8 +352,8 @@ describe("runAgentLoop", () => {
     it.each([
       "read_file",
       "write_file",
-      "get_state",
-      "set_state",
+      "glob_files",
+      "grep_files",
       "run_script",
       "spawn_workflow",
       "spawn_skill",
@@ -738,7 +738,7 @@ describe("runAgentLoop", () => {
           recipientId: "telegram:1",
           role: "assistant",
           content: "(tool use only)",
-          toolUse: [{ id: "tu-1", name: "get_state", input: { namespace: "n", key: "k" } }],
+          toolUse: [{ id: "tu-1", name: "read_file", input: { path: "data/notes/test.md" } }],
         },
         {
           recipientId: "telegram:1",
@@ -782,7 +782,7 @@ describe("runAgentLoop", () => {
 
     it("persists tool_use and tool_result messages during a tool flow", async () => {
       const executeTool = vi.fn().mockResolvedValue("tool-result");
-      const tb = toolUseBlock("get_state", { namespace: "n", key: "k" }, "tool-p");
+      const tb = toolUseBlock("read_file", { path: "data/notes/test.md" }, "tool-p");
       const anthropic = createMockAnthropic([
         apiResponse([tb], "tool_use"),
         apiResponse([textBlock("final answer")]),
@@ -805,7 +805,7 @@ describe("runAgentLoop", () => {
       expect(assistantMsg).toMatchObject({ recipientId: "telegram:42", role: "assistant" });
       expect(assistantMsg.toolUse).toBeDefined();
       expect(assistantMsg.toolUse).toEqual([
-        { id: "tool-p", name: "get_state", input: { namespace: "n", key: "k" } },
+        { id: "tool-p", name: "read_file", input: { path: "data/notes/test.md" } },
       ]);
 
       // 3. Tool results (structured toolUse for history reconstruction)

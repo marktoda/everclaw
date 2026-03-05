@@ -14,7 +14,6 @@ import { setupTestDb } from "../test/harness.ts";
 import {
   SIMPLE_TEXT_REPLY,
   SINGLE_TOOL_USE,
-  STATE_ROUNDTRIP,
   WRITE_AND_READ,
 } from "../test/scenarios.ts";
 import type { AgentDeps } from "./loop.ts";
@@ -133,24 +132,21 @@ describe("loop integration tests", () => {
     expect(fs.readFileSync(filePath, "utf-8")).toBe("hello world");
   });
 
-  it("state persistence through real Postgres: set -> get", async () => {
+  it("file round-trip through real file system: write -> read -> verify", async () => {
     const recipientId = `telegram:${recipientIdCounter}`;
-    const fake = new FakeAnthropic(STATE_ROUNDTRIP);
+    const fake = new FakeAnthropic(WRITE_AND_READ);
     const deps = buildDeps(fake, recipientId);
     const ctx = makeCtx();
 
-    const reply = await runAgentLoop(ctx, recipientId, "Set my color", deps);
+    const reply = await runAgentLoop(ctx, recipientId, "Write and read a file", deps);
 
-    expect(reply).toBe("Your color is blue.");
+    expect(reply).toBe("File contains: hello world");
     fake.assertAllTurnsConsumed();
 
-    // Verify state directly in Postgres
-    const result = await db.pool.query(
-      `SELECT value FROM assistant.state WHERE namespace = $1 AND key = $2`,
-      ["test", "color"],
-    );
-    expect(result.rows.length).toBe(1);
-    expect(result.rows[0].value).toBe("blue");
+    // Verify the file actually exists on disk
+    const filePath = path.join(notesDir, "test.md");
+    expect(fs.existsSync(filePath)).toBe(true);
+    expect(fs.readFileSync(filePath, "utf-8")).toBe("hello world");
   });
 
   it("history reconstruction fidelity across two messages", async () => {

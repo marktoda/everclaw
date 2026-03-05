@@ -36,14 +36,14 @@ export const SINGLE_TOOL_USE: Scenario = {
   ],
 };
 
-/** Two turns: parallel tool_use(read_file, get_state) -> text reply. */
+/** Two turns: parallel tool_use(read_file, glob_files) -> text reply. */
 export const MULTI_TOOL_PARALLEL: Scenario = {
   name: "multi-tool-parallel",
   turns: [
     {
       content: [
         toolUse("read_file", { path: "data/notes/test.md" }, "tu-1"),
-        toolUse("get_state", { namespace: "test", key: "k" }, "tu-2"),
+        toolUse("glob_files", { pattern: "*.md" }, "tu-2"),
       ],
       stop_reason: "tool_use",
     },
@@ -80,7 +80,7 @@ export const TEXT_PLUS_TOOL: Scenario = {
     {
       content: [
         text("Let me check..."),
-        toolUse("get_state", { namespace: "test", key: "k" }, "tu-1"),
+        toolUse("glob_files", { pattern: "*.md" }, "tu-1"),
       ],
       stop_reason: "tool_use",
     },
@@ -92,13 +92,13 @@ export const TEXT_PLUS_TOOL: Scenario = {
 };
 
 /**
- * Returns a scenario with 20 turns of tool_use(get_state), each with a unique
+ * Returns a scenario with 20 turns of tool_use(read_file), each with a unique
  * id "tu-0" through "tu-19". Useful for testing max-turn limits.
  */
 export function makeMaxTurnsScenario(): Scenario {
   const turns = Array.from({ length: 20 }, (_, i) => ({
     content: [
-      toolUse("get_state", { namespace: "test", key: `k${i}` }, `tu-${i}`),
+      toolUse("read_file", { path: "data/notes/test.md" }, `tu-${i}`),
     ] as Anthropic.ContentBlock[],
     stop_reason: "tool_use" as const,
   }));
@@ -126,24 +126,6 @@ export const WRITE_AND_READ: Scenario = {
   ],
 };
 
-/** Three turns: set_state -> get_state -> text reply. Tests state round-trip. */
-export const STATE_ROUNDTRIP: Scenario = {
-  name: "state-roundtrip",
-  turns: [
-    {
-      content: [toolUse("set_state", { namespace: "test", key: "color", value: "blue" }, "tu-1")],
-      stop_reason: "tool_use",
-    },
-    {
-      content: [toolUse("get_state", { namespace: "test", key: "color" }, "tu-2")],
-      stop_reason: "tool_use",
-    },
-    {
-      content: [text("Your color is blue.")],
-      stop_reason: "end_turn",
-    },
-  ],
-};
 
 // ── Orchestration scenarios ──────────────────────────────────────────
 

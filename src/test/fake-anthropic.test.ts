@@ -352,14 +352,14 @@ describe("FakeAnthropic", () => {
               role: "assistant",
               content: [
                 toolUseBlock("read_file", { path: "a.md" }, "tu-1"),
-                toolUseBlock("get_state", { namespace: "n", key: "k" }, "tu-2"),
+                toolUseBlock("read_file", { path: "data/notes/test.md" }, "tu-2"),
               ],
             },
             {
               role: "user",
               content: [
                 { type: "tool_result", tool_use_id: "tu-1", content: "file data" },
-                { type: "tool_result", tool_use_id: "tu-2", content: "state value" },
+                { type: "tool_result", tool_use_id: "tu-2", content: "file content" },
               ],
             },
           ],
