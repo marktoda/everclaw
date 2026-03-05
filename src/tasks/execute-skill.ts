@@ -11,8 +11,7 @@ export function registerExecuteSkill(absurd: Absurd, deps: TaskDeps): void {
     async (params: { skillName: string; recipientId?: string }, ctx: TaskContext) => {
       // Resolve recipientId: use explicit param (from spawn_skill) or fall back
       // to the first allowed chat ID (for scheduled skills).
-      const recipientId =
-        params.recipientId || [...deps.config.allowedChatIds][0] || null;
+      const recipientId = params.recipientId || [...deps.config.allowedChatIds][0] || null;
 
       if (!recipientId) {
         deps.log?.warn(
