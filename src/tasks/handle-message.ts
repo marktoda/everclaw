@@ -14,6 +14,8 @@ export function registerHandleMessage(absurd: Absurd, deps: TaskDeps): void {
 
       agentDeps.log?.info({ textLength: params.text.length }, "message received");
 
+      await deps.channels.setTyping?.(params.recipientId, true).catch(() => {});
+
       const reply = await runAgentLoop(ctx, params.recipientId, params.text, agentDeps);
 
       agentDeps.log?.info({ replyLength: reply.length }, "message complete");

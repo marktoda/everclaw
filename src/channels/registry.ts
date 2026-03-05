@@ -14,6 +14,11 @@ export class ChannelRegistry {
     return adapter;
   }
 
+  async setTyping(recipientId: string, isTyping: boolean): Promise<void> {
+    const adapter = this.resolve(recipientId);
+    await adapter.setTyping?.(recipientId, isTyping);
+  }
+
   async sendMessage(recipientId: string, text: string): Promise<void> {
     const adapter = this.resolve(recipientId);
     await adapter.sendMessage(recipientId, text);

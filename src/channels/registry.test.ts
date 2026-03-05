@@ -62,4 +62,24 @@ describe("ChannelRegistry", () => {
 
     expect(tg.stop).toHaveBeenCalledOnce();
   });
+
+  it("setTyping calls adapter.setTyping when present", async () => {
+    const registry = new ChannelRegistry();
+    const tg = fakeAdapter("telegram");
+    tg.setTyping = vi.fn().mockResolvedValue(undefined);
+    registry.register(tg);
+
+    await registry.setTyping("telegram:123", true);
+
+    expect(tg.setTyping).toHaveBeenCalledWith("telegram:123", true);
+  });
+
+  it("setTyping is a no-op when adapter has no setTyping", async () => {
+    const registry = new ChannelRegistry();
+    const tg = fakeAdapter("telegram");
+    registry.register(tg);
+
+    // Should not throw
+    await registry.setTyping("telegram:123", true);
+  });
 });
