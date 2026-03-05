@@ -23,6 +23,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
     "@modelcontextprotocol/sdk": "^1.27.1",
+    "@slack/bolt": "^4.6.0",
     "absurd-sdk": "github:marktoda/absurd#schedules&path:sdks/typescript",
     "discord.js": "^14.25.1",
     "grammy": "^1.35.0",

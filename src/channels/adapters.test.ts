@@ -1,5 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 
+vi.mock("@slack/bolt", () => {
+  class App {
+    client = { chat: { postMessage: vi.fn() } };
+    event() {}
+    start = vi.fn();
+    stop = vi.fn();
+  }
+  return { App };
+});
+
 vi.mock("discord.js", () => {
   const GatewayIntentBits = { Guilds: 1, GuildMessages: 2, MessageContent: 4, DirectMessages: 8 };
   const Partials = { Channel: 0 };
@@ -24,6 +34,11 @@ describe("createAdapter", () => {
   it("creates a DiscordAdapter for type 'discord'", () => {
     const adapter = createAdapter("discord", "fake-token");
     expect(adapter.name).toBe("discord");
+  });
+
+  it("creates a SlackAdapter for type 'slack'", () => {
+    const adapter = createAdapter("slack", "xoxb-fake|xapp-fake");
+    expect(adapter.name).toBe("slack");
   });
 
   it("throws for unknown channel type", () => {
