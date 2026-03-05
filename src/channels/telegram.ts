@@ -2,8 +2,8 @@ import { Bot } from "grammy";
 import { logger } from "../logger.ts";
 import { transcribeAudio } from "../transcription.ts";
 import type { ChannelAdapter, InboundMessage } from "./adapter.ts";
-import { markdownToTelegramHtml } from "./format-telegram.ts";
-import { splitMessage } from "./split.ts";
+import { markdownToEntities } from "./format-telegram.ts";
+import { splitWithEntities } from "./split.ts";
 
 interface TelegramAdapterOptions {
   openaiApiKey?: string;
@@ -57,18 +57,11 @@ export class TelegramAdapter implements ChannelAdapter {
 
   async sendMessage(recipientId: string, text: string): Promise<void> {
     const chatId = Number(recipientId.slice(this.name.length + 1));
-    const html = markdownToTelegramHtml(text);
-    for (const chunk of splitMessage(html, this.maxMessageLength)) {
-      try {
-        await this.bot.api.sendMessage(chatId, chunk, { parse_mode: "HTML" });
-      } catch (err: any) {
-        if (err?.error_code === 400) {
-          logger.warn({ err, chatId }, "HTML parse failed, falling back to plain text");
-          await this.bot.api.sendMessage(chatId, chunk);
-        } else {
-          throw err;
-        }
-      }
+    const formatted = markdownToEntities(text);
+    for (const chunk of splitWithEntities(formatted, this.maxMessageLength)) {
+      await this.bot.api.sendMessage(chatId, chunk.text, {
+        entities: chunk.entities.length > 0 ? chunk.entities : undefined,
+      });
     }
   }
 
