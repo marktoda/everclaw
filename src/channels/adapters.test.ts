@@ -10,6 +10,20 @@ vi.mock("@slack/bolt", () => {
   return { App };
 });
 
+vi.mock("@whiskeysockets/baileys", () => {
+  return {
+    default: vi.fn().mockReturnValue({
+      ev: { on: vi.fn(), removeAllListeners: vi.fn() },
+      sendMessage: vi.fn(),
+      sendPresenceUpdate: vi.fn(),
+      end: vi.fn(),
+    }),
+    useMultiFileAuthState: vi.fn().mockResolvedValue({ state: {}, saveCreds: vi.fn() }),
+    DisconnectReason: { loggedOut: 401 },
+    fetchLatestBaileysVersion: vi.fn().mockResolvedValue({ version: [2, 2413, 1] }),
+  };
+});
+
 vi.mock("discord.js", () => {
   const GatewayIntentBits = { Guilds: 1, GuildMessages: 2, MessageContent: 4, DirectMessages: 8 };
   const Partials = { Channel: 0 };
@@ -39,6 +53,11 @@ describe("createAdapter", () => {
   it("creates a SlackAdapter for type 'slack'", () => {
     const adapter = createAdapter("slack", "xoxb-fake|xapp-fake");
     expect(adapter.name).toBe("slack");
+  });
+
+  it("creates a WhatsAppAdapter for type 'whatsapp'", () => {
+    const adapter = createAdapter("whatsapp", "enabled");
+    expect(adapter.name).toBe("whatsapp");
   });
 
   it("throws for unknown channel type", () => {
