@@ -19,8 +19,8 @@ A durable personal AI assistant.
 - **Sleeps, schedules, coordination** — `sleep_for`, `sleep_until`, cron-scheduled skills, and cross-task event latches, all backed by [Absurd](https://github.com/earendil-works/absurd).
 - **Self-extending** — the agent writes its own skill files, tool scripts, and [MCP](https://modelcontextprotocol.io/) server configs at runtime.
 - **Pluggable channels** — Telegram today, anything tomorrow. One adapter file per channel.
-- **20 built-in tools** — files, state, scripts, web search, orchestration, plus any tools discovered from MCP servers.
-- **Just Postgres** — the only infrastructure dependency. State, history, task queue, checkpoints, schedules. All in one place.
+- **18 built-in tools** — files, scripts, web search, orchestration, plus any tools discovered from MCP servers.
+- **Just Postgres** — the only infrastructure dependency. History, task queue, checkpoints, schedules. All in one place.
 
 ## Quick start
 
@@ -42,7 +42,7 @@ docker compose up --build
 
 ## How it works
 
-Every inbound message spawns a durable task. The task runs an agent loop (Claude in a tool-use cycle with checkpointing) that can read/write files, query state, run scripts, search the web, call MCP tools, sleep for hours, and resume where it left off.
+Every inbound message spawns a durable task. The task runs an agent loop (Claude in a tool-use cycle with checkpointing) that can read/write files, run scripts, search the web, call MCP tools, sleep for hours, and resume where it left off.
 
 ```
 User message (Telegram, etc.)
@@ -78,7 +78,7 @@ Suspending tools throw `SuspendTask`, which propagates up to the Absurd worker. 
 
 ### Stateless message handling
 
-The agent can't block waiting for user input. It saves context via `set_state`, lets the task finish, and picks up where it left off when the next message comes in. Worker slots stay free, scales naturally.
+The agent can't block waiting for user input. It saves context to files, lets the task finish, and picks up where it left off when the next message comes in. Worker slots stay free, scales naturally.
 
 ### Channels
 
@@ -120,14 +120,14 @@ TypeScript, runs directly on Node 22.18+ with native type stripping. There's no 
 | `agent/loop.ts` | The main loop. Checkpointed multi-turn Claude conversation, max 20 turns. |
 | `agent/prompt.ts` | Builds the system prompt: notes, skills, scripts, MCP servers, extra dirs. |
 | `agent/output.ts` | Strips `<internal>...</internal>` scratchpad tags before the user sees anything. |
-| `agent/tools/` | 20 built-in tools across 5 files. Registry in `index.ts`. |
+| `agent/tools/` | 18 built-in tools across 5 files. Registry in `index.ts`. |
 
 ### Tools
 
 | File | Tools |
 |---|---|
 | `tools/files.ts` | `read_file`, `write_file`, `glob_files`, `grep_files`, `delete_file` (sandboxed, symlink-checked) |
-| `tools/state.ts` | `get_state`, `set_state`, `get_status` (namespaced KV store in Postgres) |
+| `tools/status.ts` | `get_status` (uptime, file counts) |
 | `tools/scripts.ts` | `run_script` (JSON stdin, configurable timeout) |
 | `tools/search.ts` | `web_search` (Brave), `search_servers` (MCP registry) |
 | `tools/orchestration.ts` | `sleep_for`, `sleep_until`, `spawn_workflow`, `spawn_skill`, `send_message`, `cancel_task`, `list_tasks`, `wait_for_event`, `emit_event` |
@@ -150,7 +150,6 @@ TypeScript, runs directly on Node 22.18+ with native type stripping. There's no 
 |---|---|
 | `memory/history.ts` | Conversation history (`assistant.messages` table) |
 | `memory/messages.ts` | DB ↔ Anthropic API format conversion; cleans up orphaned tool results |
-| `memory/state.ts` | KV state store (`assistant.state` table, namespaced) |
 
 ### Tasks
 

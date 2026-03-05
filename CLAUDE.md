@@ -34,7 +34,7 @@ src/
       index.ts          createToolRegistry — assembles all tool definitions + executor
       types.ts          ToolRegistry interface, ToolDeps type
       files.ts          File tools (read_file, write_file, glob_files, grep_files, delete_file)
-      state.ts          State tools (get_state, set_state, get_status)
+      status.ts         Status tool (get_status)
       scripts.ts        Script tools (run_script)
       search.ts         Search tools (web_search)
       orchestration.ts  Orchestration tools (sleep_for, sleep_until, spawn_workflow, spawn_skill, send_message, …)
@@ -43,7 +43,6 @@ src/
   memory/
     history.ts          Conversation history (Postgres assistant.messages table)
     messages.ts         History ↔ API format: reconstructMessages, deconstructMessages, sanitizeMessages
-    state.ts            Key-value state store (Postgres assistant.state table, namespaced)
   skills/
     manager.ts          Skill file parser (YAML frontmatter) and schedule sync with Absurd
   scripts/
@@ -58,7 +57,7 @@ src/
     workflow.ts         Task: runs agent loop with arbitrary instructions (background work)
 sql/
   001-absurd.sql        Absurd task queue schema (absurd schema)
-  002-assistant.sql     App schema: assistant.messages + assistant.state tables
+  002-assistant.sql     App schema: assistant.messages table
   003-channel-abstraction.sql  Migration: chat_id integer→text with 'telegram:' prefix
 skills/                 Agent-writable skill .md files (YAML frontmatter with optional schedule)
 scripts/                Agent-writable executable scripts (.sh, .py, .js, .ts)
@@ -77,7 +76,7 @@ docs/plans/             Design and implementation documents
 
 **Voice transcription.** When `OPENAI_API_KEY` is set, the Telegram adapter transcribes voice messages via OpenAI Whisper and delivers them as `[Voice: transcript]`. The shared `transcription.ts` module can be used by any adapter. Without the key, voice messages are silently ignored.
 
-**Stateless message handling.** Every inbound message spawns a fresh `handle-message` task. There is no "wait for reply" — the agent saves state via `set_state`, completes, and picks up context on the next message from conversation history.
+**Stateless message handling.** Every inbound message spawns a fresh `handle-message` task. There is no "wait for reply" — the agent saves context to files, completes, and picks up context on the next message from conversation history.
 
 **Durable workflows.** The agent has orchestration tools (`sleep_for`, `sleep_until`, `wait_for_event`, `emit_event`, `spawn_workflow`, `spawn_skill`, `send_message`, `cancel_task`, `list_tasks`) that suspend and resume durably through Absurd. Suspending tools must NOT be wrapped in `ctx.step()` — they throw `SuspendTask` which must propagate to the Absurd worker.
 
@@ -101,12 +100,12 @@ docs/plans/             Design and implementation documents
 
 **Agent scratchpad.** The agent can use `<internal>...</internal>` tags for reasoning that gets stripped before sending to the user (see `output.ts`).
 
-## Tools (20 built-in + dynamic MCP tools)
+## Tools (18 built-in + dynamic MCP tools)
 
 | Category | Tools |
 |---|---|
 | Files (5) | `read_file`, `write_file`, `glob_files`, `grep_files`, `delete_file` |
-| State (3) | `get_state`, `set_state`, `get_status` |
+| Status (1) | `get_status` |
 | Scripts (1) | `run_script` |
 | Search (2) | `web_search`, `search_servers` |
 | Orchestration (9) | `sleep_for`, `sleep_until`, `spawn_workflow`, `spawn_skill`, `send_message`, `cancel_task`, `list_tasks`, `wait_for_event`, `emit_event` |

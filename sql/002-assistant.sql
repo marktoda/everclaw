@@ -12,10 +12,4 @@ CREATE TABLE IF NOT EXISTS assistant.messages (
 CREATE INDEX IF NOT EXISTS idx_messages_chat
   ON assistant.messages(chat_id, created_at DESC);
 
-CREATE TABLE IF NOT EXISTS assistant.state (
-  namespace   TEXT NOT NULL,
-  key         TEXT NOT NULL,
-  value       JSONB NOT NULL,
-  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-  PRIMARY KEY (namespace, key)
-);
+-- assistant.state table removed in migration 004

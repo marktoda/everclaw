@@ -4,7 +4,12 @@ ALTER TABLE assistant.messages
   ALTER COLUMN chat_id TYPE text USING 'telegram:' || chat_id;
 
 -- Migrate defaultChatId in state store to defaultRecipientId
-UPDATE assistant.state
-  SET key = 'defaultRecipientId',
-      value = to_jsonb('telegram:' || (value #>> '{}'))
-  WHERE namespace = 'system' AND key = 'defaultChatId';
+DO $$
+BEGIN
+  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'assistant' AND tablename = 'state') THEN
+    UPDATE assistant.state
+      SET key = 'defaultRecipientId',
+          value = to_jsonb('telegram:' || (value #>> '{}'))
+      WHERE namespace = 'system' AND key = 'defaultChatId';
+  END IF;
+END $$;
