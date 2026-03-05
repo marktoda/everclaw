@@ -84,21 +84,12 @@ If troubleshooting:
 
 Check if `ALLOWED_CHAT_IDS` is already configured in `.env` (uncommented and non-empty).
 
-**If not configured (first channel):**
+Walk the user through discovery:
 
-Walk the user through discovery mode:
-
-1. "Send a WhatsApp message to the phone number linked to the bot (from a different phone or WhatsApp account)."
-2. "The bot will reply with the sender's chat ID — it looks like `whatsapp:1234567890`. Copy this value."
+1. "Send a message to yourself on WhatsApp (open your own chat / 'Message Yourself')."
+2. "The bot will reply with your chat ID — it looks like `whatsapp:15551234567` (your phone number with country code). Copy this value."
 3. Use `AskUserQuestion` to collect the chat ID.
-4. Use the `Edit` tool to set `ALLOWED_CHAT_IDS=<chat_id>` in `.env`. If the line is commented out, uncomment and set it.
-
-**If already configured (adding another channel):**
-
-1. "Send a WhatsApp message to the bot."
-2. "The bot will reply with your chat ID. Copy it."
-3. Use `AskUserQuestion` to collect the chat ID.
-4. Use the `Edit` tool to append the new ID to the existing `ALLOWED_CHAT_IDS` value (comma-separated).
+4. Use the `Edit` tool to set or append the chat ID in `ALLOWED_CHAT_IDS` in `.env` (comma-separated if other IDs exist). If the line is commented out, uncomment and set it.
 
 After updating, tell the user to restart again. The QR scan is not needed this time — the session persists.
 
