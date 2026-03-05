@@ -18,12 +18,13 @@ vi.stubGlobal("fetch", mockFetch);
 type Handler = (ctx: any) => Promise<void>;
 const capturedHandlers = new Map<string, Handler>();
 const mockSendMessage = vi.fn().mockResolvedValue(undefined);
+const mockSendChatAction = vi.fn().mockResolvedValue(undefined);
 const mockStop = vi.fn();
 
 vi.mock("grammy", () => {
   class Bot {
     token: string;
-    api = { sendMessage: mockSendMessage };
+    api = { sendMessage: mockSendMessage, sendChatAction: mockSendChatAction };
     constructor(token: string) {
       this.token = token;
     }
@@ -59,6 +60,7 @@ describe("TelegramAdapter", () => {
   beforeEach(() => {
     capturedHandlers.clear();
     mockSendMessage.mockClear();
+    mockSendChatAction.mockClear();
     mockStop.mockClear();
     mockFetch.mockClear();
     vi.mocked(transcribeAudio).mockClear();
@@ -108,6 +110,18 @@ describe("TelegramAdapter", () => {
     for (const call of mockSendMessage.mock.calls) {
       expect(call[2]).toHaveProperty("entities");
     }
+  });
+
+  it("setTyping sends typing chat action", async () => {
+    const adapter = new TelegramAdapter("token");
+    await adapter.setTyping("telegram:42", true);
+    expect(mockSendChatAction).toHaveBeenCalledWith(42, "typing");
+  });
+
+  it("setTyping does nothing when isTyping is false", async () => {
+    const adapter = new TelegramAdapter("token");
+    await adapter.setTyping("telegram:42", false);
+    expect(mockSendChatAction).not.toHaveBeenCalled();
   });
 
   it("stop calls bot.stop()", async () => {

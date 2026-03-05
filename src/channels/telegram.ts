@@ -66,6 +66,12 @@ export class TelegramAdapter implements ChannelAdapter {
     }
   }
 
+  async setTyping(recipientId: string, isTyping: boolean): Promise<void> {
+    if (!isTyping) return;
+    const chatId = Number(stripPrefix(recipientId));
+    await this.bot.api.sendChatAction(chatId, "typing");
+  }
+
   isConnected(): boolean {
     return this.connected;
   }
