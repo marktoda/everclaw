@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mockSendMessage = vi.fn().mockResolvedValue(undefined);
+const mockSendMessage = vi
+  .fn()
+  .mockImplementation(() => Promise.resolve({ key: { id: `msg-${Date.now()}` } }));
 const mockSendPresenceUpdate = vi.fn().mockResolvedValue(undefined);
 const mockEnd = vi.fn();
 let capturedHandlers: Record<string, Function> = {};
@@ -102,7 +104,7 @@ describe("WhatsAppAdapter", () => {
     });
   });
 
-  it("ignores messages from self", async () => {
+  it("allows self-chat messages (fromMe) through", async () => {
     const adapter = new WhatsAppAdapter();
     const onMessage = vi.fn().mockResolvedValue(undefined);
 
@@ -111,8 +113,35 @@ describe("WhatsAppAdapter", () => {
     await capturedHandlers["messages.upsert"]?.({
       messages: [
         {
-          key: { remoteJid: "5551234567@s.whatsapp.net", fromMe: true },
+          key: { id: "user-msg-1", remoteJid: "5551234567@s.whatsapp.net", fromMe: true },
           message: { conversation: "hello" },
+        },
+      ],
+      type: "notify",
+    });
+
+    expect(onMessage).toHaveBeenCalledWith({
+      recipientId: "whatsapp:5551234567",
+      text: "hello",
+    });
+  });
+
+  it("skips echo of own outgoing messages", async () => {
+    const adapter = new WhatsAppAdapter();
+    const onMessage = vi.fn().mockResolvedValue(undefined);
+
+    await adapter.start(onMessage);
+
+    // Bot sends a message — ID gets tracked
+    mockSendMessage.mockResolvedValueOnce({ key: { id: "bot-reply-1" } });
+    await adapter.sendMessage("whatsapp:5551234567", "bot reply");
+
+    // Echo arrives back via upsert with the same ID
+    await capturedHandlers["messages.upsert"]?.({
+      messages: [
+        {
+          key: { id: "bot-reply-1", remoteJid: "5551234567@s.whatsapp.net", fromMe: true },
+          message: { conversation: "bot reply" },
         },
       ],
       type: "notify",

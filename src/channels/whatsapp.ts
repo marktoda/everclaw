@@ -38,6 +38,7 @@ export class WhatsAppAdapter implements ChannelAdapter {
   private reconnectTimer?: ReturnType<typeof setTimeout>;
   private stopped = false;
   private connected = false;
+  private sentIds = new Set<string>();
 
   async start(onMessage: (msg: InboundMessage) => Promise<void>): Promise<void> {
     this.onMessage = onMessage;
@@ -98,7 +99,7 @@ export class WhatsAppAdapter implements ChannelAdapter {
       if (type !== "notify") return;
 
       for (const msg of messages) {
-        if (msg.key.fromMe) continue;
+        if (msg.key.id && this.sentIds.delete(msg.key.id)) continue;
         if (!msg.key.remoteJid) continue;
         if (msg.key.remoteJid.endsWith("@g.us")) continue;
 
@@ -120,7 +121,8 @@ export class WhatsAppAdapter implements ChannelAdapter {
     const jid = phoneToJid(phone);
 
     for (const chunk of splitMessage(text, 65536)) {
-      await this.sock.sendMessage(jid, { text: chunk });
+      const sent = await this.sock.sendMessage(jid, { text: chunk });
+      if (sent?.key?.id) this.sentIds.add(sent.key.id);
     }
   }
 
