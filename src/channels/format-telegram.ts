@@ -5,10 +5,7 @@
  */
 export function markdownToTelegramHtml(md: string): string {
   // 1. Escape HTML entities in the raw markdown
-  let text = md
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+  let text = md.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
   // 2. Extract fenced code blocks into placeholders
   const codeBlocks: string[] = [];
@@ -67,8 +64,10 @@ export function markdownToTelegramHtml(md: string): string {
   text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
 
   // 6. Restore placeholders
-  text = text.replace(/\x00INLINE(\d+)\x00/g, (_, i) => inlineCodes[Number(i)]);
-  text = text.replace(/\x00CODEBLOCK(\d+)\x00/g, (_, i) => codeBlocks[Number(i)]);
+  // biome-ignore lint/complexity/useRegexLiterals: NUL placeholders require RegExp constructor to avoid noControlCharactersInRegex
+  text = text.replace(new RegExp("\x00INLINE(\\d+)\x00", "g"), (_, i) => inlineCodes[Number(i)]);
+  // biome-ignore lint/complexity/useRegexLiterals: NUL placeholders require RegExp constructor to avoid noControlCharactersInRegex
+  text = text.replace(new RegExp("\x00CODEBLOCK(\\d+)\x00", "g"), (_, i) => codeBlocks[Number(i)]);
 
   // Clean up excessive blank lines
   text = text.replace(/\n{3,}/g, "\n\n");
