@@ -1,5 +1,13 @@
 import type { FormattedMessage, TelegramEntity } from "./format-telegram.ts";
 
+/** Find the best split point: prefer \n\n, then \n, then hard-split at maxEnd. */
+function findSplitPoint(text: string, start: number, maxEnd: number): number {
+  let splitAt = text.lastIndexOf("\n\n", maxEnd);
+  if (splitAt <= start) splitAt = text.lastIndexOf("\n", maxEnd);
+  if (splitAt <= start) splitAt = maxEnd;
+  return splitAt;
+}
+
 /** Split text into chunks that fit within a character limit.
  *  Prefers paragraph boundaries (\n\n), then line boundaries (\n), then hard-splits. */
 export function splitMessage(text: string, maxLength: number): string[] {
@@ -7,13 +15,7 @@ export function splitMessage(text: string, maxLength: number): string[] {
   const chunks: string[] = [];
   let remaining = text;
   while (remaining.length > maxLength) {
-    let splitAt = remaining.lastIndexOf("\n\n", maxLength);
-    if (splitAt <= 0) {
-      splitAt = remaining.lastIndexOf("\n", maxLength);
-    }
-    if (splitAt <= 0) {
-      splitAt = maxLength;
-    }
+    const splitAt = findSplitPoint(remaining, 0, maxLength);
     chunks.push(remaining.slice(0, splitAt));
     remaining = remaining.slice(splitAt).replace(/^\n+/, "");
   }
@@ -32,11 +34,7 @@ export function splitWithEntities(msg: FormattedMessage, maxLength: number): For
     let end = Math.min(offset + maxLength, text.length);
 
     if (end < text.length) {
-      // Find a natural break point
-      let splitAt = text.lastIndexOf("\n\n", end);
-      if (splitAt <= offset) splitAt = text.lastIndexOf("\n", end);
-      if (splitAt <= offset) splitAt = end;
-      end = splitAt;
+      end = findSplitPoint(text, offset, end);
 
       // Don't split in the middle of a surrogate pair
       if (end > 0 && end < text.length) {

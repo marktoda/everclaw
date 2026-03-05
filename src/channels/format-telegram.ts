@@ -11,16 +11,34 @@ export type TelegramEntity =
   | { type: "pre"; offset: number; length: number; language?: string }
   | { type: "text_link"; offset: number; length: number; url: string };
 
+/** Accumulates plain text and tracks the current UTF-16 offset. */
+interface Writer {
+  buf: string[];
+  offset: number;
+}
+
+function push(w: Writer, s: string): void {
+  w.buf.push(s);
+  w.offset += s.length;
+}
+
+function endsWith(w: Writer, suffix: string): boolean {
+  // Check the last buf segment(s) without joining
+  const last = w.buf[w.buf.length - 1] ?? "";
+  if (last.length >= suffix.length) return last.endsWith(suffix);
+  // Rare: suffix spans two segments
+  const prev = w.buf[w.buf.length - 2] ?? "";
+  return (prev + last).endsWith(suffix);
+}
+
 export function markdownToEntities(md: string): FormattedMessage {
   const tokens = marked.lexer(md);
-  const buf: string[] = [];
+  const w: Writer = { buf: [], offset: 0 };
   const entities: TelegramEntity[] = [];
 
-  walkBlocks(tokens, buf, entities, new Set());
+  walkBlocks(tokens, w, entities, new Set());
 
-  // Clean up trailing newlines
-  let text = buf.join("");
-  while (text.endsWith("\n")) text = text.slice(0, -1);
+  let text = w.buf.join("").replace(/\n+$/, "");
 
   // Clamp entity lengths to not exceed text length
   for (const e of entities) {
@@ -32,58 +50,68 @@ export function markdownToEntities(md: string): FormattedMessage {
   return { text, entities: entities.filter((e) => e.length > 0) };
 }
 
-function currentOffset(buf: string[]): number {
-  let len = 0;
-  for (const s of buf) len += s.length;
-  return len;
+type EntityType = TelegramEntity["type"];
+
+/** Emit an inline formatting span: walk children, suppress duplicate entity types, push entity. */
+function emitFormatted(
+  entityType: "bold" | "italic" | "strikethrough",
+  childTokens: Token[],
+  w: Writer,
+  entities: TelegramEntity[],
+  activeTypes: Set<EntityType>,
+): void {
+  const start = w.offset;
+  const inner = new Set(activeTypes);
+  inner.add(entityType);
+  walkInline(childTokens, w, entities, inner);
+  if (!activeTypes.has(entityType)) {
+    entities.push({ type: entityType, offset: start, length: w.offset - start });
+  }
 }
 
-function walkBlocks(tokens: Token[], buf: string[], entities: TelegramEntity[], activeTypes: Set<string>): void {
+function walkBlocks(tokens: Token[], w: Writer, entities: TelegramEntity[], activeTypes: Set<EntityType>): void {
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i];
 
     // Separate blocks with newlines (but not before the first block)
     if (i > 0 && isBlock(token) && hasPrecedingBlock(tokens, i)) {
-      const text = buf.join("");
-      if (!text.endsWith("\n\n")) {
-        if (text.endsWith("\n")) buf.push("\n");
-        else buf.push("\n\n");
+      if (!endsWith(w, "\n\n")) {
+        push(w, endsWith(w, "\n") ? "\n" : "\n\n");
       }
     }
 
     switch (token.type) {
       case "heading": {
-        const start = currentOffset(buf);
-        const innerActive = new Set(activeTypes);
-        innerActive.add("bold");
-        walkInline((token as Tokens.Heading).tokens ?? [], buf, entities, innerActive);
+        const start = w.offset;
+        const inner = new Set(activeTypes);
+        inner.add("bold");
+        walkInline((token as Tokens.Heading).tokens ?? [], w, entities, inner);
         if (!activeTypes.has("bold")) {
-          entities.push({ type: "bold", offset: start, length: currentOffset(buf) - start });
+          entities.push({ type: "bold", offset: start, length: w.offset - start });
         }
-        buf.push("\n");
+        push(w, "\n");
         break;
       }
       case "paragraph": {
-        walkInline((token as Tokens.Paragraph).tokens ?? [], buf, entities, activeTypes);
-        buf.push("\n");
+        walkInline((token as Tokens.Paragraph).tokens ?? [], w, entities, activeTypes);
+        push(w, "\n");
         break;
       }
       case "code": {
         const codeToken = token as Tokens.Code;
-        const start = currentOffset(buf);
-        buf.push(codeToken.text);
-        const entity: TelegramEntity = { type: "pre", offset: start, length: codeToken.text.length };
-        if (codeToken.lang) (entity as any).language = codeToken.lang;
+        const start = w.offset;
+        push(w, codeToken.text);
+        const entity: TelegramEntity = codeToken.lang
+          ? { type: "pre", offset: start, length: codeToken.text.length, language: codeToken.lang }
+          : { type: "pre", offset: start, length: codeToken.text.length };
         entities.push(entity);
-        buf.push("\n");
+        push(w, "\n");
         break;
       }
       case "blockquote": {
-        const start = currentOffset(buf);
-        walkBlocks((token as Tokens.Blockquote).tokens ?? [], buf, entities, activeTypes);
-        const end = currentOffset(buf);
-        const text = buf.join("");
-        const trimmedEnd = text.endsWith("\n") ? end - 1 : end;
+        const start = w.offset;
+        walkBlocks((token as Tokens.Blockquote).tokens ?? [], w, entities, activeTypes);
+        const trimmedEnd = endsWith(w, "\n") ? w.offset - 1 : w.offset;
         if (trimmedEnd > start) {
           entities.push({ type: "blockquote", offset: start, length: trimmedEnd - start });
         }
@@ -94,22 +122,22 @@ function walkBlocks(tokens: Token[], buf: string[], entities: TelegramEntity[], 
         for (let j = 0; j < listToken.items.length; j++) {
           const item = listToken.items[j];
           const prefix = listToken.ordered ? `${Number(listToken.start ?? 1) + j}. ` : "\u2022 ";
-          buf.push(prefix);
+          push(w, prefix);
           for (const child of item.tokens) {
             if (child.type === "text" && (child as Tokens.Text).tokens) {
-              walkInline((child as Tokens.Text).tokens!, buf, entities, activeTypes);
+              walkInline((child as Tokens.Text).tokens!, w, entities, activeTypes);
             } else if (child.type === "paragraph" && (child as Tokens.Paragraph).tokens) {
-              walkInline((child as Tokens.Paragraph).tokens!, buf, entities, activeTypes);
+              walkInline((child as Tokens.Paragraph).tokens!, w, entities, activeTypes);
             } else {
-              walkBlocks([child], buf, entities, activeTypes);
+              walkBlocks([child], w, entities, activeTypes);
             }
           }
-          buf.push("\n");
+          push(w, "\n");
         }
         break;
       }
       case "hr": {
-        buf.push("\n");
+        push(w, "\n");
         break;
       }
       case "space": {
@@ -117,9 +145,9 @@ function walkBlocks(tokens: Token[], buf: string[], entities: TelegramEntity[], 
       }
       default: {
         if ("tokens" in token && Array.isArray(token.tokens)) {
-          walkInline(token.tokens, buf, entities, activeTypes);
+          walkInline(token.tokens, w, entities, activeTypes);
         } else if ("text" in token && typeof token.text === "string") {
-          buf.push(token.text);
+          push(w, token.text);
         }
         break;
       }
@@ -127,52 +155,34 @@ function walkBlocks(tokens: Token[], buf: string[], entities: TelegramEntity[], 
   }
 }
 
-function walkInline(tokens: Token[], buf: string[], entities: TelegramEntity[], activeTypes: Set<string>): void {
+function walkInline(tokens: Token[], w: Writer, entities: TelegramEntity[], activeTypes: Set<EntityType>): void {
   for (const token of tokens) {
     switch (token.type) {
       case "text": {
         const textToken = token as Tokens.Text;
         if (textToken.tokens) {
-          walkInline(textToken.tokens, buf, entities, activeTypes);
+          walkInline(textToken.tokens, w, entities, activeTypes);
         } else {
-          buf.push(textToken.text);
+          push(w, textToken.text);
         }
         break;
       }
       case "strong": {
-        const start = currentOffset(buf);
-        const innerActive = new Set(activeTypes);
-        innerActive.add("bold");
-        walkInline((token as Tokens.Strong).tokens ?? [], buf, entities, innerActive);
-        if (!activeTypes.has("bold")) {
-          entities.push({ type: "bold", offset: start, length: currentOffset(buf) - start });
-        }
+        emitFormatted("bold", (token as Tokens.Strong).tokens ?? [], w, entities, activeTypes);
         break;
       }
       case "em": {
-        const start = currentOffset(buf);
-        const innerActive = new Set(activeTypes);
-        innerActive.add("italic");
-        walkInline((token as Tokens.Em).tokens ?? [], buf, entities, innerActive);
-        if (!activeTypes.has("italic")) {
-          entities.push({ type: "italic", offset: start, length: currentOffset(buf) - start });
-        }
+        emitFormatted("italic", (token as Tokens.Em).tokens ?? [], w, entities, activeTypes);
         break;
       }
       case "del": {
-        const start = currentOffset(buf);
-        const innerActive = new Set(activeTypes);
-        innerActive.add("strikethrough");
-        walkInline((token as Tokens.Del).tokens ?? [], buf, entities, innerActive);
-        if (!activeTypes.has("strikethrough")) {
-          entities.push({ type: "strikethrough", offset: start, length: currentOffset(buf) - start });
-        }
+        emitFormatted("strikethrough", (token as Tokens.Del).tokens ?? [], w, entities, activeTypes);
         break;
       }
       case "codespan": {
-        const start = currentOffset(buf);
+        const start = w.offset;
         const text = (token as Tokens.Codespan).text;
-        buf.push(text);
+        push(w, text);
         if (!activeTypes.has("code")) {
           entities.push({ type: "code", offset: start, length: text.length });
         }
@@ -180,30 +190,30 @@ function walkInline(tokens: Token[], buf: string[], entities: TelegramEntity[], 
       }
       case "link": {
         const linkToken = token as Tokens.Link;
-        const start = currentOffset(buf);
-        walkInline(linkToken.tokens ?? [], buf, entities, activeTypes);
-        entities.push({ type: "text_link", offset: start, length: currentOffset(buf) - start, url: linkToken.href });
+        const start = w.offset;
+        walkInline(linkToken.tokens ?? [], w, entities, activeTypes);
+        entities.push({ type: "text_link", offset: start, length: w.offset - start, url: linkToken.href });
         break;
       }
       case "image": {
         const imgToken = token as Tokens.Image;
-        const start = currentOffset(buf);
+        const start = w.offset;
         const alt = imgToken.text || imgToken.href;
-        buf.push(alt);
+        push(w, alt);
         entities.push({ type: "text_link", offset: start, length: alt.length, url: imgToken.href });
         break;
       }
       case "br": {
-        buf.push("\n");
+        push(w, "\n");
         break;
       }
       case "escape": {
-        buf.push((token as Tokens.Escape).text);
+        push(w, (token as Tokens.Escape).text);
         break;
       }
       default: {
         if ("text" in token && typeof token.text === "string") {
-          buf.push(token.text);
+          push(w, token.text);
         }
         break;
       }
