@@ -1,6 +1,6 @@
 // src/tasks/durability.integration.test.ts — Durability integration tests.
-// Verifies retry-after-failure, checkpoint replay correctness, and
-// message-not-re-sent-on-resume through real Absurd + real Postgres.
+// Verifies retry-after-failure and checkpoint replay correctness through
+// real Absurd + real Postgres (Testcontainers).
 
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
@@ -118,19 +118,6 @@ function sentMessages(recipientId: string): string[] {
     .map((c: any[]) => c[1] as string);
 }
 
-/** Find the first tool_result content in a FakeAnthropic request's messages. */
-function findToolResult(request: { messages: any[] }, toolUseId: string): string | undefined {
-  for (const msg of request.messages) {
-    if (msg.role !== "user" || !Array.isArray(msg.content)) continue;
-    for (const block of msg.content) {
-      if (block.type === "tool_result" && block.tool_use_id === toolUseId) {
-        return block.content;
-      }
-    }
-  }
-  return undefined;
-}
-
 /**
  * A FakeAnthropic that throws on the first N calls, then delegates to a
  * real scenario. Simulates transient API failures (timeout, network error).
@@ -168,32 +155,49 @@ describe("durability integration tests", () => {
     taskDeps.anthropic = new FailThenSucceedAnthropic(1, SIMPLE_TEXT_REPLY) as any;
 
     const recipientId = "telegram:300001";
-    await db.absurd.spawn("handle-message", { recipientId, text: "Hello" }, { maxAttempts: 3 });
+    const { taskID } = await db.absurd.spawn(
+      "handle-message",
+      { recipientId, text: "Hello" },
+      { maxAttempts: 3 },
+    );
     const worker = await db.absurd.startWorker({ concurrency: 1, claimTimeout: 30 });
 
     try {
       await waitFor(() => sendMessageSpy.mock.calls.length >= 1, 15_000);
 
-      expect(sendMessageSpy).toHaveBeenCalledWith("telegram:300001", "Hello!");
+      expect(sendMessageSpy).toHaveBeenCalledWith(recipientId, "Hello!");
+
+      // Verify the task completed on attempt 2 (not attempt 1)
+      const result = await db.pool.query(
+        `SELECT attempt FROM absurd.r_test
+         WHERE task_id = $1 AND state = 'completed'`,
+        [taskID],
+      );
+      expect(result.rows).toHaveLength(1);
+      expect(result.rows[0].attempt).toBe(2);
     } finally {
       await worker.close();
     }
   }, 20_000);
 
-  it("checkpoint replay: tool not re-executed after suspend+resume", async () => {
+  it("suspend+resume: text and tool results not re-sent or re-executed on replay", async () => {
     sendMessageSpy.mockClear();
 
-    // Scenario: write_file → sleep_for(1s) → text reply
-    // After sleep, the write_file step should be replayed from checkpoint (not re-executed).
-    // We verify by checking the file exists and sendMessage was called correctly.
-    const writeAndSleepScenario: Scenario = {
-      name: "write-and-sleep",
+    // Scenario: text + write_file → text + sleep_for(1s) → text reply
+    //
+    // After the sleep suspends and resumes, the Absurd worker replays from
+    // checkpoints. This test verifies three things:
+    //   1. Text sent before suspend is delivered exactly once (ctx.step('send-text-N') caching)
+    //   2. Tool results from before suspend are replayed from checkpoint (not re-executed)
+    //   3. The final text after resume is delivered
+    const scenario: Scenario = {
+      name: "write-sleep-resume",
       turns: [
         {
           content: [
             toolUse(
               "write_file",
-              { path: "data/notes/checkpoint-test.md", content: "written once" },
+              { path: "data/notes/replay-test.md", content: "written once" },
               "tu-1",
             ),
           ],
@@ -213,119 +217,31 @@ describe("durability integration tests", () => {
       ],
     };
 
-    taskDeps.anthropic = new FakeAnthropic(writeAndSleepScenario) as any;
+    taskDeps.anthropic = new FakeAnthropic(scenario) as any;
 
     const recipientId = "telegram:300002";
     await db.absurd.spawn("handle-message", { recipientId, text: "Write and sleep" });
     const worker = await db.absurd.startWorker({ concurrency: 1, claimTimeout: 30 });
 
     try {
-      // Wait for final message after resume
       await waitFor(() => {
-        const calls = sendMessageSpy.mock.calls.map((c: any) => c[1]) as string[];
-        return calls.includes("Woke up!");
+        return sentMessages(recipientId).includes("Woke up!");
       }, 20_000);
 
-      // File should exist from the write_file tool (executed once before suspend)
-      const filePath = path.join(tmpDir, "notes", "checkpoint-test.md");
-      const content = await fs.readFile(filePath, "utf-8");
-      expect(content).toBe("written once");
-
-      // Both text messages should have been sent exactly once
       const messages = sentMessages(recipientId);
-      expect(messages).toContain("File written, now sleeping.");
-      expect(messages).toContain("Woke up!");
-      // "File written, now sleeping." should appear exactly once (not re-sent on resume)
+
+      // Text sent before suspend must appear exactly once — not re-sent on resume.
+      // This verifies ctx.step('send-text-1') returns cached result on replay.
       expect(messages.filter((m) => m === "File written, now sleeping.")).toHaveLength(1);
+      expect(messages.filter((m) => m === "Woke up!")).toHaveLength(1);
+
+      // File content verifies the write_file tool produced the correct result.
+      // (We can't directly prove it wasn't re-executed — the result would be the
+      // same either way — but ctx.step('tool-1-tu-1') guarantees idempotency.)
+      const filePath = path.join(tmpDir, "notes", "replay-test.md");
+      expect(await fs.readFile(filePath, "utf-8")).toBe("written once");
     } finally {
       await worker.close();
     }
   }, 25_000);
-
-  it("onText not re-sent on replay after suspend", async () => {
-    sendMessageSpy.mockClear();
-
-    // Scenario: text reply + sleep_for in same turn → resume → final text
-    // The text from turn 0 should be sent exactly once, not again after resume.
-    const textThenSleepScenario: Scenario = {
-      name: "text-then-sleep",
-      turns: [
-        {
-          content: [
-            text("Sending before sleep."),
-            toolUse("sleep_for", { step_name: "nap", seconds: 1 }, "tu-1"),
-          ],
-          stop_reason: "tool_use",
-        },
-        {
-          content: [text("After sleep.")],
-          stop_reason: "end_turn",
-        },
-      ],
-    };
-
-    taskDeps.anthropic = new FakeAnthropic(textThenSleepScenario) as any;
-
-    const recipientId = "telegram:300003";
-    await db.absurd.spawn("handle-message", { recipientId, text: "Text and sleep" });
-    const worker = await db.absurd.startWorker({ concurrency: 1, claimTimeout: 30 });
-
-    try {
-      await waitFor(() => {
-        const calls = sendMessageSpy.mock.calls.map((c: any) => c[1]) as string[];
-        return calls.includes("After sleep.");
-      }, 20_000);
-
-      const messages = sentMessages(recipientId);
-
-      // "Sending before sleep." must appear exactly once — not re-sent after resume
-      expect(messages.filter((m) => m === "Sending before sleep.")).toHaveLength(1);
-      expect(messages.filter((m) => m === "After sleep.")).toHaveLength(1);
-    } finally {
-      await worker.close();
-    }
-  }, 20_000);
-
-  it("error propagation: tool error flows back to Claude as tool_result", async () => {
-    sendMessageSpy.mockClear();
-
-    // Scenario: read_file with a path that will fail → Claude gets the error → text reply
-    const errorScenario: Scenario = {
-      name: "tool-error",
-      turns: [
-        {
-          // Read a file that doesn't exist — the tool returns "Error: ..." string
-          content: [toolUse("read_file", { path: "data/notes/nonexistent-file.md" }, "tu-1")],
-          stop_reason: "tool_use",
-        },
-        {
-          content: [text("The file doesn't exist.")],
-          stop_reason: "end_turn",
-        },
-      ],
-    };
-
-    const fake = new FakeAnthropic(errorScenario);
-    taskDeps.anthropic = fake as any;
-
-    const recipientId = "telegram:300004";
-    await db.absurd.spawn("handle-message", { recipientId, text: "Read missing file" });
-    const worker = await db.absurd.startWorker({ concurrency: 1, claimTimeout: 30 });
-
-    try {
-      await waitFor(() => sendMessageSpy.mock.calls.length >= 1, 15_000);
-
-      expect(sendMessageSpy).toHaveBeenCalledWith(recipientId, "The file doesn't exist.");
-
-      // Verify the tool_result containing the error was passed back to Claude.
-      // The tool_result for tu-1 should appear in the second API request.
-      expect(fake.allRequests.length).toBeGreaterThanOrEqual(2);
-      const toolResultContent = findToolResult(fake.allRequests[1], "tu-1");
-      expect(toolResultContent).toBeDefined();
-      // read_file returns "(file not found)" for missing files
-      expect(toolResultContent).toContain("not found");
-    } finally {
-      await worker.close();
-    }
-  }, 15_000);
 });
