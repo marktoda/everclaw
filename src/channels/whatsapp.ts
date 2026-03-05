@@ -3,8 +3,9 @@ import makeWASocket, {
   fetchLatestBaileysVersion,
   useMultiFileAuthState,
 } from "@whiskeysockets/baileys";
+import qrcode from "qrcode-terminal";
 import { logger } from "../logger.ts";
-import { stripPrefix, type ChannelAdapter, type InboundMessage } from "./adapter.ts";
+import { type ChannelAdapter, type InboundMessage, stripPrefix } from "./adapter.ts";
 import { authDir } from "./auth.ts";
 import { splitMessage } from "./split.ts";
 
@@ -55,12 +56,16 @@ export class WhatsAppAdapter implements ChannelAdapter {
     const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
     const { version } = await fetchLatestBaileysVersion();
 
-    this.sock = makeWASocket({ version, auth: state, printQRInTerminal: true });
+    this.sock = makeWASocket({ version, auth: state });
 
     this.sock.ev.on("creds.update", saveCreds);
 
     this.sock.ev.on("connection.update", (update: any) => {
-      const { connection, lastDisconnect } = update;
+      const { connection, lastDisconnect, qr } = update;
+      if (qr) {
+        logger.info("Scan this QR code with WhatsApp:");
+        qrcode.generate(qr, { small: true });
+      }
       if (connection === "close") {
         this.connected = false;
         const statusCode = (lastDisconnect?.error as any)?.output?.statusCode;
@@ -70,10 +75,17 @@ export class WhatsAppAdapter implements ChannelAdapter {
         }
         if (this.stopped) return;
 
-        logger.warn({ statusCode, delay: this.reconnectDelay }, "WhatsApp disconnected, reconnecting...");
-        this.reconnectTimer = setTimeout(() => this.connect().catch((err) => {
-          logger.error({ err }, "WhatsApp reconnection failed");
-        }), this.reconnectDelay);
+        logger.warn(
+          { statusCode, delay: this.reconnectDelay },
+          "WhatsApp disconnected, reconnecting...",
+        );
+        this.reconnectTimer = setTimeout(
+          () =>
+            this.connect().catch((err) => {
+              logger.error({ err }, "WhatsApp reconnection failed");
+            }),
+          this.reconnectDelay,
+        );
         this.reconnectDelay = Math.min(this.reconnectDelay * 2, MAX_RECONNECT_DELAY);
       } else if (connection === "open") {
         this.connected = true;

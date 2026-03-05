@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { splitMessage } from "./split.ts";
-import { splitWithEntities } from "./format-telegram.ts";
 import type { FormattedMessage, TelegramEntity } from "./format-telegram.ts";
+import { splitWithEntities } from "./format-telegram.ts";
+import { splitMessage } from "./split.ts";
 
 describe("splitMessage", () => {
   it("returns text as-is when under the limit", () => {
@@ -102,16 +102,21 @@ describe("splitWithEntities", () => {
     const text = `${"a".repeat(50)}\n\n${"b".repeat(60)}`;
     const msg: FormattedMessage = {
       text,
-      entities: [{ type: "text_link", offset: 0, length: 5, url: "https://example.com" } as TelegramEntity],
+      entities: [
+        { type: "text_link", offset: 0, length: 5, url: "https://example.com" } as TelegramEntity,
+      ],
     };
     const chunks = splitWithEntities(msg, 80);
     expect(chunks[0].entities[0]).toEqual({
-      type: "text_link", offset: 0, length: 5, url: "https://example.com",
+      type: "text_link",
+      offset: 0,
+      length: 5,
+      url: "https://example.com",
     });
   });
 
   it("does not split in middle of surrogate pair", () => {
-    const text = "a".repeat(4094) + "😄" + "b";
+    const text = `${"a".repeat(4094)}😄b`;
     const msg: FormattedMessage = { text, entities: [] };
     const chunks = splitWithEntities(msg, 4096);
     expect(chunks).toHaveLength(2);
