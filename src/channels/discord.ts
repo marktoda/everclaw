@@ -41,6 +41,10 @@ export class DiscordAdapter implements ChannelAdapter {
       });
     });
 
+    this.client.on("error", (err) => {
+      logger.error({ err }, "Discord client error");
+    });
+
     await this.client.login(this.token);
     if (this.client.user) {
       this.mentionRegex = new RegExp(`<@!?${this.client.user.id}>\\s*`, "g");

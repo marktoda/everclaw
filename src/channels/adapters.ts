@@ -1,4 +1,5 @@
 import type { ChannelAdapter } from "./adapter.ts";
+import { FLAG_CHANNELS } from "../config.ts";
 
 export interface AdapterOptions {
   openaiApiKey?: string;
@@ -29,10 +30,13 @@ const ADAPTER_FACTORIES: Record<string, (token: string, opts: AdapterOptions) =>
 
 export async function createAdapter(
   type: string,
-  token: string,
+  token?: string,
   opts: AdapterOptions = {},
 ): Promise<ChannelAdapter> {
   const factory = ADAPTER_FACTORIES[type];
   if (!factory) throw new Error(`Unknown channel type: "${type}"`);
-  return factory(token, opts);
+  if (!token && !FLAG_CHANNELS.has(type)) {
+    throw new Error(`CHANNEL_${type.toUpperCase()} requires a token`);
+  }
+  return factory(token ?? "", opts);
 }

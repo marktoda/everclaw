@@ -1,4 +1,5 @@
 import type { ChannelAdapter, InboundMessage } from "./adapter.ts";
+import { logger } from "../logger.ts";
 
 export class ChannelRegistry {
   private adapters = new Map<string, ChannelAdapter>();
@@ -26,13 +27,22 @@ export class ChannelRegistry {
 
   async startAll(onMessage: (msg: InboundMessage) => Promise<void>): Promise<void> {
     for (const adapter of this.adapters.values()) {
-      await adapter.start(onMessage);
+      try {
+        await adapter.start(onMessage);
+      } catch (err) {
+        logger.error({ err, channel: adapter.name }, "failed to start channel adapter");
+      }
     }
   }
 
   async stopAll(): Promise<void> {
-    for (const adapter of this.adapters.values()) {
-      await adapter.stop();
+    const results = await Promise.allSettled(
+      [...this.adapters.values()].map((a) => a.stop()),
+    );
+    for (const r of results) {
+      if (r.status === "rejected") {
+        logger.error({ err: r.reason }, "failed to stop channel adapter");
+      }
     }
   }
 }

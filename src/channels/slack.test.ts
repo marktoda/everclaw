@@ -12,6 +12,7 @@ vi.mock("@slack/bolt", () => {
     event(name: string, handler: Handler) {
       capturedEventHandlers.set(name, handler);
     }
+    error = vi.fn();
     start = mockStartApp;
     stop = mockStopApp;
   }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { splitMessage, splitWithEntities } from "./split.ts";
+import { splitMessage } from "./split.ts";
+import { splitWithEntities } from "./format-telegram.ts";
 import type { FormattedMessage, TelegramEntity } from "./format-telegram.ts";
 
 describe("splitMessage", () => {

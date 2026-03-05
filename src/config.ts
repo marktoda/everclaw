@@ -1,6 +1,9 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 
+/** Channels that authenticate out-of-band (files, QR code) — no token needed. */
+export const FLAG_CHANNELS = new Set(["gmail", "whatsapp"]);
+
 /** Strip matching surrounding quotes (single or double) from a string. */
 export function stripQuotes(val: string): string {
   if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
@@ -11,7 +14,7 @@ export function stripQuotes(val: string): string {
 
 interface ChannelConfig {
   type: string;
-  token: string;
+  token?: string;
 }
 
 export interface ExtraDir {
@@ -122,7 +125,7 @@ function parseAllowedChatIds(raw: string | undefined): Set<string> {
   if (bare.length > 0) {
     console.warn(
       `[config] ALLOWED_CHAT_IDS contains bare numeric IDs (${bare.join(", ")}). ` +
-        `Use fully prefixed IDs like "telegram:${bare[0]}" instead.`,
+        `Use fully prefixed IDs like "<channel>:${bare[0]}" (e.g. telegram:${bare[0]}, discord:${bare[0]}).`,
     );
   }
   return new Set(ids);
@@ -137,10 +140,10 @@ function parsePrefixedEnv(secrets: Record<string, string>, prefix: string): Reco
 }
 
 function parseChannels(secrets: Record<string, string>): ChannelConfig[] {
-  return Object.entries(parsePrefixedEnv(secrets, "CHANNEL_")).map(([type, token]) => ({
-    type: type.toLowerCase(),
-    token,
-  }));
+  return Object.entries(parsePrefixedEnv(secrets, "CHANNEL_")).map(([type, value]) => {
+    const t = type.toLowerCase();
+    return FLAG_CHANNELS.has(t) ? { type: t } : { type: t, token: value };
+  });
 }
 
 export function loadConfig(envPath: string = ".env"): Config {

@@ -92,13 +92,13 @@ describe("createAdapter", () => {
     expect(adapter.name).toBe("slack");
   });
 
-  it("creates a WhatsAppAdapter for type 'whatsapp'", async () => {
-    const adapter = await createAdapter("whatsapp", "enabled");
+  it("creates a WhatsAppAdapter for type 'whatsapp' (no token needed)", async () => {
+    const adapter = await createAdapter("whatsapp");
     expect(adapter.name).toBe("whatsapp");
   });
 
-  it("creates a GmailAdapter for type 'gmail'", async () => {
-    const adapter = await createAdapter("gmail", "enabled");
+  it("creates a GmailAdapter for type 'gmail' (no token needed)", async () => {
+    const adapter = await createAdapter("gmail");
     expect(adapter.name).toBe("gmail");
   });
 

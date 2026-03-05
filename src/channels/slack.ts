@@ -32,6 +32,10 @@ export class SlackAdapter implements ChannelAdapter {
       });
     });
 
+    this.app.error(async (err) => {
+      logger.error({ err }, "Slack app error");
+    });
+
     await this.app.start();
   }
 

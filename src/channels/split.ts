@@ -1,10 +1,14 @@
-import type { FormattedMessage, TelegramEntity } from "./format-telegram.ts";
-
-/** Find the best split point: prefer \n\n, then \n, then hard-split at maxEnd. */
-function findSplitPoint(text: string, start: number, maxEnd: number): number {
+/** Find the best split point: prefer \n\n, then \n, then hard-split at maxEnd.
+ *  Never splits in the middle of a surrogate pair. */
+export function findSplitPoint(text: string, start: number, maxEnd: number): number {
   let splitAt = text.lastIndexOf("\n\n", maxEnd);
   if (splitAt <= start) splitAt = text.lastIndexOf("\n", maxEnd);
   if (splitAt <= start) splitAt = maxEnd;
+  // Don't split in the middle of a surrogate pair
+  if (splitAt > 0 && splitAt < text.length) {
+    const code = text.charCodeAt(splitAt - 1);
+    if (code >= 0xd800 && code <= 0xdbff) splitAt--;
+  }
   return splitAt;
 }
 
@@ -20,56 +24,5 @@ export function splitMessage(text: string, maxLength: number): string[] {
     remaining = remaining.slice(splitAt).replace(/^\n+/, "");
   }
   if (remaining) chunks.push(remaining);
-  return chunks;
-}
-
-export function splitWithEntities(msg: FormattedMessage, maxLength: number): FormattedMessage[] {
-  const { text, entities } = msg;
-  if (text.length <= maxLength) return [{ text, entities: [...entities] }];
-
-  const chunks: FormattedMessage[] = [];
-  let offset = 0;
-
-  while (offset < text.length) {
-    let end = Math.min(offset + maxLength, text.length);
-
-    if (end < text.length) {
-      end = findSplitPoint(text, offset, end);
-
-      // Don't split in the middle of a surrogate pair
-      if (end > 0 && end < text.length) {
-        const code = text.charCodeAt(end - 1);
-        if (code >= 0xd800 && code <= 0xdbff) end--;
-      }
-    }
-
-    const chunkText = text.slice(offset, end);
-    const chunkEntities: TelegramEntity[] = [];
-
-    for (const entity of entities) {
-      const eStart = entity.offset;
-      const eEnd = entity.offset + entity.length;
-
-      // Skip entities entirely outside this chunk
-      if (eEnd <= offset || eStart >= end) continue;
-
-      // Clip to chunk boundaries and adjust offset
-      const clippedStart = Math.max(eStart, offset);
-      const clippedEnd = Math.min(eEnd, end);
-      const clipped: TelegramEntity = {
-        ...entity,
-        offset: clippedStart - offset,
-        length: clippedEnd - clippedStart,
-      };
-      chunkEntities.push(clipped);
-    }
-
-    chunks.push({ text: chunkText, entities: chunkEntities });
-
-    // Advance past the split point, skipping leading newlines
-    offset = end;
-    while (offset < text.length && text[offset] === "\n") offset++;
-  }
-
   return chunks;
 }

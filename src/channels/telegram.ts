@@ -2,8 +2,7 @@ import { Bot } from "grammy";
 import { logger } from "../logger.ts";
 import { transcribeAudio } from "../transcription.ts";
 import { stripPrefix, type ChannelAdapter, type InboundMessage } from "./adapter.ts";
-import { markdownToEntities } from "./format-telegram.ts";
-import { splitWithEntities } from "./split.ts";
+import { markdownToEntities, splitWithEntities } from "./format-telegram.ts";
 
 interface TelegramAdapterOptions {
   openaiApiKey?: string;
@@ -50,8 +49,7 @@ export class TelegramAdapter implements ChannelAdapter {
     }
 
     this.bot.start({ onStart: () => {} }).catch((err) => {
-      logger.fatal({ err }, "Telegram bot polling crashed");
-      process.exit(1);
+      logger.error({ err }, "Telegram bot polling crashed");
     });
   }
 

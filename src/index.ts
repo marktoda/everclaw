@@ -26,9 +26,13 @@ async function main() {
 
   const channelRegistry = new ChannelRegistry();
   for (const ch of config.channels) {
-    channelRegistry.register(
-      await createAdapter(ch.type, ch.token, { openaiApiKey: config.openaiApiKey }),
-    );
+    try {
+      channelRegistry.register(
+        await createAdapter(ch.type, ch.token, { openaiApiKey: config.openaiApiKey }),
+      );
+    } catch (err) {
+      logger.error({ err, channel: ch.type }, "failed to create channel adapter — skipping");
+    }
   }
 
   const taskDeps = {
@@ -57,26 +61,30 @@ async function main() {
   logger.info({ queue: config.worker.queueName }, "everclaw started");
 
   await channelRegistry.startAll(async (msg) => {
-    // Allowlist check
-    if (config.allowedChatIds.size === 0) {
-      // Discovery mode: reply with chat ID instructions, don't run agent
-      logger.info({ recipientId: msg.recipientId }, "discovery mode — replying with chat ID");
-      await channelRegistry.sendMessage(
-        msg.recipientId,
-        `Your chat ID is: ${msg.recipientId}\n\nAdd this to your .env file:\nALLOWED_CHAT_IDS=${msg.recipientId}\n\nThen restart the bot.`,
-      );
-      return;
-    }
-    if (!config.allowedChatIds.has(msg.recipientId)) {
-      logger.warn({ recipientId: msg.recipientId }, "unauthorized message — ignored");
-      return;
-    }
+    try {
+      // Allowlist check
+      if (config.allowedChatIds.size === 0) {
+        // Discovery mode: reply with chat ID instructions, don't run agent
+        logger.info({ recipientId: msg.recipientId }, "discovery mode — replying with chat ID");
+        await channelRegistry.sendMessage(
+          msg.recipientId,
+          `Your chat ID is: ${msg.recipientId}\n\nAdd this to your .env file:\nALLOWED_CHAT_IDS=${msg.recipientId}\n\nThen restart the bot.`,
+        );
+        return;
+      }
+      if (!config.allowedChatIds.has(msg.recipientId)) {
+        logger.warn({ recipientId: msg.recipientId }, "unauthorized message — ignored");
+        return;
+      }
 
-    logger.info({ recipientId: msg.recipientId }, "message received");
-    await absurd.spawn("handle-message", {
-      recipientId: msg.recipientId,
-      text: msg.text,
-    });
+      logger.info({ recipientId: msg.recipientId }, "message received");
+      await absurd.spawn("handle-message", {
+        recipientId: msg.recipientId,
+        text: msg.text,
+      });
+    } catch (err) {
+      logger.error({ err, recipientId: msg.recipientId }, "failed to handle inbound message");
+    }
   });
 
   const shutdown = async () => {
