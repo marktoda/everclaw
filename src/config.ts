@@ -171,7 +171,7 @@ export function loadConfig(envPath: string = ".env"): Config {
       databaseUrl: process.env.DATABASE_URL ?? "postgresql://localhost/absurd",
       queueName,
       concurrency: parseInt(process.env.WORKER_CONCURRENCY ?? "2", 10),
-      claimTimeout: parseInt(process.env.CLAIM_TIMEOUT ?? "300", 10),
+      claimTimeout: parseInt(process.env.CLAIM_TIMEOUT ?? "600", 10),
     },
     dirs: {
       notes: path.resolve(process.env.NOTES_DIR ?? "data/notes"),
