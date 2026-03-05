@@ -3,25 +3,16 @@ import * as path from "node:path";
 import type { Absurd, TaskContext } from "absurd-sdk";
 import { runAgentLoop } from "../agent/loop.ts";
 import type { TaskDeps } from "./shared.ts";
-import { BACKGROUND_MAX_HISTORY, buildAgentDeps, defaultRecipientFile } from "./shared.ts";
+import { BACKGROUND_MAX_HISTORY, buildAgentDeps } from "./shared.ts";
 
 export function registerExecuteSkill(absurd: Absurd, deps: TaskDeps): void {
   absurd.registerTask(
     { name: "execute-skill", defaultMaxAttempts: 3 },
     async (params: { skillName: string; recipientId?: string }, ctx: TaskContext) => {
       // Resolve recipientId: use explicit param (from spawn_skill) or fall back
-      // to the persisted default (for scheduled skills).
+      // to the first allowed chat ID (for scheduled skills).
       const recipientId =
-        params.recipientId ||
-        ((await ctx.step("resolve-recipient", async () => {
-          try {
-            return JSON.parse(
-              await fs.readFile(defaultRecipientFile(deps.config.dirs.notes), "utf-8"),
-            );
-          } catch {
-            return null;
-          }
-        })) as string | null);
+        params.recipientId || [...deps.config.allowedChatIds][0] || null;
 
       if (!recipientId) {
         deps.log?.warn(

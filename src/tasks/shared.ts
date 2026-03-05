@@ -1,6 +1,5 @@
 // src/tasks/shared.ts
 
-import * as path from "node:path";
 import type Anthropic from "@anthropic-ai/sdk";
 import type { Absurd, TaskContext } from "absurd-sdk";
 import type { Pool } from "pg";
@@ -13,11 +12,6 @@ import type { McpManager } from "../servers/manager.ts";
 
 /** Shorter history window for background tasks (skills, workflows). */
 export const BACKGROUND_MAX_HISTORY = 10;
-
-/** Path (relative to notes dir) where the default recipient ID is persisted. */
-export function defaultRecipientFile(notesDir: string): string {
-  return path.join(notesDir, "temp", "default-recipient.json");
-}
 
 export interface TaskDeps {
   anthropic: Anthropic;

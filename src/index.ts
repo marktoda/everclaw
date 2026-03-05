@@ -1,5 +1,3 @@
-import * as fs from "node:fs/promises";
-import * as path from "node:path";
 import Anthropic from "@anthropic-ai/sdk";
 import { Absurd } from "absurd-sdk";
 import * as pg from "pg";
@@ -11,7 +9,6 @@ import { syncSchedules } from "./skills/manager.ts";
 import { registerExecuteSkill } from "./tasks/execute-skill.ts";
 import { registerHandleMessage } from "./tasks/handle-message.ts";
 import { registerSendMessage } from "./tasks/send-message.ts";
-import { defaultRecipientFile } from "./tasks/shared.ts";
 import { registerWorkflow } from "./tasks/workflow.ts";
 
 async function main() {
@@ -32,15 +29,6 @@ async function main() {
     channelRegistry.register(
       createAdapter(ch.type, ch.token, { openaiApiKey: config.openaiApiKey }),
     );
-  }
-
-  // Persist defaultRecipientId via file
-  const recipientFile = defaultRecipientFile(config.dirs.notes);
-  let defaultRecipientId = "";
-  try {
-    defaultRecipientId = JSON.parse(await fs.readFile(recipientFile, "utf-8"));
-  } catch {
-    // Not set yet — will be written on first message
   }
 
   const taskDeps = {
@@ -84,11 +72,6 @@ async function main() {
       return;
     }
 
-    if (!defaultRecipientId) {
-      defaultRecipientId = msg.recipientId;
-      await fs.mkdir(path.dirname(recipientFile), { recursive: true });
-      await fs.writeFile(recipientFile, JSON.stringify(msg.recipientId));
-    }
     logger.info({ recipientId: msg.recipientId }, "message received");
     await absurd.spawn("handle-message", {
       recipientId: msg.recipientId,

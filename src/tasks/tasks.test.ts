@@ -351,24 +351,15 @@ describe("execute-skill", () => {
     expect(deps.channels.sendMessage).toHaveBeenCalledWith("telegram:88", "some text");
   });
 
-  it("resolves recipientId from file when not in params", async () => {
-    vi.mocked(readFile).mockImplementation(((filePath: string) => {
-      if (String(filePath).includes("default-recipient.json")) {
-        return Promise.resolve(JSON.stringify("telegram:99"));
-      }
-      return Promise.resolve("skill file content");
-    }) as any);
+  it("resolves recipientId from allowedChatIds when not in params", async () => {
     const absurd = makeAbsurd();
     const deps = makeDeps();
+    deps.config.allowedChatIds = new Set(["telegram:99"]);
     registerExecuteSkill(absurd as any, deps);
 
     const handler = absurd.handlers.get("execute-skill")!;
     await handler({ skillName: "scheduled-skill" }, makeCtx());
 
-    expect(readFile).toHaveBeenCalledWith(
-      expect.stringContaining("default-recipient.json"),
-      "utf-8",
-    );
     expect(runAgentLoop).toHaveBeenCalledWith(
       expect.anything(),
       "telegram:99",
@@ -378,14 +369,9 @@ describe("execute-skill", () => {
   });
 
   it("skips execution when no recipientId available", async () => {
-    vi.mocked(readFile).mockImplementation(((filePath: string) => {
-      if (String(filePath).includes("default-recipient.json")) {
-        return Promise.reject(new Error("ENOENT: no such file"));
-      }
-      return Promise.resolve("skill file content");
-    }) as any);
     const absurd = makeAbsurd();
     const deps = makeDeps();
+    deps.config.allowedChatIds = new Set();
     registerExecuteSkill(absurd as any, deps);
 
     const handler = absurd.handlers.get("execute-skill")!;
