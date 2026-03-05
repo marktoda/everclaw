@@ -3,7 +3,7 @@ import { fileTools } from "./files.ts";
 import { orchestrationTools } from "./orchestration.ts";
 import { scriptTools } from "./scripts.ts";
 import { searchTools } from "./search.ts";
-import { stateTools } from "./state.ts";
+import { statusTools } from "./status.ts";
 import type { ExecutorDeps, ToolHandler } from "./types.ts";
 
 export interface ToolRegistry {
@@ -19,7 +19,7 @@ export interface McpToolSource {
 
 const allHandlers: ToolHandler[] = [
   ...fileTools,
-  ...stateTools,
+  ...statusTools,
   ...scriptTools,
   ...orchestrationTools,
   ...searchTools,

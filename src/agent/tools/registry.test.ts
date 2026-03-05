@@ -16,11 +16,6 @@ vi.mock("fs/promises", () => ({
   realpath: vi.fn(),
 }));
 
-vi.mock("../../memory/state.ts", () => ({
-  getState: vi.fn(),
-  setState: vi.fn(),
-}));
-
 vi.mock("../../skills/manager.ts", () => ({
   listSkills: vi.fn(),
   syncSchedules: vi.fn(),
@@ -39,7 +34,6 @@ vi.mock("node:child_process", () => ({
 import { execFile } from "node:child_process";
 import * as fs from "node:fs/promises";
 import { TimeoutError } from "absurd-sdk";
-import { getState, setState } from "../../memory/state.ts";
 import { listScripts, runScript } from "../../scripts/runner.ts";
 import { listSkills, syncSchedules } from "../../skills/manager.ts";
 
@@ -693,64 +687,6 @@ describe("registry", () => {
 
       expect(result).toContain("File deleted");
       expect(fs.unlink).toHaveBeenCalled();
-    });
-  });
-
-  // =========================================================================
-  // get_state
-  // =========================================================================
-  describe("get_state", () => {
-    it("returns JSON-stringified value when found", async () => {
-      vi.mocked(getState).mockResolvedValue({ count: 5 });
-      const result = await exec("get_state", {
-        namespace: "ns",
-        key: "counter",
-      });
-      expect(result).toBe(JSON.stringify({ count: 5 }));
-      expect(getState).toHaveBeenCalledWith(deps.pool, "ns", "counter");
-    });
-
-    it("returns '(not set)' when null", async () => {
-      vi.mocked(getState).mockResolvedValue(null);
-      const result = await exec("get_state", {
-        namespace: "ns",
-        key: "missing",
-      });
-      expect(result).toBe("(not set)");
-    });
-
-    it("handles falsy but non-null values correctly", async () => {
-      vi.mocked(getState).mockResolvedValue(0);
-      const result = await exec("get_state", { namespace: "ns", key: "zero" });
-      expect(result).toBe("0");
-    });
-
-    it("handles empty string value", async () => {
-      vi.mocked(getState).mockResolvedValue("");
-      const result = await exec("get_state", { namespace: "ns", key: "empty" });
-      expect(result).toBe('""');
-    });
-
-    it("handles boolean false value", async () => {
-      vi.mocked(getState).mockResolvedValue(false);
-      const result = await exec("get_state", { namespace: "ns", key: "bool" });
-      expect(result).toBe("false");
-    });
-  });
-
-  // =========================================================================
-  // set_state
-  // =========================================================================
-  describe("set_state", () => {
-    it("saves state and returns confirmation", async () => {
-      vi.mocked(setState).mockResolvedValue(undefined);
-      const result = await exec("set_state", {
-        namespace: "ns",
-        key: "k",
-        value: { x: 1 },
-      });
-      expect(result).toBe("State saved.");
-      expect(setState).toHaveBeenCalledWith(deps.pool, "ns", "k", { x: 1 });
     });
   });
 
@@ -1550,9 +1486,9 @@ describe("registry", () => {
   // definitions
   // =========================================================================
   describe("definitions", () => {
-    it("returns all 20 tool definitions", () => {
+    it("returns all 18 tool definitions", () => {
       const registry = createToolRegistry(deps);
-      expect(registry.definitions.length).toBe(20);
+      expect(registry.definitions.length).toBe(18);
     });
 
     it("includes expected tool names", () => {
@@ -1563,8 +1499,6 @@ describe("registry", () => {
       expect(names).toContain("glob_files");
       expect(names).toContain("grep_files");
       expect(names).toContain("delete_file");
-      expect(names).toContain("get_state");
-      expect(names).toContain("set_state");
       expect(names).toContain("get_status");
       expect(names).toContain("run_script");
       expect(names).toContain("sleep_for");
@@ -1752,7 +1686,7 @@ describe("registry", () => {
       const names = registry.definitions.map((d) => d.name);
       expect(names).toContain("read_file");
       expect(names).toContain("mcp_github_list_repos");
-      expect(registry.definitions.length).toBe(21);
+      expect(registry.definitions.length).toBe(19);
     });
 
     it("routes MCP tool calls to the MCP source execute", async () => {

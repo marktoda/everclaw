@@ -22,15 +22,6 @@ describe("test harness", () => {
     expect(result.rows[0].table_name).toBe("messages");
   });
 
-  it("creates assistant.state table", async () => {
-    const result = await db.pool.query(
-      `SELECT table_name FROM information_schema.tables
-       WHERE table_schema = 'assistant' AND table_name = 'state'`,
-    );
-    expect(result.rows).toHaveLength(1);
-    expect(result.rows[0].table_name).toBe("state");
-  });
-
   it("creates absurd queue", async () => {
     const queues = await db.absurd.listQueues();
     expect(queues).toContain("test");
