@@ -1,4 +1,5 @@
 import type { ChannelAdapter } from "./adapter.ts";
+import { DiscordAdapter } from "./discord.ts";
 import { TelegramAdapter } from "./telegram.ts";
 
 export interface AdapterOptions {
@@ -6,6 +7,7 @@ export interface AdapterOptions {
 }
 
 const ADAPTER_FACTORIES: Record<string, (token: string, opts: AdapterOptions) => ChannelAdapter> = {
+  discord: (token) => new DiscordAdapter(token),
   telegram: (token, opts) => new TelegramAdapter(token, { openaiApiKey: opts.openaiApiKey }),
 };
 
