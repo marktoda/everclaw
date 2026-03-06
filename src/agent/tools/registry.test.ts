@@ -1486,9 +1486,9 @@ describe("registry", () => {
   // definitions
   // =========================================================================
   describe("definitions", () => {
-    it("returns all 19 tool definitions", () => {
+    it("returns all 20 tool definitions", () => {
       const registry = createToolRegistry(deps);
-      expect(registry.definitions.length).toBe(19);
+      expect(registry.definitions.length).toBe(20);
     });
 
     it("includes expected tool names", () => {
@@ -1686,7 +1686,7 @@ describe("registry", () => {
       const names = registry.definitions.map((d) => d.name);
       expect(names).toContain("read_file");
       expect(names).toContain("mcp_github_list_repos");
-      expect(registry.definitions.length).toBe(20);
+      expect(registry.definitions.length).toBe(21);
     });
 
     it("routes MCP tool calls to the MCP source execute", async () => {

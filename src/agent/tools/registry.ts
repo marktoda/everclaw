@@ -1,4 +1,5 @@
 import type Anthropic from "@anthropic-ai/sdk";
+import { browserTools } from "./browser.ts";
 import { channelTools } from "./channels.ts";
 import { fileTools } from "./files.ts";
 import { orchestrationTools } from "./orchestration.ts";
@@ -25,6 +26,7 @@ const allHandlers: ToolHandler[] = [
   ...orchestrationTools,
   ...searchTools,
   ...channelTools,
+  ...browserTools,
 ];
 
 const handlerMap = new Map(allHandlers.map((h) => [h.def.name, h]));
