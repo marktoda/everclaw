@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ExecutorDeps } from "./types.ts";
 
 const mockExecFile = vi.fn();
@@ -6,7 +6,7 @@ vi.mock("node:child_process", () => ({
   execFile: (...args: any[]) => mockExecFile(...args),
 }));
 
-import { tokenize, browserTools } from "./browser.ts";
+import { browserTools, tokenize } from "./browser.ts";
 
 const tool = browserTools[0];
 const deps = {} as ExecutorDeps;
