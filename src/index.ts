@@ -76,10 +76,7 @@ async function main() {
         return;
       }
       if (!config.allowedChatIds.has(msg.chatId)) {
-        logger.warn(
-          { chatId: msg.chatId },
-          "unauthorized message — replying with chat ID",
-        );
+        logger.warn({ chatId: msg.chatId }, "unauthorized message — replying with chat ID");
         await channelRegistry.sendMessage(
           msg.chatId,
           `Your chat ID is: ${msg.chatId}\n\nAdd it to ALLOWED_CHAT_IDS in your .env file, then restart the bot.`,
