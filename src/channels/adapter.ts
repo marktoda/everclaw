@@ -19,6 +19,23 @@ export interface ChannelAdapter {
   setTyping?(chatId: string, isTyping: boolean): Promise<void>;
   /** Whether the adapter is currently connected and able to send/receive. */
   isConnected(): boolean;
+  /** Optional: query recent messages. Not all channels support this. */
+  queryMessages?(opts?: QueryOptions): Promise<ChannelMessage[]>;
   /** Graceful shutdown. */
   stop(): Promise<void>;
+}
+
+export interface ChannelMessage {
+  id: string;
+  from: string;
+  text: string;
+  timestamp: Date;
+  chatId?: string;
+  subject?: string;
+}
+
+export interface QueryOptions {
+  limit?: number;
+  query?: string;
+  unread?: boolean;
 }

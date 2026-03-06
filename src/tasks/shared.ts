@@ -47,6 +47,7 @@ export function buildAgentDeps(
       searchApiKey: deps.config.braveSearchApiKey,
       reloadMcp: deps.mcp ? () => deps.mcp!.reload() : undefined,
       allowedChatIds: deps.config.allowedChatIds,
+      channels: deps.channels,
     },
     deps.mcp,
   );

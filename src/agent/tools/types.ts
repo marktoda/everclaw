@@ -1,6 +1,7 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import type { Absurd, TaskContext } from "absurd-sdk";
 import type { Pool } from "pg";
+import type { ChannelRegistry } from "../../channels/registry.ts";
 import type { ExtraDir } from "../../config.ts";
 
 export interface ExecutorDeps {
@@ -24,6 +25,7 @@ export interface ExecutorDeps {
   searchApiKey?: string;
   reloadMcp?: () => Promise<void>;
   allowedChatIds: Set<string>;
+  channels?: ChannelRegistry;
 }
 
 export interface ToolHandler {

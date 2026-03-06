@@ -1,5 +1,5 @@
 import { logger } from "../logger.ts";
-import type { ChannelAdapter, InboundMessage } from "./adapter.ts";
+import type { ChannelAdapter, ChannelMessage, InboundMessage, QueryOptions } from "./adapter.ts";
 
 export class ChannelRegistry {
   private adapters = new Map<string, ChannelAdapter>();
@@ -26,6 +26,21 @@ export class ChannelRegistry {
       logger.warn({ chatId, channel: adapter.name }, "adapter disconnected — send may fail");
     }
     await adapter.sendMessage(chatId, text);
+  }
+
+  async queryMessages(channel: string, opts?: QueryOptions): Promise<ChannelMessage[]> {
+    const adapter = this.adapters.get(channel);
+    if (!adapter) throw new Error(`No channel adapter: "${channel}"`);
+    if (!adapter.queryMessages) {
+      throw new Error(`Channel "${channel}" does not support message queries`);
+    }
+    return adapter.queryMessages(opts);
+  }
+
+  queryableChannels(): string[] {
+    return [...this.adapters.entries()]
+      .filter(([, a]) => typeof a.queryMessages === "function")
+      .map(([name]) => name);
   }
 
   async startAll(onMessage: (msg: InboundMessage) => Promise<void>): Promise<void> {
