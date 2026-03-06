@@ -2,7 +2,13 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { google } from "googleapis";
 import { logger } from "../logger.ts";
-import { type ChannelAdapter, type InboundMessage, stripPrefix } from "./adapter.ts";
+import {
+  type ChannelAdapter,
+  type ChannelMessage,
+  type InboundMessage,
+  type QueryOptions,
+  stripPrefix,
+} from "./adapter.ts";
 import { authDir } from "./auth.ts";
 
 const AUTH_DIR = authDir("gmail");
@@ -231,6 +237,43 @@ export class GmailAdapter implements ChannelAdapter {
       userId: "me",
       requestBody: { raw },
     });
+  }
+
+  async queryMessages(opts?: QueryOptions): Promise<ChannelMessage[]> {
+    if (!this.gmail) throw new Error("Gmail not connected");
+
+    let q = opts?.query || `label:${this.label}`;
+    if (opts?.unread) q += " is:unread";
+
+    const res = await this.gmail.users.messages.list({
+      userId: "me",
+      q,
+      maxResults: Math.min(opts?.limit ?? 10, 50),
+    });
+
+    const messages: ChannelMessage[] = [];
+    for (const { id } of res.data.messages || []) {
+      const msg = await this.gmail.users.messages.get({
+        userId: "me",
+        id,
+        format: "full",
+      });
+
+      const headers = msg.data.payload?.headers || [];
+      const from = getHeader(headers, "From") || "";
+      const subject = getHeader(headers, "Subject") || undefined;
+      const text = extractPlainText(msg.data.payload);
+
+      messages.push({
+        id,
+        from,
+        text: text.trim(),
+        timestamp: new Date(Number(msg.data.internalDate)),
+        subject,
+      });
+    }
+
+    return messages;
   }
 
   isConnected(): boolean {
