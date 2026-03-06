@@ -1,7 +1,7 @@
 {
   "name": "everclaw",
   "version": "0.0.1",
-  "description": "AI personal assistant built on durable task queues. Communicates via Telegram, reasons with Claude, and extends itself through skills and tool scripts.",
+  "description": "AI personal assistant built on durable task queues. Communicates via Telegram, Discord, Slack, WhatsApp, and Gmail, reasons with Claude, and extends itself through skills and tool scripts.",
   "type": "module",
   "license": "MIT",
   "author": "Mark Toda",

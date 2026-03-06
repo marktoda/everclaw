@@ -22,7 +22,7 @@ src/
   config.ts             Config: secrets from .env file, non-secrets from process.env
   channels/
     adapter.ts          ChannelAdapter interface (start, sendMessage, stop, setTyping?) & InboundMessage type
-    registry.ts         ChannelRegistry: routes messages by recipientId prefix, setTyping passthrough
+    registry.ts         ChannelRegistry: routes messages by chatId prefix, setTyping passthrough
     telegram.ts         TelegramAdapter: grammY-based Telegram implementation
     discord.ts          DiscordAdapter: discord.js, 2000 char limit, typing indicators
     slack.ts            SlackAdapter: @slack/bolt Socket Mode, pipe-delimited tokens, 4000 char limit
@@ -31,18 +31,24 @@ src/
     adapters.ts         Adapter factory: maps channel type → adapter constructor
     auth.ts             Shared authDir() helper — resolves data/auth/{adapter}/
     split.ts            Generic message splitting utility (paragraph → line → hard split)
+    format-telegram.ts  Markdown → Telegram MarkdownV2 entity conversion
     index.ts            Barrel export
   transcription.ts      Shared audio transcription via OpenAI Whisper
+  child-env.ts          Minimal environment forwarded to child processes (PATH, HOME only)
+  logger.ts             Pino logger instance, LOG_LEVEL from process.env
   agent/
-    loop.ts             Agent loop: loads context, calls Claude in a tool-use loop (max 20 turns)
+    loop.ts             Agent loop: loads context, calls Claude in a tool-use loop (max 50 turns)
     tools/              Tool definitions co-located with handlers in domain modules
-      index.ts          createToolRegistry — assembles all tool definitions + executor
-      types.ts          ToolRegistry interface, ToolDeps type
+      index.ts          Barrel export for ToolRegistry and types
+      registry.ts       createToolRegistry — assembles all tool definitions + executor
+      types.ts          ToolHandler interface, ExecutorDeps type, defineTool helper
       files.ts          File tools (read_file, write_file, glob_files, grep_files, delete_file)
       status.ts         Status tool (get_status)
       scripts.ts        Script tools (run_script)
-      search.ts         Search tools (web_search)
+      search.ts         Search tools (web_search, search_servers)
       orchestration.ts  Orchestration tools (sleep_for, sleep_until, spawn_workflow, spawn_skill, send_message, …)
+      channels.ts       Channel tools (read_messages — query messages from channels like Gmail)
+      browser.ts        Browser tool (browser — automation via agent-browser CLI)
     prompt.ts           System prompt assembly (injects notes, skills, tool list)
     output.ts           Strips <internal>...</internal> scratchpad tags from agent output
   memory/
@@ -64,6 +70,7 @@ sql/
   001-absurd.sql        Absurd task queue schema (absurd schema)
   002-assistant.sql     App schema: assistant.messages table
   003-channel-abstraction.sql  Migration: chat_id integer→text with 'telegram:' prefix
+  004-drop-state-table.sql     Drops deprecated assistant.state table
 skills/                 Agent-writable skill .md files (YAML frontmatter with optional schedule)
 scripts/                Agent-writable executable scripts (.sh, .py, .js, .ts)
 servers/                MCP server configs (JSON, one file per server)
@@ -75,17 +82,17 @@ docs/plans/             Design and implementation documents
 
 ## Key Patterns
 
-**Channel abstraction.** Messaging channels implement the `ChannelAdapter` interface (`start`, `sendMessage`, `stop`, optional `setTyping`). Five adapters: Telegram, Discord, Slack, WhatsApp, Gmail. A `ChannelRegistry` routes outbound messages by parsing the prefix from `recipientId` strings (e.g. `telegram:123456789`, `discord:123`, `whatsapp:1234567890`). Each adapter owns message splitting via the generic `splitMessage` utility. Adding a new channel means writing a single adapter file and one factory entry.
+**Channel abstraction.** Messaging channels implement the `ChannelAdapter` interface (`start`, `sendMessage`, `stop`, optional `setTyping`). Five adapters: Telegram, Discord, Slack, WhatsApp, Gmail. A `ChannelRegistry` routes outbound messages by parsing the prefix from `chatId` strings (e.g. `telegram:123456789`, `discord:123`, `whatsapp:1234567890`). Each adapter owns message splitting via the generic `splitMessage` utility. Adding a new channel means writing a single adapter file and one factory entry.
 
 **Pluggable channels.** Channels are auto-detected from `CHANNEL_*` secrets in `.env` (e.g. `CHANNEL_TELEGRAM` → telegram adapter, `CHANNEL_DISCORD` → discord). The adapter factory in `channels/adapters.ts` maps type strings to constructors. WhatsApp and Gmail use truthy flags (`CHANNEL_WHATSAPP=1`, `CHANNEL_GMAIL=1`) since they authenticate interactively. Slack uses a pipe-delimited `bot_token|app_token` value.
 
 **Channel auth state.** Adapters requiring persistent auth (WhatsApp, Gmail) store state under `data/auth/{adapter}/` via the shared `authDir()` helper in `channels/auth.ts`. WhatsApp stores Baileys session files; Gmail stores OAuth2 credentials, token cache, and polling state. The `data/` directory is fully gitignored.
 
-**Typing indicators.** `ChannelAdapter.setTyping?(recipientId, isTyping)` is optional. `handle-message.ts` calls `setTyping(recipientId, true)` before the agent loop (fire-and-forget with `.catch(() => {})`). Discord and WhatsApp implement it; Slack's is a no-op; Gmail omits it entirely.
+**Typing indicators.** `ChannelAdapter.setTyping?(chatId, isTyping)` is optional. `handle-message.ts` calls `setTyping(chatId, true)` before the agent loop (fire-and-forget with `.catch(() => {})`). Discord and WhatsApp implement it; Slack's is a no-op; Gmail omits it entirely.
 
 **Voice transcription.** When `OPENAI_API_KEY` is set, adapters can transcribe voice messages via OpenAI Whisper (shared `transcription.ts` module) and deliver them as `[Voice: transcript]`. Currently used by Telegram and WhatsApp adapters. Without the key, voice messages are silently ignored.
 
-**Multi-channel semantics.** Everclaw is a single-agent, multi-channel system. When multiple channels are configured, they share everything except conversation history: same agent prompt, same notes/skills/scripts, same Absurd queue and worker pool, same Postgres database. Conversation history is isolated per `recipientId` — `telegram:123` and `discord:456` are separate threads even if they're the same person. The agent has no awareness of which channel it's on; it only sees the `recipientId` string. The `send_message` tool can send cross-channel (e.g., receive on Telegram, send to Discord) as long as the target is in `ALLOWED_CHAT_IDS`. Channels start sequentially — if one adapter fails to start, the rest don't start either.
+**Multi-channel semantics.** Everclaw is a single-agent, multi-channel system. When multiple channels are configured, they share everything except conversation history: same agent prompt, same notes/skills/scripts, same Absurd queue and worker pool, same Postgres database. Conversation history is isolated per `chatId` — `telegram:123` and `discord:456` are separate threads even if they're the same person. The agent has no awareness of which channel it's on; it only sees the `chatId` string. The `send_message` tool can send cross-channel (e.g., receive on Telegram, send to Discord) as long as the target is in `ALLOWED_CHAT_IDS`. Channels start sequentially — if one adapter fails to start, the rest don't start either.
 
 **Stateless message handling.** Every inbound message spawns a fresh `handle-message` task. There is no "wait for reply" — the agent saves context to files, completes, and picks up context on the next message from conversation history.
 
@@ -111,7 +118,7 @@ docs/plans/             Design and implementation documents
 
 **Agent scratchpad.** The agent can use `<internal>...</internal>` tags for reasoning that gets stripped before sending to the user (see `output.ts`).
 
-## Tools (18 built-in + dynamic MCP tools)
+## Tools (20 built-in + dynamic MCP tools)
 
 | Category | Tools |
 |---|---|
@@ -120,6 +127,8 @@ docs/plans/             Design and implementation documents
 | Scripts (1) | `run_script` |
 | Search (2) | `web_search`, `search_servers` |
 | Orchestration (9) | `sleep_for`, `sleep_until`, `spawn_workflow`, `spawn_skill`, `send_message`, `cancel_task`, `list_tasks`, `wait_for_event`, `emit_event` |
+| Channels (1) | `read_messages` |
+| Browser (1) | `browser` |
 | MCP (dynamic) | `mcp_<server>_<tool>` — discovered at startup from `servers/*.json` configs |
 
 ## Testing
@@ -146,4 +155,4 @@ Three layers: unit tests (mocked, fast), contract tests (FakeAnthropic validates
 - **WhatsApp message containers**: WhatsApp messages are wrapped in various container types (conversation, extendedTextMessage, ephemeral, viewOnce, editedMessage). The adapter unwraps all of these to extract text.
 - **Discord Gateway Intents**: The Discord adapter requires MessageContent, GuildMessages, and DirectMessages gateway intents to be enabled in the Discord Developer Portal.
 - **Channel startup is sequential**: Adapters start one at a time via `ChannelRegistry.startAll()`. If one fails (e.g., invalid Discord token), subsequent adapters don't start. Telegram's bot polling crash calls `process.exit(1)`, killing all channels.
-- **Cross-channel send_message**: The agent's `send_message` tool can target any `recipientId` in `ALLOWED_CHAT_IDS`, regardless of which channel the current conversation is on. This enables cross-channel workflows (e.g., receive on Telegram, alert on Discord).
+- **Cross-channel send_message**: The agent's `send_message` tool can target any `chatId` in `ALLOWED_CHAT_IDS`, regardless of which channel the current conversation is on. This enables cross-channel workflows (e.g., receive on Telegram, alert on Discord).

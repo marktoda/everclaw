@@ -19,7 +19,7 @@ A durable personal AI assistant.
 - **Sleeps, schedules, coordination** — `sleep_for`, `sleep_until`, cron-scheduled skills, and cross-task event latches, all backed by [Absurd](https://github.com/earendil-works/absurd).
 - **Self-extending** — the agent writes its own skill files, tool scripts, and [MCP](https://modelcontextprotocol.io/) server configs at runtime.
 - **Pluggable channels** — Telegram, Discord, Slack, WhatsApp, Gmail. One adapter file per channel.
-- **18 built-in tools** — files, scripts, web search, orchestration, plus any tools discovered from MCP servers.
+- **20 built-in tools** — files, scripts, web search, orchestration, browser automation, plus any tools discovered from MCP servers.
 - **Just Postgres** — the only infrastructure dependency. History, task queue, checkpoints, schedules. All in one place.
 
 ## Quick start
@@ -48,7 +48,7 @@ Every inbound message spawns a durable task. The task runs an agent loop (Claude
 User message (Telegram, etc.)
   → channel adapter spawns "handle-message" task into Postgres
   → Absurd worker picks it up
-  → agent loop: load context → call Claude → execute tools → repeat (max 20 turns)
+  → agent loop: load context → call Claude → execute tools → repeat (max 50 turns)
   → text sent back via channel adapter
   → messages persisted to assistant.messages
 ```
@@ -82,7 +82,7 @@ The agent can't block waiting for user input. It saves context to files, lets th
 
 ### Channels
 
-Five adapters implement the `ChannelAdapter` interface (`start`, `sendMessage`, `stop`): Telegram (grammY), Discord (discord.js), Slack (Bolt Socket Mode), WhatsApp (Baileys), and Gmail (googleapis). A `ChannelRegistry` routes outbound messages by parsing the prefix from `recipientId` strings (e.g. `telegram:123456789`, `discord:456`). Channels are auto-detected from `CHANNEL_*` secrets in `.env`. Bolting on a new channel means one adapter file and one line in the factory map.
+Five adapters implement the `ChannelAdapter` interface (`start`, `sendMessage`, `stop`): Telegram (grammY), Discord (discord.js), Slack (Bolt Socket Mode), WhatsApp (Baileys), and Gmail (googleapis). A `ChannelRegistry` routes outbound messages by parsing the prefix from `chatId` strings (e.g. `telegram:123456789`, `discord:456`). Channels are auto-detected from `CHANNEL_*` secrets in `.env`. Bolting on a new channel means one adapter file and one line in the factory map.
 
 Voice messages work too: if `OPENAI_API_KEY` is set, the Telegram and WhatsApp adapters transcribe voice via Whisper and deliver `[Voice: transcript]`.
 
@@ -117,10 +117,10 @@ TypeScript, runs directly on Node 22.18+ with native type stripping. There's no 
 
 | Module | What it does |
 |---|---|
-| `agent/loop.ts` | The main loop. Checkpointed multi-turn Claude conversation, max 20 turns. |
+| `agent/loop.ts` | The main loop. Checkpointed multi-turn Claude conversation, max 50 turns. |
 | `agent/prompt.ts` | Builds the system prompt: notes, skills, scripts, MCP servers, extra dirs. |
 | `agent/output.ts` | Strips `<internal>...</internal>` scratchpad tags before the user sees anything. |
-| `agent/tools/` | 18 built-in tools across 5 files. Registry in `index.ts`. |
+| `agent/tools/` | 20 built-in tools across 7 files. Registry in `registry.ts`. |
 
 ### Tools
 
@@ -131,13 +131,15 @@ TypeScript, runs directly on Node 22.18+ with native type stripping. There's no 
 | `tools/scripts.ts` | `run_script` (JSON stdin, configurable timeout) |
 | `tools/search.ts` | `web_search` (Brave), `search_servers` (MCP registry) |
 | `tools/orchestration.ts` | `sleep_for`, `sleep_until`, `spawn_workflow`, `spawn_skill`, `send_message`, `cancel_task`, `list_tasks`, `wait_for_event`, `emit_event` |
+| `tools/channels.ts` | `read_messages` (query messages from channels like Gmail) |
+| `tools/browser.ts` | `browser` (automation via agent-browser CLI) |
 
 ### Channels
 
 | File | What it does |
 |---|---|
 | `channels/adapter.ts` | `ChannelAdapter` interface, `InboundMessage` type |
-| `channels/registry.ts` | Routes messages by `recipientId` prefix |
+| `channels/registry.ts` | Routes messages by `chatId` prefix |
 | `channels/telegram.ts` | grammY-based Telegram adapter (text + voice) |
 | `channels/discord.ts` | discord.js adapter (2000 char limit, typing indicators) |
 | `channels/slack.ts` | Bolt Socket Mode adapter (pipe-delimited dual tokens, 4000 char limit) |
