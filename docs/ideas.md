@@ -15,7 +15,6 @@
 ├────────────────────────────────────────────────┼───────────────────────┼──────────────────────┼────────────────────────┤
 │ Agent swarms (parallel agents on one task) │ No │ Yes │ No (serial spawn_task) │
 ├────────────────────────────────────────────────┼───────────────────────┼──────────────────────┼────────────────────────┤
-│ Web browser control │ Yes │ No │ No │
 ├────────────────────────────────────────────────┼───────────────────────┼──────────────────────┼────────────────────────┤
 │ Per-group/per-user memory isolation │ Session isolation │ Per-group folders │ Single namespace │
 ├────────────────────────────────────────────────┼───────────────────────┼──────────────────────┼────────────────────────┤
@@ -50,9 +49,7 @@ Top Opportunities (ordered by impact vs effort)
 8. Per-user Memory Isolation — Both ecosystems isolate context per user/group. Everclaw's state store is namespaced but conversation history is already per-recipient. Could
    formalize this with per-user skill state.
 
-9. Browser Automation — OpenClaw can control browsers. Adding a Playwright-based tool would enable web scraping, form filling, and monitoring workflows.
-
-10. Skill Sharing / Registry — OpenClaw has ClawHub with 13K+ skills. Even a simple git-based skill import mechanism would help everclaw users share and reuse skills.
+9. Skill Sharing / Registry — OpenClaw has ClawHub with 13K+ skills. Even a simple git-based skill import mechanism would help everclaw users share and reuse skills.
 
 The biggest architectural advantages everclaw has over both — durable workflows with checkpointing and event coordination — are genuinely unique. Neither NanoClaw nor
 OpenClaw has anything comparable to sleep_until + wait_for_event + durable replay. That's worth leaning into.
