@@ -113,9 +113,9 @@ function toolUse(name: string, input: Record<string, unknown>, id: string): Anth
 }
 
 /** Extract messages sent to a specific recipient from the spy. */
-function sentMessages(recipientId: string): string[] {
+function sentMessages(chatId: string): string[] {
   return sendMessageSpy.mock.calls
-    .filter((c: any[]) => c[0] === recipientId)
+    .filter((c: any[]) => c[0] === chatId)
     .map((c: any[]) => c[1] as string);
 }
 
@@ -155,10 +155,10 @@ describe("durability integration tests", () => {
     // Fail on first call (attempt 1 crashes), succeed on retry (attempt 2)
     taskDeps.anthropic = new FailThenSucceedAnthropic(1, SIMPLE_TEXT_REPLY) as any;
 
-    const recipientId = "telegram:300001";
+    const chatId = "telegram:300001";
     const { taskID } = await db.absurd.spawn(
       "handle-message",
-      { recipientId, text: "Hello" },
+      { chatId, text: "Hello" },
       { maxAttempts: 3 },
     );
     const worker = await db.absurd.startWorker({ concurrency: 1, claimTimeout: 30 });
@@ -166,7 +166,7 @@ describe("durability integration tests", () => {
     try {
       await waitFor(() => sendMessageSpy.mock.calls.length >= 1, 15_000);
 
-      expect(sendMessageSpy).toHaveBeenCalledWith(recipientId, "Hello!");
+      expect(sendMessageSpy).toHaveBeenCalledWith(chatId, "Hello!");
 
       // Verify the task completed on attempt 2 (not attempt 1)
       const result = await db.pool.query(
@@ -220,16 +220,16 @@ describe("durability integration tests", () => {
 
     taskDeps.anthropic = new FakeAnthropic(scenario) as any;
 
-    const recipientId = "telegram:300002";
-    await db.absurd.spawn("handle-message", { recipientId, text: "Write and sleep" });
+    const chatId = "telegram:300002";
+    await db.absurd.spawn("handle-message", { chatId, text: "Write and sleep" });
     const worker = await db.absurd.startWorker({ concurrency: 1, claimTimeout: 30 });
 
     try {
       await waitFor(() => {
-        return sentMessages(recipientId).includes("Woke up!");
+        return sentMessages(chatId).includes("Woke up!");
       }, 20_000);
 
-      const messages = sentMessages(recipientId);
+      const messages = sentMessages(chatId);
 
       // Text sent before suspend must appear exactly once — not re-sent on resume.
       // This verifies ctx.step('send-text-1') returns cached result on replay.

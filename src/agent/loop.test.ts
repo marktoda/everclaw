@@ -157,13 +157,13 @@ describe("runAgentLoop", () => {
       const calls = vi.mocked(appendMessage).mock.calls;
       expect(calls.length).toBeGreaterThanOrEqual(2);
       expect(calls[0][1]).toMatchObject({
-        recipientId: "telegram:42",
+        chatId: "telegram:42",
         role: "user",
         content: "user-msg",
       });
       // The second should be the assistant reply
       expect(calls[1][1]).toMatchObject({
-        recipientId: "telegram:42",
+        chatId: "telegram:42",
         role: "assistant",
         content: "Reply",
       });
@@ -579,7 +579,7 @@ describe("runAgentLoop", () => {
       expect(stepNames[0]).toBe("load-context");
     });
 
-    it("passes recipientId and maxHistory to getRecentMessages", async () => {
+    it("passes chatId and maxHistory to getRecentMessages", async () => {
       const anthropic = createMockAnthropic([apiResponse([textBlock("ok")])]);
       const deps = baseDeps({ anthropic, maxHistory: 25 });
       const ctx = createMockCtx();
@@ -605,8 +605,8 @@ describe("runAgentLoop", () => {
   describe("conversation history", () => {
     it("includes previous messages from history in the API call", async () => {
       vi.mocked(getRecentMessages).mockResolvedValueOnce([
-        { recipientId: "telegram:1", role: "user", content: "previous question" },
-        { recipientId: "telegram:1", role: "assistant", content: "previous answer" },
+        { chatId: "telegram:1", role: "user", content: "previous question" },
+        { chatId: "telegram:1", role: "assistant", content: "previous answer" },
       ] as any);
 
       const anthropic = createMockAnthropic([apiResponse([textBlock("new answer")])]);
@@ -628,9 +628,9 @@ describe("runAgentLoop", () => {
 
     it("skips tool messages without toolUse (old format, backwards compat)", async () => {
       vi.mocked(getRecentMessages).mockResolvedValueOnce([
-        { recipientId: "telegram:1", role: "user", content: "q1" },
-        { recipientId: "telegram:1", role: "tool", content: "tool output" },
-        { recipientId: "telegram:1", role: "assistant", content: "a1" },
+        { chatId: "telegram:1", role: "user", content: "q1" },
+        { chatId: "telegram:1", role: "tool", content: "tool output" },
+        { chatId: "telegram:1", role: "assistant", content: "a1" },
       ] as any);
 
       const anthropic = createMockAnthropic([apiResponse([textBlock("answer")])]);
@@ -650,20 +650,20 @@ describe("runAgentLoop", () => {
 
     it("reconstructs tool_use and tool_result from history with toolUse metadata", async () => {
       vi.mocked(getRecentMessages).mockResolvedValueOnce([
-        { recipientId: "telegram:1", role: "user", content: "remind me" },
+        { chatId: "telegram:1", role: "user", content: "remind me" },
         {
-          recipientId: "telegram:1",
+          chatId: "telegram:1",
           role: "assistant",
           content: "(tool use only)",
           toolUse: [{ id: "tu-1", name: "spawn_workflow", input: { instructions: "do stuff" } }],
         },
         {
-          recipientId: "telegram:1",
+          chatId: "telegram:1",
           role: "tool",
           content: "[tu-1]: Task spawned",
           toolUse: [{ tool_use_id: "tu-1", content: "Task spawned" }],
         },
-        { recipientId: "telegram:1", role: "assistant", content: "Done!" },
+        { chatId: "telegram:1", role: "assistant", content: "Done!" },
       ] as any);
 
       const anthropic = createMockAnthropic([apiResponse([textBlock("hello")])]);
@@ -706,14 +706,14 @@ describe("runAgentLoop", () => {
       // Simulates a LIMIT-clipped history that starts with a tool_result
       vi.mocked(getRecentMessages).mockResolvedValueOnce([
         {
-          recipientId: "telegram:1",
+          chatId: "telegram:1",
           role: "tool",
           content: "[tu-1]: result",
           toolUse: [{ tool_use_id: "tu-1", content: "result" }],
         },
-        { recipientId: "telegram:1", role: "assistant", content: "Got it" },
-        { recipientId: "telegram:1", role: "user", content: "thanks" },
-        { recipientId: "telegram:1", role: "assistant", content: "Welcome!" },
+        { chatId: "telegram:1", role: "assistant", content: "Got it" },
+        { chatId: "telegram:1", role: "user", content: "thanks" },
+        { chatId: "telegram:1", role: "assistant", content: "Welcome!" },
       ] as any);
 
       const anthropic = createMockAnthropic([apiResponse([textBlock("hi")])]);
@@ -735,13 +735,13 @@ describe("runAgentLoop", () => {
       // History starts with an assistant tool_use but no following tool_result
       vi.mocked(getRecentMessages).mockResolvedValueOnce([
         {
-          recipientId: "telegram:1",
+          chatId: "telegram:1",
           role: "assistant",
           content: "(tool use only)",
           toolUse: [{ id: "tu-1", name: "read_file", input: { path: "x" } }],
         },
-        { recipientId: "telegram:1", role: "user", content: "hi" },
-        { recipientId: "telegram:1", role: "assistant", content: "hello" },
+        { chatId: "telegram:1", role: "user", content: "hi" },
+        { chatId: "telegram:1", role: "assistant", content: "hello" },
       ] as any);
 
       const anthropic = createMockAnthropic([apiResponse([textBlock("hey")])]);
@@ -761,18 +761,18 @@ describe("runAgentLoop", () => {
     it("keeps valid tool_use + tool_result pair at start of history", async () => {
       vi.mocked(getRecentMessages).mockResolvedValueOnce([
         {
-          recipientId: "telegram:1",
+          chatId: "telegram:1",
           role: "assistant",
           content: "(tool use only)",
           toolUse: [{ id: "tu-1", name: "read_file", input: { path: "data/notes/test.md" } }],
         },
         {
-          recipientId: "telegram:1",
+          chatId: "telegram:1",
           role: "tool",
           content: "[tu-1]: value",
           toolUse: [{ tool_use_id: "tu-1", content: "value" }],
         },
-        { recipientId: "telegram:1", role: "assistant", content: "done" },
+        { chatId: "telegram:1", role: "assistant", content: "done" },
       ] as any);
 
       const anthropic = createMockAnthropic([apiResponse([textBlock("ok")])]);
@@ -824,11 +824,11 @@ describe("runAgentLoop", () => {
       expect(calls.length).toBe(4);
 
       // 1. User message
-      expect(calls[0][1]).toMatchObject({ recipientId: "telegram:42", role: "user", content: "q" });
+      expect(calls[0][1]).toMatchObject({ chatId: "telegram:42", role: "user", content: "q" });
 
       // 2. Assistant with tool_use (includes id for history reconstruction)
       const assistantMsg = calls[1][1] as import("../memory/history.ts").AssistantMessage;
-      expect(assistantMsg).toMatchObject({ recipientId: "telegram:42", role: "assistant" });
+      expect(assistantMsg).toMatchObject({ chatId: "telegram:42", role: "assistant" });
       expect(assistantMsg.toolUse).toBeDefined();
       expect(assistantMsg.toolUse).toEqual([
         { id: "tool-p", name: "read_file", input: { path: "data/notes/test.md" } },
@@ -836,14 +836,14 @@ describe("runAgentLoop", () => {
 
       // 3. Tool results (structured toolUse for history reconstruction)
       const toolMsg = calls[2][1] as import("../memory/history.ts").ToolResultMessage;
-      expect(toolMsg).toMatchObject({ recipientId: "telegram:42", role: "tool" });
+      expect(toolMsg).toMatchObject({ chatId: "telegram:42", role: "tool" });
       expect(toolMsg.content).toContain("tool-p");
       expect(toolMsg.content).toContain("tool-result");
       expect(toolMsg.toolUse).toEqual([{ tool_use_id: "tool-p", content: "tool-result" }]);
 
       // 4. Final assistant text
       expect(calls[3][1]).toMatchObject({
-        recipientId: "telegram:42",
+        chatId: "telegram:42",
         role: "assistant",
         content: "final answer",
       });
@@ -992,23 +992,23 @@ describe("runAgentLoop", () => {
       // Simulates concurrent persists that interleave messages from two agent loops:
       // assistant tool_use [A] is followed by tool_result [B] — IDs don't match.
       vi.mocked(getRecentMessages).mockResolvedValueOnce([
-        { recipientId: "telegram:1", role: "user", content: "msg1" },
-        { recipientId: "telegram:1", role: "assistant", content: "ok" },
-        { recipientId: "telegram:1", role: "user", content: "msg2" },
+        { chatId: "telegram:1", role: "user", content: "msg1" },
+        { chatId: "telegram:1", role: "assistant", content: "ok" },
+        { chatId: "telegram:1", role: "user", content: "msg2" },
         {
-          recipientId: "telegram:1",
+          chatId: "telegram:1",
           role: "assistant",
           content: "(tool use only)",
           toolUse: [{ id: "tu-A", name: "read_file", input: { path: "a" } }],
         },
         {
-          recipientId: "telegram:1",
+          chatId: "telegram:1",
           role: "tool",
           content: "[tu-B]: result",
           toolUse: [{ tool_use_id: "tu-B", content: "result" }],
         },
-        { recipientId: "telegram:1", role: "user", content: "msg3" },
-        { recipientId: "telegram:1", role: "assistant", content: "reply3" },
+        { chatId: "telegram:1", role: "user", content: "msg3" },
+        { chatId: "telegram:1", role: "assistant", content: "reply3" },
       ] as any);
 
       const anthropic = createMockAnthropic([apiResponse([textBlock("answer")])]);

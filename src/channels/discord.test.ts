@@ -48,7 +48,7 @@ describe("DiscordAdapter", () => {
     expect(adapter.name).toBe("discord");
   });
 
-  it("start registers messageCreate handler and calls onMessage with prefixed recipientId", async () => {
+  it("start registers messageCreate handler and calls onMessage with prefixed chatId", async () => {
     const adapter = new DiscordAdapter("token");
     const onMessage = vi.fn().mockResolvedValue(undefined);
 
@@ -65,7 +65,7 @@ describe("DiscordAdapter", () => {
     });
 
     expect(onMessage).toHaveBeenCalledWith({
-      recipientId: "discord:ch789",
+      chatId: "discord:ch789",
       text: "hello",
     });
   });
@@ -100,7 +100,7 @@ describe("DiscordAdapter", () => {
     });
 
     expect(onMessage).toHaveBeenCalledWith({
-      recipientId: "discord:ch789",
+      chatId: "discord:ch789",
       text: "what's the weather?",
     });
   });

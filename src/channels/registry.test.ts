@@ -13,7 +13,7 @@ function fakeAdapter(name: string): ChannelAdapter {
 }
 
 describe("ChannelRegistry", () => {
-  it("resolves adapter by recipientId prefix", () => {
+  it("resolves adapter by chatId prefix", () => {
     const registry = new ChannelRegistry();
     const tg = fakeAdapter("telegram");
     registry.register(tg);

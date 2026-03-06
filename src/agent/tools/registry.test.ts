@@ -68,7 +68,7 @@ function makeDeps(overrides: Partial<ExecutorDeps> = {}): ExecutorDeps {
       emitEvent: vi.fn(),
     } as any,
     queueName: "test_queue",
-    recipientId: "telegram:42",
+    chatId: "telegram:42",
     dirs: { ...DEFAULT_DIRS },
     scriptTimeout: 30,
     scriptEnv: {},
@@ -931,7 +931,7 @@ describe("registry", () => {
       });
 
       expect(deps.absurd.spawn).toHaveBeenCalledWith("workflow", {
-        recipientId: "telegram:42",
+        chatId: "telegram:42",
         instructions: "do stuff",
       });
       expect(result).toBe("Workflow spawned (ID: abc-123)");
@@ -951,13 +951,13 @@ describe("registry", () => {
       });
 
       expect(deps.absurd.spawn).toHaveBeenCalledWith("workflow", {
-        recipientId: "telegram:42",
+        chatId: "telegram:42",
         instructions: "do stuff",
         context: "extra info",
       });
     });
 
-    it("resolves recipient 'current' to the executor's recipientId", async () => {
+    it("resolves recipient 'current' to the executor's chatId", async () => {
       vi.mocked(deps.absurd.spawn).mockResolvedValue({
         taskID: "def-456",
         runID: "run-2",
@@ -971,7 +971,7 @@ describe("registry", () => {
       });
 
       expect(deps.absurd.spawn).toHaveBeenCalledWith("workflow", {
-        recipientId: "telegram:42",
+        chatId: "telegram:42",
         instructions: "do stuff",
       });
     });
@@ -992,7 +992,7 @@ describe("registry", () => {
       });
 
       expect(deps.absurd.spawn).toHaveBeenCalledWith("workflow", {
-        recipientId: "telegram:99",
+        chatId: "telegram:99",
         instructions: "other",
       });
     });
@@ -1024,7 +1024,7 @@ describe("registry", () => {
 
       expect(deps.absurd.spawn).toHaveBeenCalledWith("execute-skill", {
         skillName: "daily-report",
-        recipientId: "telegram:42",
+        chatId: "telegram:42",
       });
       expect(result).toBe('Skill "daily-report" spawned (ID: skill-123)');
     });
@@ -1045,7 +1045,7 @@ describe("registry", () => {
       const result = await exec("send_message", { text: "hello" });
 
       expect(deps.absurd.spawn).toHaveBeenCalledWith("send-message", {
-        recipientId: "telegram:42",
+        chatId: "telegram:42",
         text: "hello",
       });
       expect(result).toBe("Message queued (ID: msg-123)");
@@ -1067,7 +1067,7 @@ describe("registry", () => {
       });
 
       expect(deps.absurd.spawn).toHaveBeenCalledWith("send-message", {
-        recipientId: "telegram:999",
+        chatId: "telegram:999",
         text: "hi",
       });
     });
@@ -1128,28 +1128,28 @@ describe("registry", () => {
           {
             task_name: "handle-message",
             task_id: "abcdefgh-1234-5678",
-            params: { text: "hello", recipientId: "telegram:1" },
+            params: { text: "hello", chatId: "telegram:1" },
             run_state: "running",
             available_at: null,
           },
           {
             task_name: "handle-message",
             task_id: "12345678-abcd-efgh",
-            params: { text: "Check ETH price every minute", recipientId: "telegram:1" },
+            params: { text: "Check ETH price every minute", chatId: "telegram:1" },
             run_state: "sleeping",
             available_at: wakeDate,
           },
           {
             task_name: "workflow",
             task_id: "aabbccdd-1111-2222",
-            params: { instructions: "Monitor prices", recipientId: "telegram:1" },
+            params: { instructions: "Monitor prices", chatId: "telegram:1" },
             run_state: "sleeping",
             available_at: null,
           },
           {
             task_name: "execute-skill",
             task_id: "eeffaabb-3333-4444",
-            params: { skillName: "daily-check", recipientId: "telegram:1" },
+            params: { skillName: "daily-check", chatId: "telegram:1" },
             run_state: "running",
             available_at: null,
           },

@@ -72,7 +72,7 @@ describe("TelegramAdapter", () => {
     expect(adapter.name).toBe("telegram");
   });
 
-  it("start registers a message handler and calls onMessage with prefixed recipientId", async () => {
+  it("start registers a message handler and calls onMessage with prefixed chatId", async () => {
     const adapter = new TelegramAdapter("token");
     const onMessage = vi.fn().mockResolvedValue(undefined);
 
@@ -84,7 +84,7 @@ describe("TelegramAdapter", () => {
 
     expect(onMessage).toHaveBeenCalledOnce();
     expect(onMessage).toHaveBeenCalledWith({
-      recipientId: "telegram:123456789",
+      chatId: "telegram:123456789",
       text: "hello",
     });
   });
@@ -143,7 +143,7 @@ describe("TelegramAdapter", () => {
 
       expect(onMessage).toHaveBeenCalledOnce();
       expect(onMessage).toHaveBeenCalledWith({
-        recipientId: "telegram:42",
+        chatId: "telegram:42",
         text: "[Voice: hello from voice]",
       });
       expect(transcribeAudio).toHaveBeenCalledWith(expect.any(Buffer), "sk-key");
@@ -166,7 +166,7 @@ describe("TelegramAdapter", () => {
 
       expect(onMessage).toHaveBeenCalledOnce();
       expect(onMessage).toHaveBeenCalledWith({
-        recipientId: "telegram:42",
+        chatId: "telegram:42",
         text: "[Voice Message - transcription unavailable]",
       });
     });
@@ -186,7 +186,7 @@ describe("TelegramAdapter", () => {
       await handler?.(ctx);
 
       expect(onMessage).toHaveBeenCalledWith({
-        recipientId: "telegram:42",
+        chatId: "telegram:42",
         text: "[Voice Message - transcription unavailable]",
       });
       expect(mockFetch).not.toHaveBeenCalled();
@@ -204,7 +204,7 @@ describe("TelegramAdapter", () => {
       await handler?.(makeVoiceCtx(42, "abc123"));
 
       expect(onMessage).toHaveBeenCalledWith({
-        recipientId: "telegram:42",
+        chatId: "telegram:42",
         text: "[Voice Message - transcription unavailable]",
       });
       expect(transcribeAudio).not.toHaveBeenCalled();

@@ -140,7 +140,7 @@ describe("orchestration integration tests", () => {
     taskDeps.anthropic = new FakeAnthropic(SLEEP_FOR) as any;
 
     await db.absurd.spawn("handle-message", {
-      recipientId: "telegram:200001",
+      chatId: "telegram:200001",
       text: "Sleep for a bit",
     });
     const worker = await db.absurd.startWorker({ concurrency: 1, claimTimeout: 30 });
@@ -159,7 +159,7 @@ describe("orchestration integration tests", () => {
     taskDeps.anthropic = new FakeAnthropic(makeSleepUntilScenario(wakeAt)) as any;
 
     await db.absurd.spawn("handle-message", {
-      recipientId: "telegram:200002",
+      chatId: "telegram:200002",
       text: "Wake me up",
     });
     const worker = await db.absurd.startWorker({ concurrency: 1, claimTimeout: 30 });
@@ -177,7 +177,7 @@ describe("orchestration integration tests", () => {
     taskDeps.anthropic = new FakeAnthropic(WAIT_FOR_EVENT) as any;
 
     const spawnResult = await db.absurd.spawn("handle-message", {
-      recipientId: "telegram:200003",
+      chatId: "telegram:200003",
       text: "Wait for signal",
     });
     const worker = await db.absurd.startWorker({ concurrency: 1, claimTimeout: 30 });
@@ -204,7 +204,7 @@ describe("orchestration integration tests", () => {
     taskDeps.anthropic = new FakeAnthropic(makeSpawnWorkflowCombined()) as any;
 
     await db.absurd.spawn("handle-message", {
-      recipientId: "telegram:200004",
+      chatId: "telegram:200004",
       text: "Spawn a workflow",
     });
     const worker = await db.absurd.startWorker({ concurrency: 2, claimTimeout: 30 });
@@ -226,7 +226,7 @@ describe("orchestration integration tests", () => {
     taskDeps.anthropic = new FakeAnthropic(SEND_MESSAGE_TOOL) as any;
 
     await db.absurd.spawn("handle-message", {
-      recipientId: "telegram:200005",
+      chatId: "telegram:200005",
       text: "Send a background message",
     });
     const worker = await db.absurd.startWorker({ concurrency: 2, claimTimeout: 30 });
@@ -248,7 +248,7 @@ describe("orchestration integration tests", () => {
     // Spawn a workflow that sleeps for 300s
     taskDeps.anthropic = new FakeAnthropic(makeLongSleepScenario()) as any;
     const sleepResult = await db.absurd.spawn("workflow", {
-      recipientId: "telegram:200006",
+      chatId: "telegram:200006",
       instructions: "Sleep forever",
     });
     const worker = await db.absurd.startWorker({ concurrency: 2, claimTimeout: 30 });
@@ -265,7 +265,7 @@ describe("orchestration integration tests", () => {
       taskDeps.anthropic = new FakeAnthropic(makeCancelTaskScenario(sleepResult.taskID)) as any;
 
       await db.absurd.spawn("handle-message", {
-        recipientId: "telegram:200006",
+        chatId: "telegram:200006",
         text: "Cancel that task",
       });
 
@@ -288,7 +288,7 @@ describe("orchestration integration tests", () => {
     // Spawn a workflow that sleeps for 300s
     taskDeps.anthropic = new FakeAnthropic(makeLongSleepScenario()) as any;
     const sleepResult = await db.absurd.spawn("workflow", {
-      recipientId: "telegram:200007",
+      chatId: "telegram:200007",
       instructions: "Sleep forever",
     });
     const worker = await db.absurd.startWorker({ concurrency: 2, claimTimeout: 30 });
@@ -305,7 +305,7 @@ describe("orchestration integration tests", () => {
       taskDeps.anthropic = listFake as any;
 
       await db.absurd.spawn("handle-message", {
-        recipientId: "telegram:200007",
+        chatId: "telegram:200007",
         text: "List tasks",
       });
 

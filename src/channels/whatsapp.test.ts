@@ -77,7 +77,7 @@ describe("WhatsAppAdapter", () => {
     });
 
     expect(onMessage).toHaveBeenCalledWith({
-      recipientId: "whatsapp:5551234567",
+      chatId: "whatsapp:5551234567",
       text: "hello",
     });
   });
@@ -99,7 +99,7 @@ describe("WhatsAppAdapter", () => {
     });
 
     expect(onMessage).toHaveBeenCalledWith({
-      recipientId: "whatsapp:5551234567",
+      chatId: "whatsapp:5551234567",
       text: "extended hello",
     });
   });
@@ -121,7 +121,7 @@ describe("WhatsAppAdapter", () => {
     });
 
     expect(onMessage).toHaveBeenCalledWith({
-      recipientId: "whatsapp:5551234567",
+      chatId: "whatsapp:5551234567",
       text: "hello",
     });
   });
@@ -172,7 +172,7 @@ describe("WhatsAppAdapter", () => {
     });
 
     expect(onMessage).toHaveBeenCalledWith({
-      recipientId: "whatsapp:15551234567",
+      chatId: "whatsapp:15551234567",
       text: "hello from self",
     });
   });

@@ -59,7 +59,7 @@ describe("SlackAdapter", () => {
     });
 
     expect(onMessage).toHaveBeenCalledWith({
-      recipientId: "slack:C04ABC",
+      chatId: "slack:C04ABC",
       text: "hello",
     });
   });

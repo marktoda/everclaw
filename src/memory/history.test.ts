@@ -13,7 +13,7 @@ describe("appendMessage", () => {
     const pool = createMockPool();
 
     await appendMessage(pool, {
-      recipientId: "telegram:42",
+      chatId: "telegram:42",
       role: "user",
       content: "hello world",
     });
@@ -30,7 +30,7 @@ describe("appendMessage", () => {
     const toolUse = [{ id: "tu-1", name: "search", input: { q: "test" } }];
 
     await appendMessage(pool, {
-      recipientId: "telegram:1",
+      chatId: "telegram:1",
       role: "assistant",
       content: "using tool",
       toolUse,
@@ -44,7 +44,7 @@ describe("appendMessage", () => {
     const pool = createMockPool();
 
     await appendMessage(pool, {
-      recipientId: "telegram:1",
+      chatId: "telegram:1",
       role: "assistant",
       content: "result",
     });
@@ -58,7 +58,7 @@ describe("appendMessage", () => {
     pool.query.mockRejectedValueOnce(new Error("connection lost"));
 
     await expect(
-      appendMessage(pool, { recipientId: "telegram:1", role: "user", content: "hi" }),
+      appendMessage(pool, { chatId: "telegram:1", role: "user", content: "hi" }),
     ).rejects.toThrow("connection lost");
   });
 });
@@ -116,14 +116,14 @@ describe("getRecentMessages", () => {
     expect(messages).toEqual([
       {
         id: 1,
-        recipientId: "telegram:5",
+        chatId: "telegram:5",
         role: "user",
         content: "hello",
         createdAt: earlier,
       },
       {
         id: 2,
-        recipientId: "telegram:5",
+        chatId: "telegram:5",
         role: "assistant",
         content: "reply",
         toolUse: undefined,

@@ -115,10 +115,10 @@ describe("system integration tests", () => {
   it("send-message: spawn → worker sends Telegram message", async () => {
     sendMessageSpy.mockClear();
 
-    const recipientId = "telegram:100001";
+    const chatId = "telegram:100001";
     const text = "Hello from send-message test";
 
-    await db.absurd.spawn("send-message", { recipientId, text });
+    await db.absurd.spawn("send-message", { chatId, text });
     const worker = await db.absurd.startWorker({
       concurrency: 1,
       claimTimeout: 30,
@@ -137,10 +137,10 @@ describe("system integration tests", () => {
     sendMessageSpy.mockClear();
     taskDeps.anthropic = new FakeAnthropic(SIMPLE_TEXT_REPLY) as any;
 
-    const recipientId = "telegram:100002";
+    const chatId = "telegram:100002";
     const text = "Hi there";
 
-    await db.absurd.spawn("handle-message", { recipientId, text });
+    await db.absurd.spawn("handle-message", { chatId, text });
     const worker = await db.absurd.startWorker({
       concurrency: 1,
       claimTimeout: 30,
@@ -173,10 +173,10 @@ describe("system integration tests", () => {
     sendMessageSpy.mockClear();
     taskDeps.anthropic = new FakeAnthropic(SIMPLE_TEXT_REPLY) as any;
 
-    const recipientId = "telegram:100003";
+    const chatId = "telegram:100003";
     const instructions = "Say hello to the user";
 
-    await db.absurd.spawn("workflow", { recipientId, instructions });
+    await db.absurd.spawn("workflow", { chatId, instructions });
     const worker = await db.absurd.startWorker({
       concurrency: 1,
       claimTimeout: 30,
@@ -197,7 +197,7 @@ describe("system integration tests", () => {
     const fake = new FakeAnthropic(SIMPLE_TEXT_REPLY);
     taskDeps.anthropic = fake as any;
 
-    const recipientId = "telegram:100004";
+    const chatId = "telegram:100004";
     const skillName = "test-skill";
     const skillContent = `---
 description: A test skill
@@ -208,7 +208,7 @@ Tell the user good morning.
     // Write the skill file to the temp skills directory
     await fs.writeFile(path.join(skillsDir, `${skillName}.md`), skillContent);
 
-    await db.absurd.spawn("execute-skill", { skillName, recipientId });
+    await db.absurd.spawn("execute-skill", { skillName, chatId });
     const worker = await db.absurd.startWorker({
       concurrency: 1,
       claimTimeout: 30,

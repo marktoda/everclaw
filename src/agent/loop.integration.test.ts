@@ -26,8 +26,8 @@ afterAll(async () => {
   await db?.teardown();
 });
 
-// Unique recipientId per test to avoid cross-contamination
-let recipientIdCounter = 1000;
+// Unique chatId per test to avoid cross-contamination
+let chatIdCounter = 1000;
 
 // Temp dirs for notes/skills/tools
 let notesDir: string;
@@ -35,7 +35,7 @@ let skillsDir: string;
 let scriptsDir: string;
 
 beforeEach(() => {
-  recipientIdCounter += 1;
+  chatIdCounter += 1;
   notesDir = fs.mkdtempSync(path.join(os.tmpdir(), "everclaw-notes-"));
   skillsDir = fs.mkdtempSync(path.join(os.tmpdir(), "everclaw-skills-"));
   scriptsDir = fs.mkdtempSync(path.join(os.tmpdir(), "everclaw-scripts-"));
@@ -59,14 +59,14 @@ function makeCtx(): any {
 }
 
 /** Build real AgentDeps wired to real Postgres, real executor, and FakeAnthropic. */
-function buildDeps(fake: FakeAnthropic, recipientId: string): AgentDeps {
+function buildDeps(fake: FakeAnthropic, chatId: string): AgentDeps {
   const ctx = makeCtx();
   const registry = createToolRegistry({
     absurd: db.absurd,
     pool: db.pool,
     ctx,
     queueName: "test",
-    recipientId,
+    chatId,
     dirs: {
       notes: notesDir,
       skills: skillsDir,
@@ -77,7 +77,7 @@ function buildDeps(fake: FakeAnthropic, recipientId: string): AgentDeps {
     scriptTimeout: 10,
     scriptEnv: {},
     startedAt: new Date(),
-    allowedChatIds: new Set([recipientId]),
+    allowedChatIds: new Set([chatId]),
   });
 
   return {
@@ -92,18 +92,18 @@ function buildDeps(fake: FakeAnthropic, recipientId: string): AgentDeps {
 
 describe("loop integration tests", () => {
   it("persists and retrieves conversation history through real Postgres", async () => {
-    const recipientId = `telegram:${recipientIdCounter}`;
+    const chatId = `telegram:${chatIdCounter}`;
     const fake = new FakeAnthropic(SIMPLE_TEXT_REPLY);
-    const deps = buildDeps(fake, recipientId);
+    const deps = buildDeps(fake, chatId);
     const ctx = makeCtx();
 
-    const reply = await runAgentLoop(ctx, recipientId, "Hi there", deps);
+    const reply = await runAgentLoop(ctx, chatId, "Hi there", deps);
 
     expect(reply).toBe("Hello!");
     fake.assertAllTurnsConsumed();
 
     // Verify messages persisted in Postgres
-    const messages = await getRecentMessages(db.pool, recipientId, 50);
+    const messages = await getRecentMessages(db.pool, chatId, 50);
     expect(messages.length).toBe(2);
     expect(messages[0].role).toBe("user");
     expect(messages[0].content).toBe("Hi there");
@@ -112,12 +112,12 @@ describe("loop integration tests", () => {
   });
 
   it("tool execution with real files: write -> read -> verify", async () => {
-    const recipientId = `telegram:${recipientIdCounter}`;
+    const chatId = `telegram:${chatIdCounter}`;
     const fake = new FakeAnthropic(WRITE_AND_READ);
-    const deps = buildDeps(fake, recipientId);
+    const deps = buildDeps(fake, chatId);
     const ctx = makeCtx();
 
-    const reply = await runAgentLoop(ctx, recipientId, "Write and read a file", deps);
+    const reply = await runAgentLoop(ctx, chatId, "Write and read a file", deps);
 
     expect(reply).toBe("File contains: hello world");
     fake.assertAllTurnsConsumed();
@@ -129,12 +129,12 @@ describe("loop integration tests", () => {
   });
 
   it("file round-trip through real file system: write -> read -> verify", async () => {
-    const recipientId = `telegram:${recipientIdCounter}`;
+    const chatId = `telegram:${chatIdCounter}`;
     const fake = new FakeAnthropic(WRITE_AND_READ);
-    const deps = buildDeps(fake, recipientId);
+    const deps = buildDeps(fake, chatId);
     const ctx = makeCtx();
 
-    const reply = await runAgentLoop(ctx, recipientId, "Write and read a file", deps);
+    const reply = await runAgentLoop(ctx, chatId, "Write and read a file", deps);
 
     expect(reply).toBe("File contains: hello world");
     fake.assertAllTurnsConsumed();
@@ -146,17 +146,17 @@ describe("loop integration tests", () => {
   });
 
   it("history reconstruction fidelity across two messages", async () => {
-    const recipientId = `telegram:${recipientIdCounter}`;
+    const chatId = `telegram:${chatIdCounter}`;
 
     // First: write a file so that SINGLE_TOOL_USE (read_file data/notes/test.md) succeeds
     fs.writeFileSync(path.join(notesDir, "test.md"), "hello from disk");
 
     // First message: uses SINGLE_TOOL_USE (read_file -> text reply)
     const fake1 = new FakeAnthropic(SINGLE_TOOL_USE);
-    const deps1 = buildDeps(fake1, recipientId);
+    const deps1 = buildDeps(fake1, chatId);
     const ctx1 = makeCtx();
 
-    const reply1 = await runAgentLoop(ctx1, recipientId, "Read the test file", deps1);
+    const reply1 = await runAgentLoop(ctx1, chatId, "Read the test file", deps1);
     expect(reply1).toBe("I read the file.");
     fake1.assertAllTurnsConsumed();
 
@@ -164,10 +164,10 @@ describe("loop integration tests", () => {
     // the reconstructed history (including tool_use + tool_result from the first
     // message) is valid API format.
     const fake2 = new FakeAnthropic(SIMPLE_TEXT_REPLY);
-    const deps2 = buildDeps(fake2, recipientId);
+    const deps2 = buildDeps(fake2, chatId);
     const ctx2 = makeCtx();
 
-    const reply2 = await runAgentLoop(ctx2, recipientId, "Thanks!", deps2);
+    const reply2 = await runAgentLoop(ctx2, chatId, "Thanks!", deps2);
     expect(reply2).toBe("Hello!");
     fake2.assertAllTurnsConsumed();
 
@@ -176,7 +176,7 @@ describe("loop integration tests", () => {
     // it would have thrown a contract violation error above.
 
     // Verify the full history is stored correctly
-    const messages = await getRecentMessages(db.pool, recipientId, 50);
+    const messages = await getRecentMessages(db.pool, chatId, 50);
     // First message: user + assistant(tool_use) + tool(result) + assistant(text)
     // Second message: user + assistant(text)
     // Total: 6 messages
@@ -198,7 +198,7 @@ describe("loop integration tests", () => {
   });
 
   it("real script execution via temp dir", async () => {
-    const recipientId = `telegram:${recipientIdCounter}`;
+    const chatId = `telegram:${chatIdCounter}`;
 
     // Write a bash script to scriptsDir
     const scriptPath = path.join(scriptsDir, "greet.sh");
@@ -227,10 +227,10 @@ describe("loop integration tests", () => {
     };
 
     const fake = new FakeAnthropic(scenario);
-    const deps = buildDeps(fake, recipientId);
+    const deps = buildDeps(fake, chatId);
     const ctx = makeCtx();
 
-    const reply = await runAgentLoop(ctx, recipientId, "Run the greet script", deps);
+    const reply = await runAgentLoop(ctx, chatId, "Run the greet script", deps);
 
     expect(reply).toBe("Script output received.");
     fake.assertAllTurnsConsumed();

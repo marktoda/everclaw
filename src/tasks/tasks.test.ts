@@ -114,13 +114,13 @@ describe("send-message", () => {
     expect(absurd.handlers.has("send-message")).toBe(true);
   });
 
-  it("calls channels.sendMessage with recipientId and text", async () => {
+  it("calls channels.sendMessage with chatId and text", async () => {
     const absurd = makeAbsurd();
     const channels = makeChannels();
     registerSendMessage(absurd as any, channels as any);
 
     const handler = absurd.handlers.get("send-message")!;
-    const result = await handler({ recipientId: "telegram:42", text: "hello" }, makeCtx());
+    const result = await handler({ chatId: "telegram:42", text: "hello" }, makeCtx());
 
     expect(channels.sendMessage).toHaveBeenCalledOnce();
     expect(channels.sendMessage).toHaveBeenCalledWith("telegram:42", "hello");
@@ -134,7 +134,7 @@ describe("send-message", () => {
     registerSendMessage(absurd as any, channels as any);
 
     const handler = absurd.handlers.get("send-message")!;
-    await expect(handler({ recipientId: "telegram:1", text: "x" }, makeCtx())).rejects.toThrow(
+    await expect(handler({ chatId: "telegram:1", text: "x" }, makeCtx())).rejects.toThrow(
       "network",
     );
   });
@@ -161,7 +161,7 @@ describe("handle-message", () => {
     registerHandleMessage(absurd as any, deps);
 
     const handler = absurd.handlers.get("handle-message")!;
-    await handler({ recipientId: "telegram:99", text: "hi" }, ctx);
+    await handler({ chatId: "telegram:99", text: "hi" }, ctx);
 
     expect(createToolRegistry).toHaveBeenCalledOnce();
     expect(createToolRegistry).toHaveBeenCalledWith(
@@ -170,7 +170,7 @@ describe("handle-message", () => {
         pool: deps.pool,
         ctx,
         queueName: deps.config.worker.queueName,
-        recipientId: "telegram:99",
+        chatId: "telegram:99",
         dirs: deps.config.dirs,
         scriptTimeout: deps.config.scriptTimeout,
         startedAt: deps.startedAt,
@@ -186,7 +186,7 @@ describe("handle-message", () => {
     registerHandleMessage(absurd as any, deps);
 
     const handler = absurd.handlers.get("handle-message")!;
-    await handler({ recipientId: "telegram:99", text: "hi" }, ctx);
+    await handler({ chatId: "telegram:99", text: "hi" }, ctx);
 
     expect(runAgentLoop).toHaveBeenCalledOnce();
     expect(runAgentLoop).toHaveBeenCalledWith(ctx, "telegram:99", "hi", {
@@ -212,18 +212,18 @@ describe("handle-message", () => {
     registerHandleMessage(absurd as any, makeDeps());
 
     const handler = absurd.handlers.get("handle-message")!;
-    const result = await handler({ recipientId: "telegram:1", text: "test" }, makeCtx());
+    const result = await handler({ chatId: "telegram:1", text: "test" }, makeCtx());
 
     expect(result).toEqual({ reply: "agent-reply" });
   });
 
-  it("onText sends a message to the right recipientId", async () => {
+  it("onText sends a message to the right chatId", async () => {
     const absurd = makeAbsurd();
     const deps = makeDeps();
     registerHandleMessage(absurd as any, deps);
 
     const handler = absurd.handlers.get("handle-message")!;
-    await handler({ recipientId: "telegram:77", text: "test" }, makeCtx());
+    await handler({ chatId: "telegram:77", text: "test" }, makeCtx());
 
     // Extract the onText callback that was passed to runAgentLoop
     const opts = vi.mocked(runAgentLoop).mock.calls[0][3];
@@ -239,7 +239,7 @@ describe("handle-message", () => {
     registerHandleMessage(absurd as any, deps);
 
     const handler = absurd.handlers.get("handle-message")!;
-    await handler({ recipientId: "telegram:1", text: "x" }, makeCtx());
+    await handler({ chatId: "telegram:1", text: "x" }, makeCtx());
 
     const opts = vi.mocked(runAgentLoop).mock.calls[0][3];
     await expect(opts.onText?.("y")).rejects.toThrow("net");
@@ -270,7 +270,7 @@ describe("execute-skill", () => {
     registerExecuteSkill(absurd as any, deps);
 
     const handler = absurd.handlers.get("execute-skill")!;
-    await handler({ skillName: "morning-check", recipientId: "telegram:10" }, ctx);
+    await handler({ skillName: "morning-check", chatId: "telegram:10" }, ctx);
 
     // ctx.step should have been called with "read-skill"
     expect(ctx.step).toHaveBeenCalledWith("read-skill", expect.any(Function));
@@ -285,7 +285,7 @@ describe("execute-skill", () => {
     registerExecuteSkill(absurd as any, deps);
 
     const handler = absurd.handlers.get("execute-skill")!;
-    await handler({ skillName: "test-skill", recipientId: "telegram:10" }, makeCtx());
+    await handler({ skillName: "test-skill", chatId: "telegram:10" }, makeCtx());
 
     expect(runAgentLoop).toHaveBeenCalledOnce();
     expect(runAgentLoop).toHaveBeenCalledWith(
@@ -298,18 +298,18 @@ describe("execute-skill", () => {
     );
   });
 
-  it("creates registry with recipientId from params", async () => {
+  it("creates registry with chatId from params", async () => {
     const absurd = makeAbsurd();
     const deps = makeDeps();
     const ctx = makeCtx();
     registerExecuteSkill(absurd as any, deps);
 
     const handler = absurd.handlers.get("execute-skill")!;
-    await handler({ skillName: "foo", recipientId: "telegram:55" }, ctx);
+    await handler({ skillName: "foo", chatId: "telegram:55" }, ctx);
 
     expect(createToolRegistry).toHaveBeenCalledWith(
       expect.objectContaining({
-        recipientId: "telegram:55",
+        chatId: "telegram:55",
         ctx,
       }),
       undefined,
@@ -321,7 +321,7 @@ describe("execute-skill", () => {
     registerExecuteSkill(absurd as any, makeDeps());
 
     const handler = absurd.handlers.get("execute-skill")!;
-    const result = await handler({ skillName: "daily", recipientId: "telegram:1" }, makeCtx());
+    const result = await handler({ skillName: "daily", chatId: "telegram:1" }, makeCtx());
 
     expect(result).toEqual({ skillName: "daily", reply: "skill-reply" });
   });
@@ -335,24 +335,24 @@ describe("execute-skill", () => {
 
     const handler = absurd.handlers.get("execute-skill")!;
     await expect(
-      handler({ skillName: "../../etc/passwd", recipientId: "telegram:1" }, makeCtx()),
+      handler({ skillName: "../../etc/passwd", chatId: "telegram:1" }, makeCtx()),
     ).rejects.toThrow("Invalid skill name");
   });
 
-  it("onText sends message for the correct recipientId", async () => {
+  it("onText sends message for the correct chatId", async () => {
     const absurd = makeAbsurd();
     const deps = makeDeps();
     registerExecuteSkill(absurd as any, deps);
 
     const handler = absurd.handlers.get("execute-skill")!;
-    await handler({ skillName: "test", recipientId: "telegram:88" }, makeCtx());
+    await handler({ skillName: "test", chatId: "telegram:88" }, makeCtx());
 
     const opts = vi.mocked(runAgentLoop).mock.calls[0][3];
     opts.onText?.("some text");
     expect(deps.channels.sendMessage).toHaveBeenCalledWith("telegram:88", "some text");
   });
 
-  it("resolves recipientId from allowedChatIds when not in params", async () => {
+  it("resolves chatId from allowedChatIds when not in params", async () => {
     const absurd = makeAbsurd();
     const deps = makeDeps();
     deps.config.allowedChatIds = new Set(["telegram:99"]);
@@ -369,7 +369,7 @@ describe("execute-skill", () => {
     );
   });
 
-  it("skips execution when no recipientId available", async () => {
+  it("skips execution when no chatId available", async () => {
     const absurd = makeAbsurd();
     const deps = makeDeps();
     deps.config.allowedChatIds = new Set();
@@ -402,7 +402,7 @@ describe("workflow", () => {
     registerWorkflow(absurd as any, makeDeps());
 
     const handler = absurd.handlers.get("workflow")!;
-    await handler({ recipientId: "telegram:1", instructions: "do the thing" }, makeCtx());
+    await handler({ chatId: "telegram:1", instructions: "do the thing" }, makeCtx());
 
     expect(runAgentLoop).toHaveBeenCalledOnce();
     expect(runAgentLoop).toHaveBeenCalledWith(
@@ -421,7 +421,7 @@ describe("workflow", () => {
 
     const handler = absurd.handlers.get("workflow")!;
     await handler(
-      { recipientId: "telegram:2", instructions: "run it", context: { key: "val" } },
+      { chatId: "telegram:2", instructions: "run it", context: { key: "val" } },
       makeCtx(),
     );
 
@@ -438,7 +438,7 @@ describe("workflow", () => {
     registerWorkflow(absurd as any, makeDeps());
 
     const handler = absurd.handlers.get("workflow")!;
-    await handler({ recipientId: "telegram:1", instructions: "hello" }, makeCtx());
+    await handler({ chatId: "telegram:1", instructions: "hello" }, makeCtx());
 
     const message = vi.mocked(runAgentLoop).mock.calls[0][2];
     expect(message).toBe("hello");
@@ -450,7 +450,7 @@ describe("workflow", () => {
     registerWorkflow(absurd as any, makeDeps());
 
     const handler = absurd.handlers.get("workflow")!;
-    await handler({ recipientId: "telegram:1", instructions: "go", context: null }, makeCtx());
+    await handler({ chatId: "telegram:1", instructions: "go", context: null }, makeCtx());
 
     const message = vi.mocked(runAgentLoop).mock.calls[0][2];
     expect(message).toBe("go");
@@ -463,7 +463,7 @@ describe("workflow", () => {
     registerWorkflow(absurd as any, deps);
 
     const handler = absurd.handlers.get("workflow")!;
-    await handler({ recipientId: "telegram:33", instructions: "x" }, ctx);
+    await handler({ chatId: "telegram:33", instructions: "x" }, ctx);
 
     expect(createToolRegistry).toHaveBeenCalledOnce();
     expect(createToolRegistry).toHaveBeenCalledWith(
@@ -472,7 +472,7 @@ describe("workflow", () => {
         pool: deps.pool,
         ctx,
         queueName: deps.config.worker.queueName,
-        recipientId: "telegram:33",
+        chatId: "telegram:33",
         dirs: deps.config.dirs,
         scriptTimeout: deps.config.scriptTimeout,
         startedAt: deps.startedAt,
@@ -486,18 +486,18 @@ describe("workflow", () => {
     registerWorkflow(absurd as any, makeDeps());
 
     const handler = absurd.handlers.get("workflow")!;
-    const result = await handler({ recipientId: "telegram:1", instructions: "test" }, makeCtx());
+    const result = await handler({ chatId: "telegram:1", instructions: "test" }, makeCtx());
 
     expect(result).toEqual({ reply: "workflow-reply" });
   });
 
-  it("onText sends message for the correct recipientId", async () => {
+  it("onText sends message for the correct chatId", async () => {
     const absurd = makeAbsurd();
     const deps = makeDeps();
     registerWorkflow(absurd as any, deps);
 
     const handler = absurd.handlers.get("workflow")!;
-    await handler({ recipientId: "telegram:44", instructions: "do" }, makeCtx());
+    await handler({ chatId: "telegram:44", instructions: "do" }, makeCtx());
 
     const opts = vi.mocked(runAgentLoop).mock.calls[0][3];
     opts.onText?.("workflow text");
