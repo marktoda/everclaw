@@ -22,8 +22,7 @@ export const channelTools: ToolHandler[] = [
             "Search/filter string. For Gmail, uses Gmail search syntax (e.g. 'from:alice', 'subject:invoice', 'is:unread').",
         },
         unread: {
-          type: "string",
-          enum: ["true", "false"],
+          type: "boolean",
           description: "Only return unread messages (default: false)",
         },
       },
@@ -35,7 +34,7 @@ export const channelTools: ToolHandler[] = [
         channel?: string;
         limit?: number;
         query?: string;
-        unread?: string;
+        unread?: boolean;
       };
 
       const queryable = deps.channels.queryableChannels();
@@ -50,9 +49,9 @@ export const channelTools: ToolHandler[] = [
       }
 
       const messages = await deps.channels.queryMessages(channel, {
-        limit: Math.min(limit ?? 10, 50),
+        limit,
         query,
-        unread: unread === "true",
+        unread,
       });
 
       if (messages.length === 0) return "No messages found.";

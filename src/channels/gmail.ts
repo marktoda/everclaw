@@ -174,25 +174,14 @@ export class GmailAdapter implements ChannelAdapter {
         }
       }
 
-      const msg = await this.gmail.users.messages.get({
-        userId: "me",
-        id,
-        format: "full",
-      });
+      const parsed = await this.fetchMessage(id);
+      if (this.myEmail && parsed.from.includes(this.myEmail)) continue;
+      if (!parsed.text.trim()) continue;
 
-      const headers = msg.data.payload?.headers || [];
-      const from = getHeader(headers, "From") || "";
-      if (this.myEmail && from.includes(this.myEmail)) continue;
+      const emailMatch = parsed.from.match(/<(.+?)>/) || [null, parsed.from];
+      const senderEmail = (emailMatch[1] || parsed.from).trim();
 
-      const text = extractPlainText(msg.data.payload);
-      if (!text.trim()) continue;
-
-      const emailMatch = from.match(/<(.+?)>/) || [null, from];
-      const senderEmail = (emailMatch[1] || from).trim();
-
-      const subject = getHeader(headers, "Subject") || "";
-      const messageId = getHeader(headers, "Message-ID") || "";
-      const references = getHeader(headers, "References");
+      const { subject, messageId, references } = parsed;
       if (messageId) {
         this.threadContext.set(senderEmail, { subject, messageId, references });
       }
@@ -210,6 +199,20 @@ export class GmailAdapter implements ChannelAdapter {
     }
 
     await this.saveState();
+  }
+
+  private async fetchMessage(id: string) {
+    const msg = await this.gmail.users.messages.get({ userId: "me", id, format: "full" });
+    const headers = msg.data.payload?.headers || [];
+    return {
+      id,
+      from: getHeader(headers, "From") || "",
+      subject: getHeader(headers, "Subject") || "",
+      messageId: getHeader(headers, "Message-ID") || "",
+      references: getHeader(headers, "References"),
+      text: extractPlainText(msg.data.payload),
+      internalDate: msg.data.internalDate,
+    };
   }
 
   private async saveState(): Promise<void> {
@@ -242,8 +245,10 @@ export class GmailAdapter implements ChannelAdapter {
   async queryMessages(opts?: QueryOptions): Promise<ChannelMessage[]> {
     if (!this.gmail) throw new Error("Gmail not connected");
 
-    let q = opts?.query || `label:${this.label}`;
-    if (opts?.unread) q += " is:unread";
+    const parts = [`label:${this.label}`];
+    if (opts?.query) parts.push(opts.query);
+    if (opts?.unread) parts.push("is:unread");
+    const q = parts.join(" ");
 
     const res = await this.gmail.users.messages.list({
       userId: "me",
@@ -251,29 +256,16 @@ export class GmailAdapter implements ChannelAdapter {
       maxResults: Math.min(opts?.limit ?? 10, 50),
     });
 
-    const messages: ChannelMessage[] = [];
-    for (const { id } of res.data.messages || []) {
-      const msg = await this.gmail.users.messages.get({
-        userId: "me",
-        id,
-        format: "full",
-      });
+    const ids = (res.data.messages || []).map((m: any) => m.id as string);
+    const fetched = await Promise.all(ids.map((id: string) => this.fetchMessage(id)));
 
-      const headers = msg.data.payload?.headers || [];
-      const from = getHeader(headers, "From") || "";
-      const subject = getHeader(headers, "Subject") || undefined;
-      const text = extractPlainText(msg.data.payload);
-
-      messages.push({
-        id,
-        from,
-        text: text.trim(),
-        timestamp: new Date(Number(msg.data.internalDate)),
-        subject,
-      });
-    }
-
-    return messages;
+    return fetched.map(({ id, from, subject, text, internalDate }) => ({
+      id,
+      from,
+      text: text.trim(),
+      timestamp: new Date(Number(internalDate)),
+      subject: subject || undefined,
+    }));
   }
 
   isConnected(): boolean {

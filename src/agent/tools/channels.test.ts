@@ -75,23 +75,23 @@ describe("read_messages", () => {
     expect(result).toBe("No messages found.");
   });
 
-  it("respects limit parameter and caps at 50", async () => {
+  it("passes limit through to adapter (clamping is adapter's job)", async () => {
     const channels = makeChannels({ queryable: ["gmail"], messages: [] });
     await tool.execute({ channel: "gmail", limit: 100 }, makeDeps(channels as any));
     expect(channels.queryMessages).toHaveBeenCalledWith("gmail", {
-      limit: 50,
+      limit: 100,
       query: undefined,
-      unread: false,
+      unread: undefined,
     });
   });
 
-  it("passes default limit of 10", async () => {
+  it("passes undefined limit when not provided", async () => {
     const channels = makeChannels({ queryable: ["gmail"], messages: [] });
     await tool.execute({ channel: "gmail" }, makeDeps(channels as any));
     expect(channels.queryMessages).toHaveBeenCalledWith("gmail", {
-      limit: 10,
+      limit: undefined,
       query: undefined,
-      unread: false,
+      unread: undefined,
     });
   });
 
@@ -114,11 +114,11 @@ describe("read_messages", () => {
   it("passes query and unread options through", async () => {
     const channels = makeChannels({ queryable: ["gmail"], messages: [] });
     await tool.execute(
-      { channel: "gmail", query: "from:alice", unread: "true" },
+      { channel: "gmail", query: "from:alice", unread: true },
       makeDeps(channels as any),
     );
     expect(channels.queryMessages).toHaveBeenCalledWith("gmail", {
-      limit: 10,
+      limit: undefined,
       query: "from:alice",
       unread: true,
     });
