@@ -188,7 +188,7 @@ export class GmailAdapter implements ChannelAdapter {
 
       await this.onMessage?.({
         chatId: `gmail:${senderEmail}`,
-        text: text.trim(),
+        text: parsed.text.trim(),
       });
 
       await this.gmail.users.messages.modify({
