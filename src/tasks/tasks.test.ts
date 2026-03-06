@@ -339,7 +339,7 @@ describe("execute-skill", () => {
     ).rejects.toThrow("Invalid skill name");
   });
 
-  it("onText sends message for the correct chatId", async () => {
+  it("runs in silent mode (onText is undefined)", async () => {
     const absurd = makeAbsurd();
     const deps = makeDeps();
     registerExecuteSkill(absurd as any, deps);
@@ -348,8 +348,7 @@ describe("execute-skill", () => {
     await handler({ skillName: "test", chatId: "telegram:88" }, makeCtx());
 
     const opts = vi.mocked(runAgentLoop).mock.calls[0][3];
-    opts.onText?.("some text");
-    expect(deps.channels.sendMessage).toHaveBeenCalledWith("telegram:88", "some text");
+    expect(opts.onText).toBeUndefined();
   });
 
   it("resolves chatId from allowedChatIds when not in params", async () => {
@@ -491,7 +490,7 @@ describe("workflow", () => {
     expect(result).toEqual({ reply: "workflow-reply" });
   });
 
-  it("onText sends message for the correct chatId", async () => {
+  it("runs in silent mode (onText is undefined)", async () => {
     const absurd = makeAbsurd();
     const deps = makeDeps();
     registerWorkflow(absurd as any, deps);
@@ -500,7 +499,6 @@ describe("workflow", () => {
     await handler({ chatId: "telegram:44", instructions: "do" }, makeCtx());
 
     const opts = vi.mocked(runAgentLoop).mock.calls[0][3];
-    opts.onText?.("workflow text");
-    expect(deps.channels.sendMessage).toHaveBeenCalledWith("telegram:44", "workflow text");
+    expect(opts.onText).toBeUndefined();
   });
 });

@@ -100,6 +100,17 @@ afterAll(async () => {
   }
 });
 
+/** Poll until an async condition is met. */
+async function waitForAsync(condition: () => Promise<boolean>, timeoutMs = 10_000): Promise<void> {
+  const interval = 250;
+  const iterations = Math.ceil(timeoutMs / interval);
+  for (let i = 0; i < iterations; i++) {
+    await new Promise((r) => setTimeout(r, interval));
+    if (await condition()) return;
+  }
+  throw new Error("waitForAsync timed out");
+}
+
 /** Poll until a condition is met, up to ~10 seconds. */
 async function waitFor(condition: () => boolean, timeoutMs = 10_000): Promise<void> {
   const interval = 250;
@@ -169,30 +180,38 @@ describe("system integration tests", () => {
     }
   });
 
-  it("workflow: spawn with instructions → worker runs agent loop", async () => {
+  it("workflow: spawn with instructions → worker runs agent loop (silent)", async () => {
     sendMessageSpy.mockClear();
     taskDeps.anthropic = new FakeAnthropic(SIMPLE_TEXT_REPLY) as any;
 
     const chatId = "telegram:100003";
     const instructions = "Say hello to the user";
 
-    await db.absurd.spawn("workflow", { chatId, instructions });
+    const { taskID } = await db.absurd.spawn("workflow", { chatId, instructions });
     const worker = await db.absurd.startWorker({
       concurrency: 1,
       claimTimeout: 30,
     });
 
     try {
-      await waitFor(() => sendMessageSpy.mock.calls.length >= 1);
+      // Workflows run in silent mode — sendMessage is NOT called via onText.
+      // Verify the task completes by checking history was persisted.
+      await waitForAsync(async () => {
+        const result = await db.pool.query(
+          `SELECT role FROM assistant.messages WHERE chat_id = $1`,
+          [chatId],
+        );
+        return result.rows.length >= 2;
+      });
 
-      // Verify sendMessage was called with the workflow reply
-      expect(sendMessageSpy).toHaveBeenCalledWith("telegram:100003", "Hello!");
+      // No messages sent via onText (silent mode)
+      expect(sendMessageSpy).not.toHaveBeenCalled();
     } finally {
       await worker.close();
     }
   });
 
-  it("execute-skill: write skill → spawn → worker runs skill content", async () => {
+  it("execute-skill: write skill → spawn → worker runs skill content (silent)", async () => {
     sendMessageSpy.mockClear();
     const fake = new FakeAnthropic(SIMPLE_TEXT_REPLY);
     taskDeps.anthropic = fake as any;
@@ -215,10 +234,17 @@ Tell the user good morning.
     });
 
     try {
-      await waitFor(() => sendMessageSpy.mock.calls.length >= 1);
+      // Skills run in silent mode — verify completion via history, not sendMessage.
+      await waitForAsync(async () => {
+        const result = await db.pool.query(
+          `SELECT role FROM assistant.messages WHERE chat_id = $1`,
+          [chatId],
+        );
+        return result.rows.length >= 2;
+      });
 
-      // Verify sendMessage was called
-      expect(sendMessageSpy).toHaveBeenCalledWith("telegram:100004", "Hello!");
+      // No messages sent via onText (silent mode)
+      expect(sendMessageSpy).not.toHaveBeenCalled();
 
       // Verify FakeAnthropic received the skill content in the messages
       expect(fake.callCount).toBeGreaterThanOrEqual(1);

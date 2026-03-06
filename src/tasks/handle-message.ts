@@ -9,6 +9,7 @@ export function registerHandleMessage(absurd: Absurd, deps: TaskDeps): void {
     { name: "handle-message", defaultMaxAttempts: 3 },
     async (params: { chatId: string; text: string }, ctx: TaskContext) => {
       const agentDeps = buildAgentDeps(deps, absurd, ctx, params.chatId, {
+        interactive: true,
         taskName: "handle-message",
       });
 

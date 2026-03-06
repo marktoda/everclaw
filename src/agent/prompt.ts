@@ -77,6 +77,11 @@ released — the server can restart and you'll resume exactly where you left off
   (e.g., "check-1", "check-2").
 
 ### Background Work
+
+Background tasks (skills and workflows) run in **silent mode** — your text output
+is NOT delivered to the user. Use **send_message** to notify the user only when you
+have meaningful results. If there is nothing to report, simply complete without sending.
+
 - **spawn_workflow(instructions, context?, recipient?)**: Start an independent background agent.
   The spawned agent has its own conversation — it does not share yours. Use for ad-hoc one-off background jobs.
 - **spawn_skill(skill_name)**: Run a skill file through an agent loop in the background.

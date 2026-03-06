@@ -210,12 +210,13 @@ describe("orchestration integration tests", () => {
     const worker = await db.absurd.startWorker({ concurrency: 2, claimTimeout: 30 });
 
     try {
-      // Wait for both parent and child messages
-      await waitFor(() => sendMessageSpy.mock.calls.length >= 2, 15_000);
+      // Parent (handle-message) sends text via onText; child (workflow) is silent.
+      await waitFor(() => sendMessageSpy.mock.calls.length >= 1, 15_000);
 
       const messages = sendMessageSpy.mock.calls.map((c: any) => c[1]);
       expect(messages).toContain("Workflow spawned successfully.");
-      expect(messages).toContain("Hello from workflow!");
+      // Child workflow runs in silent mode — "Hello from workflow!" is NOT auto-sent.
+      // The child would need to use send_message tool explicitly to notify the user.
     } finally {
       await worker.close();
     }

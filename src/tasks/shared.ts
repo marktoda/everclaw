@@ -29,7 +29,7 @@ export function buildAgentDeps(
   absurd: Absurd,
   ctx: TaskContext,
   chatId: string,
-  opts?: { maxHistory?: number; silent?: boolean; taskName?: string },
+  opts?: { maxHistory?: number; interactive?: boolean; taskName?: string },
 ): AgentDeps {
   const log = deps.log?.child({ task: opts?.taskName, chatId });
 
@@ -66,10 +66,10 @@ export function buildAgentDeps(
     log,
     mcpSummaries: deps.mcp?.serverSummaries(),
     extraDirs: deps.config.dirs.extra,
-    onText: opts?.silent
-      ? undefined
-      : async (text) => {
+    onText: opts?.interactive
+      ? async (text) => {
           await deps.channels.sendMessage(chatId, text);
-        },
+        }
+      : undefined,
   };
 }
