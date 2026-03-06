@@ -18,7 +18,7 @@ A durable personal AI assistant.
 - **Durable execution** — every Claude API call and tool execution is checkpointed in Postgres. Replayed on resume, never repeated.
 - **Sleeps, schedules, coordination** — `sleep_for`, `sleep_until`, cron-scheduled skills, and cross-task event latches, all backed by [Absurd](https://github.com/earendil-works/absurd).
 - **Self-extending** — the agent writes its own skill files, tool scripts, and [MCP](https://modelcontextprotocol.io/) server configs at runtime.
-- **Pluggable channels** — Telegram today, anything tomorrow. One adapter file per channel.
+- **Pluggable channels** — Telegram, Discord, Slack, WhatsApp, Gmail. One adapter file per channel.
 - **18 built-in tools** — files, scripts, web search, orchestration, plus any tools discovered from MCP servers.
 - **Just Postgres** — the only infrastructure dependency. History, task queue, checkpoints, schedules. All in one place.
 
@@ -82,9 +82,9 @@ The agent can't block waiting for user input. It saves context to files, lets th
 
 ### Channels
 
-Channels implement the `ChannelAdapter` interface (`start`, `sendMessage`, `stop`). A `ChannelRegistry` routes outbound messages by parsing the prefix from `recipientId` strings (e.g. `telegram:123456789`). Channels are auto-detected from `CHANNEL_*` secrets in `.env`. Bolting on a new channel means one adapter file and one line in the factory map.
+Five adapters implement the `ChannelAdapter` interface (`start`, `sendMessage`, `stop`): Telegram (grammY), Discord (discord.js), Slack (Bolt Socket Mode), WhatsApp (Baileys), and Gmail (googleapis). A `ChannelRegistry` routes outbound messages by parsing the prefix from `recipientId` strings (e.g. `telegram:123456789`, `discord:456`). Channels are auto-detected from `CHANNEL_*` secrets in `.env`. Bolting on a new channel means one adapter file and one line in the factory map.
 
-Voice messages work too: if `OPENAI_API_KEY` is set, the Telegram adapter transcribes them via Whisper and delivers `[Voice: transcript]`.
+Voice messages work too: if `OPENAI_API_KEY` is set, the Telegram and WhatsApp adapters transcribe voice via Whisper and deliver `[Voice: transcript]`.
 
 ### MCP servers
 
@@ -139,10 +139,15 @@ TypeScript, runs directly on Node 22.18+ with native type stripping. There's no 
 | `channels/adapter.ts` | `ChannelAdapter` interface, `InboundMessage` type |
 | `channels/registry.ts` | Routes messages by `recipientId` prefix |
 | `channels/telegram.ts` | grammY-based Telegram adapter (text + voice) |
+| `channels/discord.ts` | discord.js adapter (2000 char limit, typing indicators) |
+| `channels/slack.ts` | Bolt Socket Mode adapter (pipe-delimited dual tokens, 4000 char limit) |
+| `channels/whatsapp.ts` | Baileys adapter (QR auth, reconnection with backoff, voice) |
+| `channels/gmail.ts` | googleapis OAuth2 adapter (email polling, threaded replies) |
 | `channels/adapters.ts` | Factory: channel type string → adapter constructor |
+| `channels/auth.ts` | Shared `authDir()` helper for persistent auth state |
 | `channels/split.ts` | Message splitting (paragraph → line → hard cut) |
 | `channels/format-telegram.ts` | Markdown → Telegram HTML |
-| `transcription.ts` | Whisper transcription (shared across adapters) |
+| `transcription.ts` | Whisper transcription (shared across voice-capable adapters) |
 
 ### Persistence
 
