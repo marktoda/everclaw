@@ -28,7 +28,7 @@ export class SlackAdapter implements ChannelAdapter {
       if (!("text" in event) || !event.text || !("user" in event)) return;
 
       await onMessage({
-        recipientId: `slack:${event.channel}`,
+        chatId: `slack:${event.channel}`,
         text: event.text,
       });
     });
@@ -41,8 +41,8 @@ export class SlackAdapter implements ChannelAdapter {
     this.connected = true;
   }
 
-  async sendMessage(recipientId: string, text: string): Promise<void> {
-    const channel = stripPrefix(recipientId);
+  async sendMessage(chatId: string, text: string): Promise<void> {
+    const channel = stripPrefix(chatId);
     for (const chunk of splitMessage(text, this.maxMessageLength)) {
       await this.app.client.chat.postMessage({ channel, text: chunk });
     }

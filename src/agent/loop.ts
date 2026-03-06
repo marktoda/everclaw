@@ -73,7 +73,7 @@ async function listAvailableNotes(notesDir: string): Promise<string[]> {
 
 export async function runAgentLoop(
   ctx: TaskContext,
-  recipientId: string,
+  chatId: string,
   userMessage: string,
   deps: AgentDeps,
 ): Promise<string> {
@@ -84,7 +84,7 @@ export async function runAgentLoop(
     const [pinnedNotes, availableNotes, history, skills, tools] = await Promise.all([
       readPinnedNotes(deps.dirs.notes),
       listAvailableNotes(deps.dirs.notes),
-      getRecentMessages(deps.pool, recipientId, deps.maxHistory),
+      getRecentMessages(deps.pool, chatId, deps.maxHistory),
       listSkills(deps.dirs.skills),
       listScripts(deps.dirs.scripts),
     ]);
@@ -195,9 +195,9 @@ export async function runAgentLoop(
   // the final assistant reply. This ensures the next turn's conversation
   // history includes what tools were used and their results.
   await ctx.step("persist", async () => {
-    await appendMessage(deps.pool, { recipientId, role: "user", content: userMessage });
+    await appendMessage(deps.pool, { chatId, role: "user", content: userMessage });
     const loopMessages = messages.slice(preLoopLength);
-    for (const msg of deconstructMessages(recipientId, loopMessages)) {
+    for (const msg of deconstructMessages(chatId, loopMessages)) {
       await appendMessage(deps.pool, msg);
     }
     return true;

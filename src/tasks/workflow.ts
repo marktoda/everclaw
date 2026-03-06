@@ -7,12 +7,12 @@ export function registerWorkflow(absurd: Absurd, deps: TaskDeps): void {
   absurd.registerTask(
     { name: "workflow", defaultMaxAttempts: 3 },
     async (
-      params: { recipientId: string; instructions: string; context?: unknown },
+      params: { chatId: string; instructions: string; context?: unknown },
       ctx: TaskContext,
     ) => {
       const contextPrefix = params.context ? `Context: ${JSON.stringify(params.context)}\n\n` : "";
 
-      const agentDeps = buildAgentDeps(deps, absurd, ctx, params.recipientId, {
+      const agentDeps = buildAgentDeps(deps, absurd, ctx, params.chatId, {
         maxHistory: BACKGROUND_MAX_HISTORY,
         taskName: "workflow",
       });
@@ -21,7 +21,7 @@ export function registerWorkflow(absurd: Absurd, deps: TaskDeps): void {
 
       const reply = await runAgentLoop(
         ctx,
-        params.recipientId,
+        params.chatId,
         `${contextPrefix}${params.instructions}`,
         agentDeps,
       );

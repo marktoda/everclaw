@@ -8,12 +8,12 @@ import { BACKGROUND_MAX_HISTORY, buildAgentDeps } from "./shared.ts";
 export function registerExecuteSkill(absurd: Absurd, deps: TaskDeps): void {
   absurd.registerTask(
     { name: "execute-skill", defaultMaxAttempts: 3 },
-    async (params: { skillName: string; recipientId?: string }, ctx: TaskContext) => {
-      // Resolve recipientId: use explicit param (from spawn_skill) or fall back
+    async (params: { skillName: string; chatId?: string }, ctx: TaskContext) => {
+      // Resolve chatId: use explicit param (from spawn_skill) or fall back
       // to the first allowed chat ID (for scheduled skills).
-      const recipientId = params.recipientId || [...deps.config.allowedChatIds][0] || null;
+      const chatId = params.chatId || [...deps.config.allowedChatIds][0] || null;
 
-      if (!recipientId) {
+      if (!chatId) {
         deps.log?.warn(
           { skill: params.skillName },
           "skipping scheduled skill — no allowed chat IDs configured",
@@ -21,7 +21,7 @@ export function registerExecuteSkill(absurd: Absurd, deps: TaskDeps): void {
         return { skillName: params.skillName, skipped: true };
       }
 
-      const agentDeps = buildAgentDeps(deps, absurd, ctx, recipientId, {
+      const agentDeps = buildAgentDeps(deps, absurd, ctx, chatId, {
         maxHistory: BACKGROUND_MAX_HISTORY,
         taskName: "execute-skill",
       });
@@ -38,7 +38,7 @@ export function registerExecuteSkill(absurd: Absurd, deps: TaskDeps): void {
 
       const reply = await runAgentLoop(
         ctx,
-        recipientId,
+        chatId,
         `Execute the following skill instructions:\n\n${skillContent}`,
         agentDeps,
       );

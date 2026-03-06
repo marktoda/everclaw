@@ -28,10 +28,10 @@ export function buildAgentDeps(
   deps: TaskDeps,
   absurd: Absurd,
   ctx: TaskContext,
-  recipientId: string,
+  chatId: string,
   opts?: { maxHistory?: number; silent?: boolean; taskName?: string },
 ): AgentDeps {
-  const log = deps.log?.child({ task: opts?.taskName, recipientId });
+  const log = deps.log?.child({ task: opts?.taskName, chatId });
 
   const registry = createToolRegistry(
     {
@@ -39,7 +39,7 @@ export function buildAgentDeps(
       pool: deps.pool,
       ctx,
       queueName: deps.config.worker.queueName,
-      recipientId,
+      chatId,
       dirs: deps.config.dirs,
       scriptTimeout: deps.config.scriptTimeout,
       scriptEnv: deps.config.scriptEnv,
@@ -68,7 +68,7 @@ export function buildAgentDeps(
     onText: opts?.silent
       ? undefined
       : async (text) => {
-          await deps.channels.sendMessage(recipientId, text);
+          await deps.channels.sendMessage(chatId, text);
         },
   };
 }

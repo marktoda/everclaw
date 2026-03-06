@@ -36,7 +36,7 @@ export class DiscordAdapter implements ChannelAdapter {
       if (!text) return;
 
       await onMessage({
-        recipientId: `discord:${message.channel.id}`,
+        chatId: `discord:${message.channel.id}`,
         text,
       });
     });
@@ -52,8 +52,8 @@ export class DiscordAdapter implements ChannelAdapter {
     logger.info("Discord adapter started");
   }
 
-  async sendMessage(recipientId: string, text: string): Promise<void> {
-    const channelId = stripPrefix(recipientId);
+  async sendMessage(chatId: string, text: string): Promise<void> {
+    const channelId = stripPrefix(chatId);
     const channel = (await this.client.channels.fetch(channelId)) as TextChannel;
     if (!channel) throw new Error(`Discord channel not found: ${channelId}`);
 
@@ -66,9 +66,9 @@ export class DiscordAdapter implements ChannelAdapter {
     return this.client.isReady();
   }
 
-  async setTyping(recipientId: string, isTyping: boolean): Promise<void> {
+  async setTyping(chatId: string, isTyping: boolean): Promise<void> {
     if (!isTyping) return;
-    const channelId = stripPrefix(recipientId);
+    const channelId = stripPrefix(chatId);
     const channel = (await this.client.channels.fetch(channelId)) as TextChannel;
     if (channel) await channel.sendTyping();
   }

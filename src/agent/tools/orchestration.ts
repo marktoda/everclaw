@@ -3,8 +3,8 @@ import { TimeoutError } from "absurd-sdk";
 import type { ExecutorDeps, ToolHandler } from "./types.ts";
 import { defineTool } from "./types.ts";
 
-function resolveRecipient(recipient: string | undefined, deps: ExecutorDeps): string {
-  const resolved = !recipient || recipient === "current" ? deps.recipientId : recipient;
+function resolveChat(recipient: string | undefined, deps: ExecutorDeps): string {
+  const resolved = !recipient || recipient === "current" ? deps.chatId : recipient;
   if (deps.allowedChatIds.size > 0 && !deps.allowedChatIds.has(resolved)) {
     return `Error: recipient "${resolved}" is not in the allowed list`;
   }
@@ -81,9 +81,9 @@ export const orchestrationTools: ToolHandler[] = [
         context?: string;
         recipient?: string;
       };
-      const resolved = resolveRecipient(recipient, deps);
+      const resolved = resolveChat(recipient, deps);
       if (resolved.startsWith("Error:")) return resolved;
-      const params: Record<string, unknown> = { recipientId: resolved, instructions };
+      const params: Record<string, unknown> = { chatId: resolved, instructions };
       if (context) params.context = context;
       const result = await deps.absurd.spawn("workflow", params);
       return `Workflow spawned (ID: ${result.taskID})`;
@@ -105,7 +105,7 @@ export const orchestrationTools: ToolHandler[] = [
       const { skill_name } = input as { skill_name: string };
       const result = await deps.absurd.spawn("execute-skill", {
         skillName: skill_name,
-        recipientId: deps.recipientId,
+        chatId: deps.chatId,
       });
       return `Skill "${skill_name}" spawned (ID: ${result.taskID})`;
     },
@@ -129,10 +129,10 @@ export const orchestrationTools: ToolHandler[] = [
     ),
     async execute(input, deps) {
       const { text, recipient } = input as { text: string; recipient?: string };
-      const resolved = resolveRecipient(recipient, deps);
+      const resolved = resolveChat(recipient, deps);
       if (resolved.startsWith("Error:")) return resolved;
       const result = await deps.absurd.spawn("send-message", {
-        recipientId: resolved,
+        chatId: resolved,
         text,
       });
       return `Message queued (ID: ${result.taskID})`;

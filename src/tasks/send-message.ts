@@ -4,8 +4,8 @@ import type { ChannelRegistry } from "../channels/index.ts";
 export function registerSendMessage(absurd: Absurd, channels: ChannelRegistry): void {
   absurd.registerTask(
     { name: "send-message" },
-    async (params: { recipientId: string; text: string }, _ctx: TaskContext) => {
-      await channels.sendMessage(params.recipientId, params.text);
+    async (params: { chatId: string; text: string }, _ctx: TaskContext) => {
+      await channels.sendMessage(params.chatId, params.text);
       return { sent: true };
     },
   );

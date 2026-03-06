@@ -8,24 +8,24 @@ export class ChannelRegistry {
     this.adapters.set(adapter.name, adapter);
   }
 
-  resolve(recipientId: string): ChannelAdapter {
-    const prefix = recipientId.split(":")[0];
+  resolve(chatId: string): ChannelAdapter {
+    const prefix = chatId.split(":")[0];
     const adapter = this.adapters.get(prefix);
     if (!adapter) throw new Error(`No channel adapter for prefix "${prefix}"`);
     return adapter;
   }
 
-  async setTyping(recipientId: string, isTyping: boolean): Promise<void> {
-    const adapter = this.resolve(recipientId);
-    await adapter.setTyping?.(recipientId, isTyping);
+  async setTyping(chatId: string, isTyping: boolean): Promise<void> {
+    const adapter = this.resolve(chatId);
+    await adapter.setTyping?.(chatId, isTyping);
   }
 
-  async sendMessage(recipientId: string, text: string): Promise<void> {
-    const adapter = this.resolve(recipientId);
+  async sendMessage(chatId: string, text: string): Promise<void> {
+    const adapter = this.resolve(chatId);
     if (!adapter.isConnected()) {
-      logger.warn({ recipientId, channel: adapter.name }, "adapter disconnected — send may fail");
+      logger.warn({ chatId, channel: adapter.name }, "adapter disconnected — send may fail");
     }
-    await adapter.sendMessage(recipientId, text);
+    await adapter.sendMessage(chatId, text);
   }
 
   async startAll(onMessage: (msg: InboundMessage) => Promise<void>): Promise<void> {

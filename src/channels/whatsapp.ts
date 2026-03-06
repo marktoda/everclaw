@@ -120,16 +120,16 @@ export class WhatsAppAdapter implements ChannelAdapter {
         const jid = this.translateJid(msg.key.remoteJid);
         const phone = jidToPhone(jid);
         await this.onMessage?.({
-          recipientId: `whatsapp:${phone}`,
+          chatId: `whatsapp:${phone}`,
           text,
         });
       }
     });
   }
 
-  async sendMessage(recipientId: string, text: string): Promise<void> {
+  async sendMessage(chatId: string, text: string): Promise<void> {
     if (!this.sock) throw new Error("WhatsApp not connected");
-    const phone = stripPrefix(recipientId);
+    const phone = stripPrefix(chatId);
     const jid = phoneToJid(phone);
 
     for (const chunk of splitMessage(text, 65536)) {
@@ -138,9 +138,9 @@ export class WhatsAppAdapter implements ChannelAdapter {
     }
   }
 
-  async setTyping(recipientId: string, isTyping: boolean): Promise<void> {
+  async setTyping(chatId: string, isTyping: boolean): Promise<void> {
     if (!this.sock) return;
-    const phone = stripPrefix(recipientId);
+    const phone = stripPrefix(chatId);
     const jid = phoneToJid(phone);
     await this.sock.sendPresenceUpdate(isTyping ? "composing" : "paused", jid);
   }

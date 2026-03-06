@@ -7,7 +7,7 @@ export interface ExecutorDeps {
   absurd: Absurd;
   pool: Pool;
   ctx: TaskContext;
-  recipientId: string;
+  chatId: string;
   startedAt: Date;
 
   dirs: {

@@ -192,7 +192,7 @@ export class GmailAdapter implements ChannelAdapter {
       }
 
       await this.onMessage?.({
-        recipientId: `gmail:${senderEmail}`,
+        chatId: `gmail:${senderEmail}`,
         text: text.trim(),
       });
 
@@ -219,8 +219,8 @@ export class GmailAdapter implements ChannelAdapter {
     }
   }
 
-  async sendMessage(recipientId: string, text: string): Promise<void> {
-    const to = stripPrefix(recipientId);
+  async sendMessage(chatId: string, text: string): Promise<void> {
+    const to = stripPrefix(chatId);
     const thread = this.threadContext.get(to);
     const subject = thread
       ? `Re: ${thread.subject.replace(/^Re:\s*/i, "")}`

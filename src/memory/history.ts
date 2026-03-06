@@ -3,7 +3,7 @@ import type { Pool } from "pg";
 
 interface BaseMessage {
   id?: number;
-  recipientId: string;
+  chatId: string;
   content: string;
   createdAt?: Date;
 }
@@ -29,25 +29,25 @@ export async function appendMessage(pool: Pool, msg: Message): Promise<void> {
   await pool.query(
     `INSERT INTO assistant.messages (chat_id, role, content, tool_use)
      VALUES ($1, $2, $3, $4)`,
-    [msg.recipientId, msg.role, msg.content, toolUse ? JSON.stringify(toolUse) : null],
+    [msg.chatId, msg.role, msg.content, toolUse ? JSON.stringify(toolUse) : null],
   );
 }
 
 export async function getRecentMessages(
   pool: Pool,
-  recipientId: string,
+  chatId: string,
   limit: number = 50,
 ): Promise<Message[]> {
   const result = await pool.query(
     `SELECT id, chat_id, role, content, tool_use, created_at
      FROM assistant.messages WHERE chat_id = $1
      ORDER BY created_at DESC, id DESC LIMIT $2`,
-    [recipientId, limit],
+    [chatId, limit],
   );
   return result.rows.reverse().map((r): Message => {
     const base = {
       id: r.id,
-      recipientId: r.chat_id as string,
+      chatId: r.chat_id as string,
       content: r.content,
       createdAt: r.created_at,
     };

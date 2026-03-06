@@ -68,32 +68,32 @@ async function main() {
       // Allowlist check
       if (config.allowedChatIds.size === 0) {
         // Discovery mode: reply with chat ID instructions, don't run agent
-        logger.info({ recipientId: msg.recipientId }, "discovery mode — replying with chat ID");
+        logger.info({ chatId: msg.chatId }, "discovery mode — replying with chat ID");
         await channelRegistry.sendMessage(
-          msg.recipientId,
-          `Your chat ID is: ${msg.recipientId}\n\nAdd this to your .env file:\nALLOWED_CHAT_IDS=${msg.recipientId}\n\nThen restart the bot.`,
+          msg.chatId,
+          `Your chat ID is: ${msg.chatId}\n\nAdd this to your .env file:\nALLOWED_CHAT_IDS=${msg.chatId}\n\nThen restart the bot.`,
         );
         return;
       }
-      if (!config.allowedChatIds.has(msg.recipientId)) {
+      if (!config.allowedChatIds.has(msg.chatId)) {
         logger.warn(
-          { recipientId: msg.recipientId },
+          { chatId: msg.chatId },
           "unauthorized message — replying with chat ID",
         );
         await channelRegistry.sendMessage(
-          msg.recipientId,
-          `Your chat ID is: ${msg.recipientId}\n\nAdd it to ALLOWED_CHAT_IDS in your .env file, then restart the bot.`,
+          msg.chatId,
+          `Your chat ID is: ${msg.chatId}\n\nAdd it to ALLOWED_CHAT_IDS in your .env file, then restart the bot.`,
         );
         return;
       }
 
-      logger.info({ recipientId: msg.recipientId }, "message received");
+      logger.info({ chatId: msg.chatId }, "message received");
       await absurd.spawn("handle-message", {
-        recipientId: msg.recipientId,
+        chatId: msg.chatId,
         text: msg.text,
       });
     } catch (err) {
-      logger.error({ err, recipientId: msg.recipientId }, "failed to handle inbound message");
+      logger.error({ err, chatId: msg.chatId }, "failed to handle inbound message");
     }
   });
 

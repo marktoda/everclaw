@@ -75,7 +75,7 @@ export function reconstructMessages(history: Message[]): Anthropic.MessageParam[
  * without tool_use) and user messages containing tool_result blocks.
  */
 export function deconstructMessages(
-  recipientId: string,
+  chatId: string,
   loopMessages: Anthropic.MessageParam[],
 ): Message[] {
   const result: Message[] = [];
@@ -91,7 +91,7 @@ export function deconstructMessages(
         .filter(isToolUse)
         .map((b) => ({ id: b.id, name: b.name, input: b.input as Record<string, unknown> }));
       result.push({
-        recipientId,
+        chatId,
         role: "assistant",
         content: text || "(tool use only)",
         toolUse: toolUse.length > 0 ? toolUse : undefined,
@@ -100,7 +100,7 @@ export function deconstructMessages(
       const blocks = msg.content as Anthropic.ToolResultBlockParam[];
       if (blocks[0]?.type === "tool_result") {
         result.push({
-          recipientId,
+          chatId,
           role: "tool",
           content: blocks.map((r) => `[${r.tool_use_id}]: ${toolResultText(r.content)}`).join("\n"),
           toolUse: blocks.map((r) => ({

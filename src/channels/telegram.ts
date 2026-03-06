@@ -23,7 +23,7 @@ export class TelegramAdapter implements ChannelAdapter {
   async start(onMessage: (msg: InboundMessage) => Promise<void>): Promise<void> {
     this.bot.on("message:text", async (ctx) => {
       await onMessage({
-        recipientId: `telegram:${ctx.chat.id}`,
+        chatId: `telegram:${ctx.chat.id}`,
         text: ctx.message.text,
       });
     });
@@ -31,7 +31,7 @@ export class TelegramAdapter implements ChannelAdapter {
     if (this.openaiApiKey) {
       const apiKey = this.openaiApiKey;
       this.bot.on("message:voice", async (ctx) => {
-        const recipientId = `telegram:${ctx.chat.id}`;
+        const chatId = `telegram:${ctx.chat.id}`;
         let text = "[Voice Message - transcription unavailable]";
         try {
           const file = await ctx.api.getFile(ctx.message.voice.file_id);
@@ -43,9 +43,9 @@ export class TelegramAdapter implements ChannelAdapter {
           const transcript = await transcribeAudio(buf, apiKey);
           text = `[Voice: ${transcript}]`;
         } catch (err) {
-          logger.warn({ err, recipientId }, "voice transcription failed");
+          logger.warn({ err, chatId }, "voice transcription failed");
         }
-        await onMessage({ recipientId, text });
+        await onMessage({ chatId, text });
       });
     }
 
@@ -56,20 +56,20 @@ export class TelegramAdapter implements ChannelAdapter {
     });
   }
 
-  async sendMessage(recipientId: string, text: string): Promise<void> {
-    const chatId = Number(stripPrefix(recipientId));
+  async sendMessage(chatId: string, text: string): Promise<void> {
+    const tgChatId = Number(stripPrefix(chatId));
     const formatted = markdownToEntities(text);
     for (const chunk of splitWithEntities(formatted, this.maxMessageLength)) {
-      await this.bot.api.sendMessage(chatId, chunk.text, {
+      await this.bot.api.sendMessage(tgChatId, chunk.text, {
         entities: chunk.entities.length > 0 ? chunk.entities : undefined,
       });
     }
   }
 
-  async setTyping(recipientId: string, isTyping: boolean): Promise<void> {
+  async setTyping(chatId: string, isTyping: boolean): Promise<void> {
     if (!isTyping) return;
-    const chatId = Number(stripPrefix(recipientId));
-    await this.bot.api.sendChatAction(chatId, "typing");
+    const tgChatId = Number(stripPrefix(chatId));
+    await this.bot.api.sendChatAction(tgChatId, "typing");
   }
 
   isConnected(): boolean {
