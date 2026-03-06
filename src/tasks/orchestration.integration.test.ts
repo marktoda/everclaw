@@ -11,7 +11,7 @@ import type { ChannelRegistry } from "../channels/index.ts";
 import type { Config } from "../config.ts";
 import { FakeAnthropic } from "../test/fake-anthropic.ts";
 import type { TestDb } from "../test/harness.ts";
-import { setupTestDb } from "../test/harness.ts";
+import { setupTestDb, waitFor, waitForAsync } from "../test/harness.ts";
 import {
   LIST_TASKS,
   makeCancelTaskScenario,
@@ -100,28 +100,6 @@ afterAll(async () => {
     await fs.rm(tmpDir, { recursive: true, force: true });
   }
 });
-
-/** Poll until an async condition is met. */
-async function waitForAsync(condition: () => Promise<boolean>, timeoutMs = 10_000): Promise<void> {
-  const interval = 250;
-  const iterations = Math.ceil(timeoutMs / interval);
-  for (let i = 0; i < iterations; i++) {
-    await new Promise((r) => setTimeout(r, interval));
-    if (await condition()) return;
-  }
-  throw new Error("waitForAsync timed out");
-}
-
-/** Poll until a sync condition is met. */
-async function waitFor(condition: () => boolean, timeoutMs = 10_000): Promise<void> {
-  const interval = 250;
-  const iterations = Math.ceil(timeoutMs / interval);
-  for (let i = 0; i < iterations; i++) {
-    await new Promise((r) => setTimeout(r, interval));
-    if (condition()) return;
-  }
-  throw new Error("waitFor timed out");
-}
 
 /** Query the run state of a task by its task_id. */
 async function getRunState(taskId: string): Promise<string | null> {

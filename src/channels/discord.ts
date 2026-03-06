@@ -1,4 +1,3 @@
-import type { TextChannel } from "discord.js";
 import { Client, GatewayIntentBits, Partials } from "discord.js";
 import { logger } from "../logger.ts";
 import {
@@ -10,9 +9,10 @@ import {
 } from "./adapter.ts";
 import { splitMessage } from "./split.ts";
 
+const MAX_MESSAGE_LENGTH = 2000;
+
 export class DiscordAdapter implements ChannelAdapter {
   name = "discord" as const;
-  private maxMessageLength = 2000;
   private client: Client;
   private token: string;
   private mentionRegex?: RegExp;
@@ -60,10 +60,12 @@ export class DiscordAdapter implements ChannelAdapter {
 
   async sendMessage(chatId: string, text: string): Promise<void> {
     const channelId = stripPrefix(chatId);
-    const channel = (await this.client.channels.fetch(channelId)) as TextChannel;
-    if (!channel) throw new Error(`Discord channel not found: ${channelId}`);
+    const channel = await this.client.channels.fetch(channelId);
+    if (!channel?.isTextBased() || !("send" in channel)) {
+      throw new Error(`Discord channel not found or not text-based: ${channelId}`);
+    }
 
-    for (const chunk of splitMessage(text, this.maxMessageLength)) {
+    for (const chunk of splitMessage(text, MAX_MESSAGE_LENGTH)) {
       await channel.send(chunk);
     }
   }
@@ -75,8 +77,8 @@ export class DiscordAdapter implements ChannelAdapter {
   async setTyping(chatId: string, isTyping: boolean): Promise<void> {
     if (!isTyping) return;
     const channelId = stripPrefix(chatId);
-    const channel = (await this.client.channels.fetch(channelId)) as TextChannel;
-    if (channel) await channel.sendTyping();
+    const channel = await this.client.channels.fetch(channelId);
+    if (channel?.isTextBased() && "sendTyping" in channel) await channel.sendTyping();
   }
 
   async queryMessages(opts?: QueryOptions): Promise<ChannelMessage[]> {
@@ -86,14 +88,14 @@ export class DiscordAdapter implements ChannelAdapter {
     const results: ChannelMessage[] = [];
 
     // Collect text channels the bot is in across all guilds + cached DMs
-    const channels: TextChannel[] = [];
+    const channels: any[] = [];
     for (const guild of this.client.guilds.cache.values()) {
       for (const ch of guild.channels.cache.values()) {
-        if (ch.isTextBased() && !ch.isThread()) channels.push(ch as TextChannel);
+        if (ch.isTextBased() && !ch.isThread()) channels.push(ch);
       }
     }
     for (const ch of this.client.channels.cache.values()) {
-      if (ch.isDMBased() && ch.isTextBased()) channels.push(ch as unknown as TextChannel);
+      if (ch.isDMBased() && ch.isTextBased()) channels.push(ch);
     }
 
     // Fetch recent messages from each channel, collect up to limit

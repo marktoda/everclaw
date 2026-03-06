@@ -76,6 +76,7 @@ export class GmailAdapter implements ChannelAdapter {
   private auth: any;
   private label: string;
   private pollTimer?: ReturnType<typeof setInterval>;
+  private connected = false;
   private processedIds = new Set<string>();
   private threadContext = new Map<string, ThreadContext>();
   private onMessage?: (msg: InboundMessage) => Promise<void>;
@@ -136,6 +137,8 @@ export class GmailAdapter implements ChannelAdapter {
         this.processedIds.add(id);
       }
     }
+
+    this.connected = true;
 
     // Start polling
     this.pollTimer = setInterval(
@@ -269,10 +272,11 @@ export class GmailAdapter implements ChannelAdapter {
   }
 
   isConnected(): boolean {
-    return this.pollTimer !== undefined;
+    return this.connected;
   }
 
   async stop(): Promise<void> {
+    this.connected = false;
     if (this.pollTimer) clearInterval(this.pollTimer);
     this.pollTimer = undefined;
     await this.saveState();

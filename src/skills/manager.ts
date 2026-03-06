@@ -1,7 +1,13 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type { Absurd } from "absurd-sdk";
-import { stripQuotes } from "../config.ts";
+
+function stripQuotes(val: string): string {
+  if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+    return val.slice(1, -1);
+  }
+  return val;
+}
 
 export interface SkillMeta {
   name?: string;

@@ -106,7 +106,7 @@ describe("DiscordAdapter", () => {
   });
 
   it("sendMessage fetches channel and splits long messages at 2000 chars", async () => {
-    const mockChannel = { send: mockSend };
+    const mockChannel = { isTextBased: () => true, send: mockSend };
     mockFetch.mockResolvedValue(mockChannel);
 
     const adapter = new DiscordAdapter("token");
@@ -119,7 +119,7 @@ describe("DiscordAdapter", () => {
   });
 
   it("setTyping fetches channel and sends typing indicator", async () => {
-    const mockChannel = { sendTyping: mockSendTyping };
+    const mockChannel = { isTextBased: () => true, sendTyping: mockSendTyping };
     mockFetch.mockResolvedValue(mockChannel);
 
     const adapter = new DiscordAdapter("token");

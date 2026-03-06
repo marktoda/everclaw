@@ -1,15 +1,11 @@
 import { execFile } from "node:child_process";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
+import { isContainedIn, validateRealPath } from "../../path-utils.ts";
 import { validateServerConfig } from "../../servers/manager.ts";
 import { syncSchedules } from "../../skills/manager.ts";
 import type { ExecutorDeps, ToolHandler } from "./types.ts";
 import { defineTool } from "./types.ts";
-
-/** Check that a resolved path stays within a base directory. */
-function isContainedIn(child: string, parent: string): boolean {
-  return child === parent || child.startsWith(parent + path.sep);
-}
 
 const DIR_MAPPINGS: Array<{
   prefix: string;
@@ -57,28 +53,6 @@ function allDirPrefixes(deps: ExecutorDeps): string {
   const builtins = DIR_MAPPINGS.map((m) => m.prefix);
   const extras = deps.dirs.extra.map((d) => `${d.name}/`);
   return [...builtins, ...extras].join(", ");
-}
-
-/** Verify that the real (symlink-resolved) path stays within the base directory. */
-async function validateRealPath(abs: string, baseDir: string): Promise<string | null> {
-  try {
-    const real = await fs.realpath(abs);
-    if (!isContainedIn(real, baseDir)) return "Error: path escapes allowed directory via symlink";
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === "ENOENT") {
-      // File doesn't exist — check nearest existing ancestor
-      try {
-        const realParent = await fs.realpath(path.dirname(abs));
-        if (!isContainedIn(realParent, baseDir))
-          return "Error: path escapes allowed directory via symlink";
-      } catch {
-        // Parent doesn't exist either — will be created, safe
-      }
-    } else {
-      throw err;
-    }
-  }
-  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -289,7 +263,8 @@ export const fileTools: ToolHandler[] = [
       };
       const cap = rawLimit ?? 200;
 
-      const dirs = directory ? resolveSearchDir(directory, deps) : getAllowedDirs(deps);
+      const allDirs = getAllowedDirs(deps);
+      const dirs = directory ? resolveSearchDir(directory, deps) : allDirs;
       if (typeof dirs === "string") return dirs; // error message
 
       // --no-ignore: agent-managed dirs typically lack .gitignore; extra dirs need full traversal
@@ -304,8 +279,6 @@ export const fileTools: ToolHandler[] = [
       const { stdout, error } = await runRg(args);
       if (error) return error;
       if (!stdout.trim()) return "(no matches found)";
-
-      const allDirs = getAllowedDirs(deps);
       const lines = stdout.trim().split("\n");
       const mapped = lines.flatMap((line) => {
         const rel = absToRelative(line, allDirs);
@@ -378,7 +351,8 @@ export const fileTools: ToolHandler[] = [
       };
       const cap = rawLimit ?? 100;
 
-      const dirs = directory ? resolveSearchDir(directory, deps) : getAllowedDirs(deps);
+      const allDirs = getAllowedDirs(deps);
+      const dirs = directory ? resolveSearchDir(directory, deps) : allDirs;
       if (typeof dirs === "string") return dirs;
 
       const args: string[] = [];
@@ -395,8 +369,6 @@ export const fileTools: ToolHandler[] = [
       const { stdout, error } = await runRg(args);
       if (error) return error;
       if (!stdout.trim()) return "(no matches found)";
-
-      const allDirs = getAllowedDirs(deps);
       const lines = stdout.trimEnd().split("\n");
       const mapped = lines.map((line) => transformOutputLine(line, allDirs));
       const truncated = mapped.length > cap;

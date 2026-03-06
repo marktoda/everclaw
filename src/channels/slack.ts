@@ -3,9 +3,10 @@ import { logger } from "../logger.ts";
 import { type ChannelAdapter, type InboundMessage, stripPrefix } from "./adapter.ts";
 import { splitMessage } from "./split.ts";
 
+const MAX_MESSAGE_LENGTH = 4000;
+
 export class SlackAdapter implements ChannelAdapter {
   name = "slack" as const;
-  private maxMessageLength = 4000;
   private app: App;
   private connected = false;
 
@@ -43,7 +44,7 @@ export class SlackAdapter implements ChannelAdapter {
 
   async sendMessage(chatId: string, text: string): Promise<void> {
     const channel = stripPrefix(chatId);
-    for (const chunk of splitMessage(text, this.maxMessageLength)) {
+    for (const chunk of splitMessage(text, MAX_MESSAGE_LENGTH)) {
       await this.app.client.chat.postMessage({ channel, text: chunk });
     }
   }

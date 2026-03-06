@@ -29,12 +29,15 @@ export async function setupTestDb(): Promise<TestDb> {
     database: "test",
   });
 
-  // Run SQL migrations
+  // Run all SQL migrations in sorted order
   const sqlDir = path.join(import.meta.dirname, "..", "..", "sql");
-  const migration1 = fs.readFileSync(path.join(sqlDir, "001-absurd.sql"), "utf-8");
-  const migration2 = fs.readFileSync(path.join(sqlDir, "002-assistant.sql"), "utf-8");
-  await pool.query(migration1);
-  await pool.query(migration2);
+  const files = fs
+    .readdirSync(sqlDir)
+    .filter((f) => f.endsWith(".sql"))
+    .sort();
+  for (const file of files) {
+    await pool.query(fs.readFileSync(path.join(sqlDir, file), "utf-8"));
+  }
 
   // Create Absurd instance and queue
   const absurd = new Absurd({ db: pool, queueName: "test" });
@@ -47,4 +50,29 @@ export async function setupTestDb(): Promise<TestDb> {
   };
 
   return { pool, absurd, container, teardown };
+}
+
+/** Poll until an async condition is met. */
+export async function waitForAsync(
+  condition: () => Promise<boolean>,
+  timeoutMs = 10_000,
+): Promise<void> {
+  const interval = 250;
+  const iterations = Math.ceil(timeoutMs / interval);
+  for (let i = 0; i < iterations; i++) {
+    await new Promise((r) => setTimeout(r, interval));
+    if (await condition()) return;
+  }
+  throw new Error("waitForAsync timed out");
+}
+
+/** Poll until a sync condition is met. */
+export async function waitFor(condition: () => boolean, timeoutMs = 10_000): Promise<void> {
+  const interval = 250;
+  const iterations = Math.ceil(timeoutMs / interval);
+  for (let i = 0; i < iterations; i++) {
+    await new Promise((r) => setTimeout(r, interval));
+    if (condition()) return;
+  }
+  throw new Error("waitFor timed out");
 }

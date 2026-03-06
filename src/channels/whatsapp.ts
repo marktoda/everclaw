@@ -10,6 +10,7 @@ import { authDir } from "./auth.ts";
 import { splitMessage } from "./split.ts";
 
 const AUTH_DIR = authDir("whatsapp");
+const MAX_MESSAGE_LENGTH = 65536;
 const MAX_RECONNECT_DELAY = 60_000;
 
 function extractText(message: any): string | undefined {
@@ -132,9 +133,19 @@ export class WhatsAppAdapter implements ChannelAdapter {
     const phone = stripPrefix(chatId);
     const jid = phoneToJid(phone);
 
-    for (const chunk of splitMessage(text, 65536)) {
+    for (const chunk of splitMessage(text, MAX_MESSAGE_LENGTH)) {
       const sent = await this.sock.sendMessage(jid, { text: chunk });
-      if (sent?.key?.id) this.sentIds.add(sent.key.id);
+      if (sent?.key?.id) {
+        this.sentIds.add(sent.key.id);
+        // Evict oldest entries to prevent unbounded growth
+        if (this.sentIds.size > 5000) {
+          const iter = this.sentIds.values();
+          for (let i = 0; i < 1000; i++) {
+            const val = iter.next().value;
+            if (val) this.sentIds.delete(val);
+          }
+        }
+      }
     }
   }
 

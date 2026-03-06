@@ -3,10 +3,12 @@ import { TimeoutError } from "absurd-sdk";
 import type { ExecutorDeps, ToolHandler } from "./types.ts";
 import { defineTool } from "./types.ts";
 
+class RecipientError extends Error {}
+
 function resolveChat(recipient: string | undefined, deps: ExecutorDeps): string {
   const resolved = !recipient || recipient === "current" ? deps.chatId : recipient;
   if (deps.allowedChatIds.size > 0 && !deps.allowedChatIds.has(resolved)) {
-    return `Error: recipient "${resolved}" is not in the allowed list`;
+    throw new RecipientError(`recipient "${resolved}" is not in the allowed list`);
   }
   return resolved;
 }
@@ -81,8 +83,13 @@ export const orchestrationTools: ToolHandler[] = [
         context?: string;
         recipient?: string;
       };
-      const resolved = resolveChat(recipient, deps);
-      if (resolved.startsWith("Error:")) return resolved;
+      let resolved: string;
+      try {
+        resolved = resolveChat(recipient, deps);
+      } catch (err) {
+        if (err instanceof RecipientError) return `Error: ${err.message}`;
+        throw err;
+      }
       const params: Record<string, unknown> = { chatId: resolved, instructions };
       if (context) params.context = context;
       const result = await deps.absurd.spawn("workflow", params);
@@ -129,8 +136,13 @@ export const orchestrationTools: ToolHandler[] = [
     ),
     async execute(input, deps) {
       const { text, recipient } = input as { text: string; recipient?: string };
-      const resolved = resolveChat(recipient, deps);
-      if (resolved.startsWith("Error:")) return resolved;
+      let resolved: string;
+      try {
+        resolved = resolveChat(recipient, deps);
+      } catch (err) {
+        if (err instanceof RecipientError) return `Error: ${err.message}`;
+        throw err;
+      }
       const result = await deps.absurd.spawn("send-message", {
         chatId: resolved,
         text,

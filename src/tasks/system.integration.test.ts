@@ -11,7 +11,7 @@ import type { ChannelRegistry } from "../channels/index.ts";
 import type { Config } from "../config.ts";
 import { FakeAnthropic } from "../test/fake-anthropic.ts";
 import type { TestDb } from "../test/harness.ts";
-import { setupTestDb } from "../test/harness.ts";
+import { setupTestDb, waitFor, waitForAsync } from "../test/harness.ts";
 import { SIMPLE_TEXT_REPLY } from "../test/scenarios.ts";
 import { registerExecuteSkill } from "./execute-skill.ts";
 import type { TaskDeps } from "./handle-message.ts";
@@ -100,28 +100,6 @@ afterAll(async () => {
   }
 });
 
-/** Poll until an async condition is met. */
-async function waitForAsync(condition: () => Promise<boolean>, timeoutMs = 10_000): Promise<void> {
-  const interval = 250;
-  const iterations = Math.ceil(timeoutMs / interval);
-  for (let i = 0; i < iterations; i++) {
-    await new Promise((r) => setTimeout(r, interval));
-    if (await condition()) return;
-  }
-  throw new Error("waitForAsync timed out");
-}
-
-/** Poll until a condition is met, up to ~10 seconds. */
-async function waitFor(condition: () => boolean, timeoutMs = 10_000): Promise<void> {
-  const interval = 250;
-  const iterations = Math.ceil(timeoutMs / interval);
-  for (let i = 0; i < iterations; i++) {
-    await new Promise((r) => setTimeout(r, interval));
-    if (condition()) return;
-  }
-  throw new Error("waitFor timed out");
-}
-
 describe("system integration tests", () => {
   it("send-message: spawn → worker sends Telegram message", async () => {
     sendMessageSpy.mockClear();
@@ -187,7 +165,7 @@ describe("system integration tests", () => {
     const chatId = "telegram:100003";
     const instructions = "Say hello to the user";
 
-    const { taskID } = await db.absurd.spawn("workflow", { chatId, instructions });
+    await db.absurd.spawn("workflow", { chatId, instructions });
     const worker = await db.absurd.startWorker({
       concurrency: 1,
       claimTimeout: 30,

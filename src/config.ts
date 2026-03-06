@@ -5,7 +5,7 @@ import * as path from "node:path";
 export const FLAG_CHANNELS = new Set(["gmail", "whatsapp"]);
 
 /** Strip matching surrounding quotes (single or double) from a string. */
-export function stripQuotes(val: string): string {
+function stripQuotes(val: string): string {
   if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
     return val.slice(1, -1);
   }
@@ -132,6 +132,12 @@ function parseAllowedChatIds(raw: string | undefined): Set<string> {
   return new Set(ids);
 }
 
+function parseIntEnv(val: string | undefined, defaultVal: number): number {
+  const n = parseInt(val ?? String(defaultVal), 10);
+  if (Number.isNaN(n)) throw new Error(`Expected integer, got: "${val}"`);
+  return n;
+}
+
 function parsePrefixedEnv(secrets: Record<string, string>, prefix: string): Record<string, string> {
   return Object.fromEntries(
     Object.entries(secrets)
@@ -169,13 +175,13 @@ export function loadConfig(envPath: string = ".env"): Config {
     allowedChatIds: parseAllowedChatIds(secrets.ALLOWED_CHAT_IDS),
     agent: {
       model: process.env.CLAUDE_MODEL ?? "claude-sonnet-4-5-20250929",
-      maxHistoryMessages: parseInt(process.env.MAX_HISTORY_MESSAGES ?? "50", 10),
+      maxHistoryMessages: parseIntEnv(process.env.MAX_HISTORY_MESSAGES, 50),
     },
     worker: {
       databaseUrl: process.env.DATABASE_URL ?? "postgresql://localhost/absurd",
       queueName,
-      concurrency: parseInt(process.env.WORKER_CONCURRENCY ?? "2", 10),
-      claimTimeout: parseInt(process.env.CLAIM_TIMEOUT ?? "600", 10),
+      concurrency: parseIntEnv(process.env.WORKER_CONCURRENCY, 2),
+      claimTimeout: parseIntEnv(process.env.CLAIM_TIMEOUT, 600),
     },
     dirs: {
       notes: path.resolve(process.env.NOTES_DIR ?? "data/notes"),
@@ -185,7 +191,7 @@ export function loadConfig(envPath: string = ".env"): Config {
       extra: parseExtraDirs(process.env.EXTRA_DIRS),
     },
     gmailLabel: secrets.GMAIL_LABEL ?? "everclaw",
-    scriptTimeout: parseInt(process.env.SCRIPT_TIMEOUT ?? "30", 10),
+    scriptTimeout: parseIntEnv(process.env.SCRIPT_TIMEOUT, 30),
     scriptEnv: parsePrefixedEnv(secrets, "SCRIPT_"),
     serverEnv: parsePrefixedEnv(secrets, "SERVER_"),
   };

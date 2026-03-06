@@ -10,16 +10,23 @@ import type { Logger } from "../logger.ts";
 import type { Message } from "../memory/history.ts";
 import { appendMessage, getRecentMessages } from "../memory/history.ts";
 import { deconstructMessages, reconstructMessages } from "../memory/messages.ts";
-import type { ScriptEntry } from "../scripts/runner.ts";
 import { listScripts } from "../scripts/runner.ts";
 import type { ServerSummary } from "../servers/manager.ts";
-import type { SkillSummary } from "../skills/manager.ts";
 import { listSkills } from "../skills/manager.ts";
 import { stripInternalTags } from "./output.ts";
 import { buildSystemPrompt } from "./prompt.ts";
 import type { ToolRegistry } from "./tools/index.ts";
 
 const MAX_TURNS = 50;
+
+/** Shape returned by the "load-context" step after Absurd checkpoint deserialization. */
+interface LoadedContext {
+  pinnedNotes: string;
+  availableNotes: string[];
+  history: Message[];
+  skills: Array<{ name: string; description: string; schedule?: string }>;
+  tools: Array<{ name: string; description?: string }>;
+}
 
 interface Dirs {
   notes: string;
@@ -80,7 +87,7 @@ export async function runAgentLoop(
   const log = deps.log;
 
   // Load context (checkpointed)
-  const context = await ctx.step("load-context", async () => {
+  const context = (await ctx.step("load-context", async (): Promise<LoadedContext> => {
     const [pinnedNotes, availableNotes, history, skills, tools] = await Promise.all([
       readPinnedNotes(deps.dirs.notes),
       listAvailableNotes(deps.dirs.notes),
@@ -88,23 +95,26 @@ export async function runAgentLoop(
       listSkills(deps.dirs.skills),
       listScripts(deps.dirs.scripts),
     ]);
-    return { pinnedNotes, availableNotes, history, skills, tools };
-  });
+    return {
+      pinnedNotes,
+      availableNotes,
+      history,
+      skills: skills.map((s) => ({
+        name: s.name,
+        description: s.description,
+        schedule: s.schedule,
+      })),
+      tools: tools.map((t) => ({ name: t.name, description: t.description })),
+    };
+  })) as LoadedContext;
 
   log?.debug("context loaded");
 
   const systemPrompt = buildSystemPrompt({
-    pinnedNotes: context.pinnedNotes as string,
-    availableNotes: context.availableNotes as string[],
-    skills: (context.skills as SkillSummary[]).map((s) => ({
-      name: s.name,
-      description: s.description,
-      schedule: s.schedule,
-    })),
-    tools: (context.tools as ScriptEntry[]).map((t) => ({
-      name: t.name,
-      description: t.description,
-    })),
+    pinnedNotes: context.pinnedNotes,
+    availableNotes: context.availableNotes,
+    skills: context.skills,
+    tools: context.tools,
     mcpServers: deps.mcpSummaries,
     extraDirs: deps.extraDirs,
   });
@@ -159,6 +169,7 @@ export async function runAgentLoop(
     }
 
     if ((resp.stopReason as string) !== "tool_use") {
+      // Raw text — stripped at the return site. Streaming strips per-block above.
       reply = textBlocks.map((b) => b.text).join("\n");
       log?.info({ turns: turn + 1 }, "agent loop complete");
       break;
@@ -182,7 +193,7 @@ export async function runAgentLoop(
           deps.registry.execute(tb.name, tb.input as Record<string, unknown>),
         );
       }
-      results.push({ type: "tool_result", tool_use_id: tb.id, content: result as string });
+      results.push({ type: "tool_result", tool_use_id: tb.id, content: result });
     }
     messages.push({ role: "user", content: results });
 

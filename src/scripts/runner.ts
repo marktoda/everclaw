@@ -5,8 +5,6 @@ import { baseChildEnv } from "../child-env.ts";
 
 const SCRIPT_EXTENSIONS = new Set([".sh", ".bash", ".py", ".js", ".ts"]);
 
-const PYTHON_EXTENSIONS = new Set([".py"]);
-
 export function runScript(
   scriptPath: string,
   input: string,
@@ -14,7 +12,7 @@ export function runScript(
   env?: Record<string, string>,
 ): Promise<string> {
   const ext = path.extname(scriptPath);
-  const isPython = PYTHON_EXTENSIONS.has(ext);
+  const isPython = ext === ".py";
   const command = isPython ? "uv" : scriptPath;
   const args = isPython ? ["run", "--script", scriptPath] : [];
 
@@ -103,8 +101,7 @@ export async function getScriptDescription(filePath: string): Promise<string> {
       const line = lines[i];
       if (line.startsWith("#")) {
         commentLines.push(line.replace(/^#\s?/, ""));
-      } else if (line.trim() === "" && commentLines.length === 0) {
-      } else {
+      } else if (line.trim() !== "" || commentLines.length > 0) {
         break;
       }
     }
@@ -113,8 +110,7 @@ export async function getScriptDescription(filePath: string): Promise<string> {
       const line = lines[i];
       if (line.startsWith("//")) {
         commentLines.push(line.replace(/^\/\/\s?/, ""));
-      } else if (line.trim() === "" && commentLines.length === 0) {
-      } else {
+      } else if (line.trim() !== "" || commentLines.length > 0) {
         break;
       }
     }

@@ -2,6 +2,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type { Absurd, TaskContext } from "absurd-sdk";
 import { runAgentLoop } from "../agent/loop.ts";
+import { isContainedIn } from "../path-utils.ts";
 import type { TaskDeps } from "./shared.ts";
 import { BACKGROUND_MAX_HISTORY, buildAgentDeps } from "./shared.ts";
 
@@ -30,7 +31,7 @@ export function registerExecuteSkill(absurd: Absurd, deps: TaskDeps): void {
 
       const skillContent = await ctx.step("read-skill", async () => {
         const abs = path.resolve(deps.config.dirs.skills, `${params.skillName}.md`);
-        if (!abs.startsWith(deps.config.dirs.skills + path.sep)) {
+        if (!isContainedIn(abs, deps.config.dirs.skills)) {
           throw new Error(`Invalid skill name: ${params.skillName}`);
         }
         return await fs.readFile(abs, "utf-8");

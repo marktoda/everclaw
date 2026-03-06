@@ -193,11 +193,7 @@ describe("handle-message", () => {
       anthropic: deps.anthropic,
       pool: deps.pool,
       model: deps.config.agent.model,
-      dirs: {
-        notes: deps.config.dirs.notes,
-        skills: deps.config.dirs.skills,
-        scripts: deps.config.dirs.scripts,
-      },
+      dirs: deps.config.dirs,
       maxHistory: deps.config.agent.maxHistoryMessages,
       registry: mockRegistry,
       onText: expect.any(Function),

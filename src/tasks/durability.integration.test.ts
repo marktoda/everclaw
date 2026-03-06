@@ -12,7 +12,7 @@ import type { Config } from "../config.ts";
 import type { Scenario } from "../test/fake-anthropic.ts";
 import { FakeAnthropic } from "../test/fake-anthropic.ts";
 import type { TestDb } from "../test/harness.ts";
-import { setupTestDb } from "../test/harness.ts";
+import { setupTestDb, waitFor } from "../test/harness.ts";
 import { SIMPLE_TEXT_REPLY } from "../test/scenarios.ts";
 import type { TaskDeps } from "./handle-message.ts";
 import { registerHandleMessage } from "./handle-message.ts";
@@ -90,17 +90,6 @@ afterAll(async () => {
     await fs.rm(tmpDir, { recursive: true, force: true });
   }
 });
-
-/** Poll until a sync condition is met. */
-async function waitFor(condition: () => boolean, timeoutMs = 10_000): Promise<void> {
-  const interval = 250;
-  const iterations = Math.ceil(timeoutMs / interval);
-  for (let i = 0; i < iterations; i++) {
-    await new Promise((r) => setTimeout(r, interval));
-    if (condition()) return;
-  }
-  throw new Error("waitFor timed out");
-}
 
 // ── Helpers ─────────────────────────────────────────────────────────
 

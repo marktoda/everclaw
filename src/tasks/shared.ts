@@ -32,6 +32,7 @@ export function buildAgentDeps(
   opts?: { maxHistory?: number; interactive?: boolean; taskName?: string },
 ): AgentDeps {
   const log = deps.log?.child({ task: opts?.taskName, chatId });
+  const mcp = deps.mcp;
 
   const registry = createToolRegistry(
     {
@@ -45,7 +46,7 @@ export function buildAgentDeps(
       scriptEnv: deps.config.scriptEnv,
       startedAt: deps.startedAt,
       searchApiKey: deps.config.braveSearchApiKey,
-      reloadMcp: deps.mcp ? () => deps.mcp!.reload() : undefined,
+      reloadMcp: mcp ? () => mcp.reload() : undefined,
       allowedChatIds: deps.config.allowedChatIds,
       channels: deps.channels,
     },
@@ -56,11 +57,7 @@ export function buildAgentDeps(
     anthropic: deps.anthropic,
     pool: deps.pool,
     model: deps.config.agent.model,
-    dirs: {
-      notes: deps.config.dirs.notes,
-      skills: deps.config.dirs.skills,
-      scripts: deps.config.dirs.scripts,
-    },
+    dirs: deps.config.dirs,
     maxHistory: opts?.maxHistory ?? deps.config.agent.maxHistoryMessages,
     registry,
     log,

@@ -1,4 +1,3 @@
-import { FLAG_CHANNELS } from "../config.ts";
 import type { ChannelAdapter } from "./adapter.ts";
 
 export interface AdapterOptions {
@@ -6,29 +5,46 @@ export interface AdapterOptions {
   gmailLabel?: string;
 }
 
-const ADAPTER_FACTORIES: Record<
-  string,
-  (token: string, opts: AdapterOptions) => ChannelAdapter | Promise<ChannelAdapter>
-> = {
-  discord: async (token) => {
-    const { DiscordAdapter } = await import("./discord.ts");
-    return new DiscordAdapter(token);
+interface AdapterFactory {
+  requiresToken: boolean;
+  create: (token: string, opts: AdapterOptions) => ChannelAdapter | Promise<ChannelAdapter>;
+}
+
+const ADAPTER_FACTORIES: Record<string, AdapterFactory> = {
+  discord: {
+    requiresToken: true,
+    create: async (token) => {
+      const { DiscordAdapter } = await import("./discord.ts");
+      return new DiscordAdapter(token);
+    },
   },
-  slack: async (token) => {
-    const { SlackAdapter } = await import("./slack.ts");
-    return new SlackAdapter(token);
+  slack: {
+    requiresToken: true,
+    create: async (token) => {
+      const { SlackAdapter } = await import("./slack.ts");
+      return new SlackAdapter(token);
+    },
   },
-  telegram: async (token, opts) => {
-    const { TelegramAdapter } = await import("./telegram.ts");
-    return new TelegramAdapter(token, { openaiApiKey: opts.openaiApiKey });
+  telegram: {
+    requiresToken: true,
+    create: async (token, opts) => {
+      const { TelegramAdapter } = await import("./telegram.ts");
+      return new TelegramAdapter(token, { openaiApiKey: opts.openaiApiKey });
+    },
   },
-  gmail: async (_token, opts) => {
-    const { GmailAdapter } = await import("./gmail.ts");
-    return new GmailAdapter({ label: opts.gmailLabel ?? "everclaw" });
+  gmail: {
+    requiresToken: false,
+    create: async (_token, opts) => {
+      const { GmailAdapter } = await import("./gmail.ts");
+      return new GmailAdapter({ label: opts.gmailLabel ?? "everclaw" });
+    },
   },
-  whatsapp: async () => {
-    const { WhatsAppAdapter } = await import("./whatsapp.ts");
-    return new WhatsAppAdapter();
+  whatsapp: {
+    requiresToken: false,
+    create: async () => {
+      const { WhatsAppAdapter } = await import("./whatsapp.ts");
+      return new WhatsAppAdapter();
+    },
   },
 };
 
@@ -39,8 +55,8 @@ export async function createAdapter(
 ): Promise<ChannelAdapter> {
   const factory = ADAPTER_FACTORIES[type];
   if (!factory) throw new Error(`Unknown channel type: "${type}"`);
-  if (!token && !FLAG_CHANNELS.has(type)) {
+  if (!token && factory.requiresToken) {
     throw new Error(`CHANNEL_${type.toUpperCase()} requires a token`);
   }
-  return factory(token ?? "", opts);
+  return factory.create(token ?? "", opts);
 }

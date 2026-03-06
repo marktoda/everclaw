@@ -10,7 +10,7 @@ import type { ExecutorDeps, ToolHandler } from "./types.ts";
 
 export interface ToolRegistry {
   definitions: Anthropic.Tool[];
-  execute(name: string, input: Record<string, any>): Promise<string>;
+  execute(name: string, input: Record<string, unknown>): Promise<string>;
   isSuspending(name: string): boolean;
 }
 
@@ -35,7 +35,7 @@ const builtinDefinitions: Anthropic.Tool[] = allHandlers.map((h) => h.def);
 export function createToolRegistry(deps: ExecutorDeps, mcp?: McpToolSource): ToolRegistry {
   return {
     definitions: [...builtinDefinitions, ...(mcp?.definitions() ?? [])],
-    async execute(name: string, input: Record<string, any>): Promise<string> {
+    async execute(name: string, input: Record<string, unknown>): Promise<string> {
       const handler = handlerMap.get(name);
       if (handler) return handler.execute(input, deps);
       if (mcp) return mcp.execute(name, input);

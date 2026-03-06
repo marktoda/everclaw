@@ -8,9 +8,10 @@ interface TelegramAdapterOptions {
   openaiApiKey?: string;
 }
 
+const MAX_MESSAGE_LENGTH = 4096;
+
 export class TelegramAdapter implements ChannelAdapter {
   name = "telegram" as const;
-  private maxMessageLength = 4096;
   private bot: Bot;
   private openaiApiKey?: string;
   private connected = false;
@@ -59,7 +60,7 @@ export class TelegramAdapter implements ChannelAdapter {
   async sendMessage(chatId: string, text: string): Promise<void> {
     const tgChatId = Number(stripPrefix(chatId));
     const formatted = markdownToEntities(text);
-    for (const chunk of splitWithEntities(formatted, this.maxMessageLength)) {
+    for (const chunk of splitWithEntities(formatted, MAX_MESSAGE_LENGTH)) {
       await this.bot.api.sendMessage(tgChatId, chunk.text, {
         entities: chunk.entities.length > 0 ? chunk.entities : undefined,
       });

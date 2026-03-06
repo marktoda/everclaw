@@ -2,6 +2,9 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import type { AssistantMessage, Message, ToolResultMessage } from "./history.ts";
 
+/** Sentinel for assistant messages that contain only tool_use blocks (no text). */
+const TOOL_USE_ONLY = "(tool use only)";
+
 type ContentBlock = Anthropic.ContentBlockParam;
 
 /** Narrow MessageParam.content to its array form. Returns null if string. */
@@ -45,7 +48,7 @@ export function reconstructMessages(history: Message[]): Anthropic.MessageParam[
   for (const msg of history) {
     if (msg.role === "assistant" && msg.toolUse && msg.toolUse.length > 0) {
       const content: ContentBlock[] = [];
-      if (msg.content && msg.content !== "(tool use only)") {
+      if (msg.content && msg.content !== TOOL_USE_ONLY) {
         content.push({ type: "text", text: msg.content });
       }
       for (const tu of msg.toolUse) {
@@ -93,12 +96,12 @@ export function deconstructMessages(
       result.push({
         chatId,
         role: "assistant",
-        content: text || "(tool use only)",
+        content: text || TOOL_USE_ONLY,
         toolUse: toolUse.length > 0 ? toolUse : undefined,
       } satisfies AssistantMessage);
     } else if (msg.role === "user" && Array.isArray(msg.content)) {
-      const blocks = msg.content as Anthropic.ToolResultBlockParam[];
-      if (blocks[0]?.type === "tool_result") {
+      const blocks = msg.content.filter(isToolResult);
+      if (blocks.length > 0) {
         result.push({
           chatId,
           role: "tool",

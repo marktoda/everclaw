@@ -128,23 +128,6 @@ describe("loop integration tests", () => {
     expect(fs.readFileSync(filePath, "utf-8")).toBe("hello world");
   });
 
-  it("file round-trip through real file system: write -> read -> verify", async () => {
-    const chatId = `telegram:${chatIdCounter}`;
-    const fake = new FakeAnthropic(WRITE_AND_READ);
-    const deps = buildDeps(fake, chatId);
-    const ctx = makeCtx();
-
-    const reply = await runAgentLoop(ctx, chatId, "Write and read a file", deps);
-
-    expect(reply).toBe("File contains: hello world");
-    fake.assertAllTurnsConsumed();
-
-    // Verify the file actually exists on disk
-    const filePath = path.join(notesDir, "test.md");
-    expect(fs.existsSync(filePath)).toBe(true);
-    expect(fs.readFileSync(filePath, "utf-8")).toBe("hello world");
-  });
-
   it("history reconstruction fidelity across two messages", async () => {
     const chatId = `telegram:${chatIdCounter}`;
 

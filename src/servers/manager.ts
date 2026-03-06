@@ -39,7 +39,7 @@ function isStringRecord(v: unknown): v is Record<string, string> {
  */
 export function validateServerConfig(
   raw: string,
-): { ok: true; parsed: Record<string, unknown> } | { ok: false; error: string } {
+): { ok: true; parsed: Omit<ServerConfig, "name"> } | { ok: false; error: string } {
   if (!raw || !raw.trim()) {
     return { ok: false, error: "content is empty" };
   }
@@ -90,7 +90,15 @@ export function validateServerConfig(
     }
   }
 
-  return { ok: true, parsed: obj };
+  return {
+    ok: true,
+    parsed: {
+      command: obj.command as string,
+      ...(typeof obj.description === "string" ? { description: obj.description } : {}),
+      ...(Array.isArray(obj.args) ? { args: obj.args as string[] } : {}),
+      ...(isStringRecord(obj.env) ? { env: obj.env } : {}),
+    },
+  };
 }
 
 /**
@@ -124,15 +132,9 @@ export async function listServerConfigs(serversDir: string): Promise<ServerConfi
       continue;
     }
 
-    const obj = validation.parsed;
-    const name = path.basename(entry, ".json");
-
     configs.push({
-      name,
-      command: obj.command as string,
-      ...(typeof obj.description === "string" ? { description: obj.description } : {}),
-      ...(Array.isArray(obj.args) ? { args: obj.args as string[] } : {}),
-      ...(isStringRecord(obj.env) ? { env: obj.env } : {}),
+      name: path.basename(entry, ".json"),
+      ...validation.parsed,
     });
   }
 
