@@ -11,10 +11,7 @@ function makeDeps(channelsOverride?: Partial<ExecutorDeps["channels"]>): Executo
   } as ExecutorDeps;
 }
 
-function makeChannels(opts: {
-  queryable?: string[];
-  messages?: ChannelMessage[];
-}) {
+function makeChannels(opts: { queryable?: string[]; messages?: ChannelMessage[] }) {
   return {
     queryableChannels: vi.fn().mockReturnValue(opts.queryable ?? []),
     queryMessages: vi.fn().mockResolvedValue(opts.messages ?? []),
