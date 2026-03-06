@@ -3,7 +3,7 @@ import type { ToolHandler } from "./types.ts";
 import { defineTool } from "./types.ts";
 
 const TIMEOUT = 30_000;
-const MAX_BUF = 1024 * 1024;
+const MAX_BUF = 5 * 1024 * 1024;
 
 /** Split a command string into args, respecting quoted segments. */
 export function tokenize(cmd: string): string[] {

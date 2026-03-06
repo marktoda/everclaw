@@ -81,7 +81,7 @@ describe("browser tool", () => {
     expect(mockExecFile).toHaveBeenCalledWith(
       "agent-browser",
       ["open", "https://example.com"],
-      expect.objectContaining({ timeout: 30_000, maxBuffer: 1024 * 1024 }),
+      expect.objectContaining({ timeout: 30_000, maxBuffer: 5 * 1024 * 1024 }),
       expect.any(Function),
     );
     expect(result).toBe("page loaded");
