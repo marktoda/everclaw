@@ -31,7 +31,7 @@ src/
     adapters.ts         Adapter factory: maps channel type → adapter constructor
     auth.ts             Shared authDir() helper — resolves data/auth/{adapter}/
     split.ts            Generic message splitting utility (paragraph → line → hard split)
-    format-telegram.ts  Markdown → Telegram MarkdownV2 entity conversion
+    format-telegram.ts  Markdown → Telegram MessageEntity conversion
     index.ts            Barrel export
   transcription.ts      Shared audio transcription via OpenAI Whisper
   child-env.ts          Minimal environment forwarded to child processes (PATH, HOME only)

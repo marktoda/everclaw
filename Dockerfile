@@ -14,5 +14,5 @@ COPY --chown=node package.json pnpm-lock.yaml ./
 RUN corepack enable && pnpm install --frozen-lockfile
 COPY --chown=node . .
 USER node
-VOLUME ["/app/data", "/app/skills", "/app/scripts"]
+VOLUME ["/app/data", "/app/skills", "/app/scripts", "/app/servers"]
 CMD ["node", "src/index.ts"]

@@ -22,7 +22,39 @@ A durable personal AI assistant.
 - **20 built-in tools** — files, scripts, web search, orchestration, browser automation, plus any tools discovered from MCP servers.
 - **Just Postgres** — the only infrastructure dependency. History, task queue, checkpoints, schedules. All in one place.
 
+## Prerequisites
+
+- **[Anthropic API key](https://console.anthropic.com/)** — required
+- At least one messaging channel token (Telegram, Discord, Slack, WhatsApp, or Gmail)
+
+**Docker (recommended):**
+- [Docker](https://docs.docker.com/get-docker/) and Docker Compose
+
+**Bare metal:**
+- [Node.js](https://nodejs.org/) 22.18+
+- [pnpm](https://pnpm.io/)
+- [PostgreSQL](https://www.postgresql.org/) 15+
+- [`uv`](https://docs.astral.sh/uv/) (optional, for Python tool scripts)
+
 ## Quick start
+
+### With Docker Compose
+
+Bundles Postgres and [Habitat](https://github.com/earendil-works/absurd) (task queue UI on port 7890). No other dependencies needed.
+
+```bash
+git clone https://github.com/marktoda/everclaw.git
+cd everclaw
+cp .env.example .env
+# fill in ANTHROPIC_API_KEY and at least one CHANNEL_* token
+docker compose up --build
+```
+
+Send a message to your bot. If `ALLOWED_CHAT_IDS` isn't set, the bot replies with your chat ID — add it to `.env` and restart.
+
+### With Claude Code
+
+If you use [Claude Code](https://docs.anthropic.com/en/docs/claude-code), the interactive setup handles everything:
 
 ```bash
 git clone https://github.com/marktoda/everclaw.git
@@ -30,14 +62,23 @@ cd everclaw
 claude
 ```
 
-Then run `/setup`. It handles dependencies, database, config, and verification.
+Then run `/setup`. It walks you through dependencies, database, config, and verification.
 
-Or with Docker Compose (bundles Postgres and [Habitat](https://github.com/earendil-works/absurd) task queue UI on port 7890):
+### Bare metal (manual)
 
 ```bash
+git clone https://github.com/marktoda/everclaw.git
+cd everclaw
+pnpm install
 cp .env.example .env
-# fill in your API keys
-docker compose up --build
+# fill in ANTHROPIC_API_KEY and at least one CHANNEL_* token
+
+# Set up Postgres — create database and run migrations
+createdb absurd
+for f in sql/*.sql; do psql -d absurd -f "$f"; done
+
+# Run
+node src/index.ts
 ```
 
 ## How it works
@@ -148,7 +189,7 @@ TypeScript, runs directly on Node 22.18+ with native type stripping. There's no 
 | `channels/adapters.ts` | Factory: channel type string → adapter constructor |
 | `channels/auth.ts` | Shared `authDir()` helper for persistent auth state |
 | `channels/split.ts` | Message splitting (paragraph → line → hard cut) |
-| `channels/format-telegram.ts` | Markdown → Telegram HTML |
+| `channels/format-telegram.ts` | Markdown → Telegram MessageEntity conversion |
 | `transcription.ts` | Whisper transcription (shared across voice-capable adapters) |
 
 ### Persistence
