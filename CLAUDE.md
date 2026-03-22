@@ -36,6 +36,7 @@ src/
   transcription.ts      Shared audio transcription via OpenAI Whisper
   child-env.ts          Minimal environment forwarded to child processes (PATH, HOME only)
   logger.ts             Pino logger instance, LOG_LEVEL from process.env
+  path-utils.ts         Path containment and symlink validation for file tools
   agent/
     loop.ts             Agent loop: loads context, calls Claude in a tool-use loop (max 50 turns)
     tools/              Tool definitions co-located with handlers in domain modules

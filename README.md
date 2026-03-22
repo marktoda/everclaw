@@ -256,8 +256,12 @@ Environment variables (non-secret, with defaults):
 | `CLAUDE_MODEL` | `claude-sonnet-4-5-20250929` | Model ID |
 | `MAX_HISTORY_MESSAGES` | `50` | Conversation history window |
 | `WORKER_CONCURRENCY` | `2` | Parallel task slots |
-| `CLAIM_TIMEOUT` | `300` | Task claim timeout (seconds) |
+| `CLAIM_TIMEOUT` | `600` | Task claim timeout (seconds) |
 | `SCRIPT_TIMEOUT` | `30` | Script execution timeout (seconds) |
+| `NOTES_DIR` | `data/notes` | Notes directory path |
+| `SKILLS_DIR` | `skills` | Skills directory path |
+| `SCRIPTS_DIR` | `scripts` | Scripts directory path |
+| `SERVERS_DIR` | `servers` | Servers directory path |
 | `EXTRA_DIRS` | *(none)* | Extra directories: `name:mode:path,...` (`ro` or `rw`) |
 | `LOG_LEVEL` | `info` | Pino log level |
 
