@@ -1,4 +1,4 @@
-import { Client, GatewayIntentBits, Partials } from "discord.js";
+import { Client, GatewayIntentBits, Partials, type TextBasedChannel } from "discord.js";
 import { logger } from "../logger.ts";
 import {
   type ChannelAdapter,
@@ -88,7 +88,7 @@ export class DiscordAdapter implements ChannelAdapter {
     const results: ChannelMessage[] = [];
 
     // Collect text channels the bot is in across all guilds + cached DMs
-    const channels: any[] = [];
+    const channels: TextBasedChannel[] = [];
     for (const guild of this.client.guilds.cache.values()) {
       for (const ch of guild.channels.cache.values()) {
         if (ch.isTextBased() && !ch.isThread()) channels.push(ch);

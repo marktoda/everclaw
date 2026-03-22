@@ -14,6 +14,8 @@ export async function transcribeAudio(buffer: Buffer, apiKey: string): Promise<s
     response_format: "text",
   });
 
-  // When response_format is 'text', the API returns a plain string
+  // When response_format is "text", the OpenAI API returns a raw string instead of a JSON
+  // object, but the SDK types always declare the return as Transcription. The double cast is
+  // necessary because the runtime value really is a string.
   return (transcription as unknown as string).trim();
 }
