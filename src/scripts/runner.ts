@@ -35,6 +35,7 @@ export function runScript(
       },
     );
     if (child.stdin) {
+      child.stdin.on("error", () => {}); // ignore EPIPE if process exits early
       child.stdin.write(input);
       child.stdin.end();
     }
