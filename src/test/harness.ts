@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { Absurd } from "absurd-sdk";
 import * as pg from "pg";
-import { GenericContainer, type StartedTestContainer } from "testcontainers";
+import { GenericContainer, type StartedTestContainer, Wait } from "testcontainers";
 
 export interface TestDb {
   pool: pg.Pool;
@@ -19,6 +19,7 @@ export async function setupTestDb(): Promise<TestDb> {
       POSTGRES_DB: "test",
     })
     .withExposedPorts(5432)
+    .withWaitStrategy(Wait.forLogMessage(/database system is ready to accept connections/, 2))
     .start();
 
   const pool = new pg.Pool({
