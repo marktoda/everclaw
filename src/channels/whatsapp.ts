@@ -7,6 +7,7 @@ import qrcode from "qrcode-terminal";
 import { logger } from "../logger.ts";
 import { type ChannelAdapter, type InboundMessage, stripPrefix } from "./adapter.ts";
 import { authDir } from "./auth.ts";
+import { evictOldest } from "./collections.ts";
 import { splitMessage } from "./split.ts";
 
 const AUTH_DIR = authDir("whatsapp");
@@ -137,14 +138,7 @@ export class WhatsAppAdapter implements ChannelAdapter {
       const sent = await this.sock.sendMessage(jid, { text: chunk });
       if (sent?.key?.id) {
         this.sentIds.add(sent.key.id);
-        // Evict oldest entries to prevent unbounded growth
-        if (this.sentIds.size > 5000) {
-          const iter = this.sentIds.values();
-          for (let i = 0; i < 1000; i++) {
-            const val = iter.next().value;
-            if (val) this.sentIds.delete(val);
-          }
-        }
+        evictOldest(this.sentIds, 5000, 1000);
       }
     }
   }

@@ -10,6 +10,7 @@ import {
   stripPrefix,
 } from "./adapter.ts";
 import { authDir } from "./auth.ts";
+import { evictOldest } from "./collections.ts";
 
 const AUTH_DIR = authDir("gmail");
 const CREDENTIALS_PATH = path.join(AUTH_DIR, "credentials.json");
@@ -162,20 +163,8 @@ export class GmailAdapter implements ChannelAdapter {
       if (this.processedIds.has(id)) continue;
       this.processedIds.add(id);
 
-      if (this.processedIds.size > 5000) {
-        const iter = this.processedIds.values();
-        for (let i = 0; i < 1000; i++) {
-          const val = iter.next().value;
-          if (val) this.processedIds.delete(val);
-        }
-      }
-      if (this.threadContext.size > 1000) {
-        const iter = this.threadContext.keys();
-        for (let i = 0; i < 200; i++) {
-          const key = iter.next().value;
-          if (key) this.threadContext.delete(key);
-        }
-      }
+      evictOldest(this.processedIds, 5000, 1000);
+      evictOldest(this.threadContext, 1000, 200);
 
       const parsed = await this.fetchMessage(id);
       if (this.myEmail && parsed.from.includes(this.myEmail)) continue;
