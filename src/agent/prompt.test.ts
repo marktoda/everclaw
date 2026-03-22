@@ -134,4 +134,54 @@ describe("buildSystemPrompt", () => {
     expect(p).toContain("data/notes/temp/");
     expect(p).toContain("Agent scratch space");
   });
+
+  it("includes cron expression for skills with a schedule", () => {
+    const p = buildSystemPrompt({
+      ...base,
+      skills: [{ name: "daily-digest", description: "Send daily digest", schedule: "0 9 * * *" }],
+    });
+    expect(p).toContain("(scheduled: 0 9 * * *)");
+  });
+
+  it("omits schedule info for skills without a schedule field", () => {
+    const p = buildSystemPrompt({
+      ...base,
+      skills: [{ name: "on-demand", description: "Run on demand" }],
+    });
+    expect(p).toContain("**on-demand**: Run on demand");
+    expect(p).not.toContain("scheduled:");
+  });
+
+  it("renders extra directories in the prompt", () => {
+    const p = buildSystemPrompt({
+      ...base,
+      extraDirs: [{ name: "docs", mode: "ro" as const, absPath: "/mnt/docs" }],
+    });
+    expect(p).toContain("Extra Directories");
+    expect(p).toContain("docs/");
+    expect(p).toContain("User-mounted directory");
+  });
+
+  it("renders MCP servers with descriptions", () => {
+    const p = buildSystemPrompt({
+      ...base,
+      mcpServers: [
+        { name: "github", description: "GitHub API tools" },
+        { name: "slack", description: "Slack integration" },
+      ],
+    });
+    expect(p).toContain("## MCP Servers");
+    expect(p).toContain("**github**: GitHub API tools");
+    expect(p).toContain("**slack**: Slack integration");
+  });
+
+  it("omits skills section when skills array is empty", () => {
+    const p = buildSystemPrompt({ ...base, skills: [] });
+    expect(p).not.toContain("Available Skills");
+  });
+
+  it("omits tool scripts section when tools array is empty", () => {
+    const p = buildSystemPrompt({ ...base, tools: [] });
+    expect(p).not.toContain("Available Tool Scripts");
+  });
 });
