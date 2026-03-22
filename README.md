@@ -3,7 +3,6 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/github/stars/marktoda/everclaw?style=flat&color=yellow" alt="GitHub Stars" />
   <img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT License" />
   <img src="https://img.shields.io/badge/TypeScript-blue?logo=typescript&logoColor=white" alt="TypeScript" />
   <img src="https://img.shields.io/badge/Powered%20by-Claude-cc785c?logo=anthropic&logoColor=white" alt="Powered by Claude" />
