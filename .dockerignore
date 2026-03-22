@@ -1,0 +1,11 @@
+.env
+.env.*
+docker-compose.override.yml
+data/
+.git/
+.worktrees/
+.playwright-mcp/
+docs/plans/
+__pycache__/
+*.md
+!README.md

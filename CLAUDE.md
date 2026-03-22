@@ -82,7 +82,7 @@ docs/plans/             Design and implementation documents
 
 ## Key Patterns
 
-**Channel abstraction.** Messaging channels implement the `ChannelAdapter` interface (`start`, `sendMessage`, `stop`, optional `setTyping`). Five adapters: Telegram, Discord, Slack, WhatsApp, Gmail. A `ChannelRegistry` routes outbound messages by parsing the prefix from `chatId` strings (e.g. `telegram:123456789`, `discord:123`, `whatsapp:1234567890`). Each adapter owns message splitting via the generic `splitMessage` utility. Adding a new channel means writing a single adapter file and one factory entry.
+**Channel abstraction.** Messaging channels implement the `ChannelAdapter` interface (`start`, `sendMessage`, `stop`, optional `setTyping`). Five adapters: Telegram, Discord, Slack, WhatsApp, Gmail. A `ChannelRegistry` routes outbound messages by parsing the prefix from `chatId` strings (e.g. `telegram:123456789`, `discord:123`, `whatsapp:15551234567`). Each adapter owns message splitting via the generic `splitMessage` utility. Adding a new channel means writing a single adapter file and one factory entry.
 
 **Pluggable channels.** Channels are auto-detected from `CHANNEL_*` secrets in `.env` (e.g. `CHANNEL_TELEGRAM` → telegram adapter, `CHANNEL_DISCORD` → discord). The adapter factory in `channels/adapters.ts` maps type strings to constructors. WhatsApp and Gmail use truthy flags (`CHANNEL_WHATSAPP=1`, `CHANNEL_GMAIL=1`) since they authenticate interactively. Slack uses a pipe-delimited `bot_token|app_token` value.
 
