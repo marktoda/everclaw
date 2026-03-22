@@ -51,6 +51,53 @@ const HASH_COMMENT_EXTS = new Set([".sh", ".bash", ".py"]);
 const SLASH_COMMENT_EXTS = new Set([".js", ".ts"]);
 const MAX_HEAD_LINES = 20;
 
+function extractPythonDocstring(lines: string[], start: number): string | null {
+  let i = start;
+  // Skip blank lines before docstring
+  while (i < lines.length && lines[i].trim() === "") i++;
+  if (i >= lines.length || !lines[i].trim().startsWith('"""')) return null;
+
+  const opening = lines[i].trim();
+  // Single-line docstring: """description"""
+  if (opening.endsWith('"""') && opening.length > 6) {
+    return opening.slice(3, -3).trim();
+  }
+  // Multi-line docstring
+  const result: string[] = [];
+  const firstLine = opening.slice(3).trim();
+  if (firstLine) result.push(firstLine);
+  i++;
+  while (i < lines.length) {
+    const line = lines[i];
+    if (line.trim().endsWith('"""')) {
+      const last = line.trim().slice(0, -3).trim();
+      if (last) result.push(last);
+      break;
+    }
+    result.push(line.trim());
+    i++;
+  }
+  return result.join("\n").trim();
+}
+
+function extractLineComments(
+  lines: string[],
+  start: number,
+  prefix: string,
+  strip: RegExp,
+): string {
+  const result: string[] = [];
+  for (let i = start; i < lines.length; i++) {
+    const line = lines[i];
+    if (line.startsWith(prefix)) {
+      result.push(line.replace(strip, ""));
+    } else if (line.trim() !== "" || result.length > 0) {
+      break;
+    }
+  }
+  return result.join("\n").trim();
+}
+
 export async function getScriptDescription(filePath: string): Promise<string> {
   let content: string;
   try {
@@ -61,62 +108,19 @@ export async function getScriptDescription(filePath: string): Promise<string> {
 
   const lines = content.split("\n").slice(0, MAX_HEAD_LINES);
   const ext = path.extname(filePath);
-  const commentLines: string[] = [];
-
-  let i = 0;
-
-  // Skip shebang
-  if (lines[0]?.startsWith("#!")) i = 1;
+  const start = lines[0]?.startsWith("#!") ? 1 : 0;
 
   if (HASH_COMMENT_EXTS.has(ext)) {
-    // Check for Python docstring first
     if (ext === ".py") {
-      // Skip blank lines after shebang before docstring
-      while (i < lines.length && lines[i].trim() === "") i++;
-      if (i < lines.length && lines[i].trim().startsWith('"""')) {
-        const opening = lines[i].trim();
-        if (opening.endsWith('"""') && opening.length > 6) {
-          // Single-line docstring: """description"""
-          return opening.slice(3, -3).trim();
-        }
-        // Multi-line docstring
-        const content = opening.slice(3).trim();
-        if (content) commentLines.push(content);
-        i++;
-        while (i < lines.length) {
-          const line = lines[i];
-          if (line.trim().endsWith('"""')) {
-            const last = line.trim().slice(0, -3).trim();
-            if (last) commentLines.push(last);
-            break;
-          }
-          commentLines.push(line.trim());
-          i++;
-        }
-        return commentLines.join("\n").trim();
-      }
+      const docstring = extractPythonDocstring(lines, start);
+      if (docstring != null) return docstring;
     }
-    // Hash comments
-    for (; i < lines.length; i++) {
-      const line = lines[i];
-      if (line.startsWith("#")) {
-        commentLines.push(line.replace(/^#\s?/, ""));
-      } else if (line.trim() !== "" || commentLines.length > 0) {
-        break;
-      }
-    }
-  } else if (SLASH_COMMENT_EXTS.has(ext)) {
-    for (; i < lines.length; i++) {
-      const line = lines[i];
-      if (line.startsWith("//")) {
-        commentLines.push(line.replace(/^\/\/\s?/, ""));
-      } else if (line.trim() !== "" || commentLines.length > 0) {
-        break;
-      }
-    }
+    return extractLineComments(lines, start, "#", /^#\s?/);
   }
-
-  return commentLines.join("\n").trim();
+  if (SLASH_COMMENT_EXTS.has(ext)) {
+    return extractLineComments(lines, start, "//", /^\/\/\s?/);
+  }
+  return "";
 }
 
 export async function listScripts(scriptsDir: string): Promise<ScriptEntry[]> {

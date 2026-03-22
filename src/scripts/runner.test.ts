@@ -116,6 +116,48 @@ describe("getScriptDescription", () => {
     expect(desc).toBe("");
   });
 
+  it("extracts python docstring after blank lines", async () => {
+    const file = path.join(tmpDir, "test.py");
+    fs.writeFileSync(file, '#!/usr/bin/env python3\n\n"""Fetch weather data"""\nimport sys\n');
+    const desc = await getScriptDescription(file);
+    expect(desc).toBe("Fetch weather data");
+  });
+
+  it("falls back to hash comments when no docstring in python", async () => {
+    const file = path.join(tmpDir, "test.py");
+    fs.writeFileSync(file, "# Hash comment description\nimport sys\n");
+    const desc = await getScriptDescription(file);
+    expect(desc).toBe("Hash comment description");
+  });
+
+  it("returns empty for unknown extension", async () => {
+    const file = path.join(tmpDir, "test.rb");
+    fs.writeFileSync(file, "# Ruby comment\nputs 'hi'\n");
+    const desc = await getScriptDescription(file);
+    expect(desc).toBe("");
+  });
+
+  it("extracts bash comments for .bash extension", async () => {
+    const file = path.join(tmpDir, "test.bash");
+    fs.writeFileSync(file, "#!/bin/bash\n# Bash script\nset -e\n");
+    const desc = await getScriptDescription(file);
+    expect(desc).toBe("Bash script");
+  });
+
+  it("extracts JS comments without shebang", async () => {
+    const file = path.join(tmpDir, "test.js");
+    fs.writeFileSync(file, "// No shebang here\nconst x = 1;\n");
+    const desc = await getScriptDescription(file);
+    expect(desc).toBe("No shebang here");
+  });
+
+  it("returns empty for python empty docstring", async () => {
+    const file = path.join(tmpDir, "test.py");
+    fs.writeFileSync(file, '"""\n"""\nimport sys\n');
+    const desc = await getScriptDescription(file);
+    expect(desc).toBe("");
+  });
+
   it("listScripts includes descriptions", async () => {
     fs.writeFileSync(path.join(tmpDir, "search.sh"), "#!/bin/bash\n# Search flights\necho ok\n", {
       mode: 0o755,
